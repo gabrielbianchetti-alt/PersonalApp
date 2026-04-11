@@ -11,7 +11,7 @@ export default async function CobrancaPage() {
   const today = new Date()
   const mesAtual = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
-  const [{ data: alunos }, { data: cobrancasIniciais }, { data: prefs }] =
+  const [{ data: alunos }, { data: cobrancasIniciais }, { data: prefs }, { data: creditos }] =
     await Promise.all([
       supabase
         .from('alunos')
@@ -29,7 +29,20 @@ export default async function CobrancaPage() {
         .select('*')
         .eq('professor_id', user?.id ?? '')
         .maybeSingle(),
+      supabase
+        .from('faltas')
+        .select('aluno_id, credito_valor')
+        .eq('professor_id', user?.id ?? '')
+        .eq('status', 'credito'),
     ])
+
+  // Build creditos map: aluno_id → total credit value
+  const creditosPorAluno: Record<string, number> = {}
+  for (const row of (creditos ?? [])) {
+    if (row.credito_valor) {
+      creditosPorAluno[row.aluno_id] = (creditosPorAluno[row.aluno_id] ?? 0) + Number(row.credito_valor)
+    }
+  }
 
   return (
     <CobrancaMensal
@@ -37,6 +50,7 @@ export default async function CobrancaPage() {
       cobrancasIniciais={cobrancasIniciais ?? []}
       preferencias={prefs}
       mesInicial={mesAtual}
+      creditosPorAluno={creditosPorAluno}
     />
   )
 }

@@ -67,6 +67,7 @@ interface Props {
   cobrancasIniciais: CobrancaRow[]
   preferencias: Preferencias | null
   mesInicial: string // "2026-04"
+  creditosPorAluno?: Record<string, number>
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -156,7 +157,7 @@ function StatusBadge({
 
 // ─── main component ───────────────────────────────────────────────────────────
 
-export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesInicial }: Props) {
+export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesInicial, creditosPorAluno = {} }: Props) {
   const { year: y0, month: m0 } = parseMes(mesInicial)
   const [year, setYear]   = useState(y0)
   const [month, setMonth] = useState(m0)
@@ -442,6 +443,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
               const aulas        = aluno.modelo_cobranca === 'mensalidade' ? null : dates.length
               const total        = calcTotal(aluno, year, month)
               const diasLabels   = aluno.dias_semana.map(d => DIAS_SEMANA.find(s => s.key === d)?.label ?? d)
+              const credito      = creditosPorAluno[aluno.id] ?? 0
 
               return (
                 <div key={aluno.id}
@@ -488,6 +490,11 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                       <p className="text-sm font-bold" style={{ color: 'var(--green-primary)' }}>
                         {formatCurrency(total)}
                       </p>
+                      {credito > 0 && (
+                        <p className="text-xs font-medium" style={{ color: '#40C4FF' }}>
+                          -{formatCurrency(credito)} crédito
+                        </p>
+                      )}
                     </div>
 
                     {/* Status badge */}
@@ -505,9 +512,16 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                       {aulas !== null ? `${aulas} aulas` : 'Mensalidade'}
                     </span>
-                    <span className="text-sm font-bold" style={{ color: 'var(--green-primary)' }}>
-                      {formatCurrency(total)}
-                    </span>
+                    <div className="text-right">
+                      <span className="text-sm font-bold" style={{ color: 'var(--green-primary)' }}>
+                        {formatCurrency(total)}
+                      </span>
+                      {credito > 0 && (
+                        <p className="text-xs font-medium" style={{ color: '#40C4FF' }}>
+                          -{formatCurrency(credito)} crédito
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Expanded message area */}
