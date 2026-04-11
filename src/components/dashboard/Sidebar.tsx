@@ -75,7 +75,7 @@ const NAV_ITEMS = [
         <polyline points="17 6 23 6 23 12" />
       </svg>
     ),
-    enabled: false,
+    enabled: true,
   },
 ]
 
