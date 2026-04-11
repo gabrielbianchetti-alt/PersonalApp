@@ -53,7 +53,7 @@ const NAV_ITEMS = [
         <line x1="3" y1="10" x2="21" y2="10" />
       </svg>
     ),
-    enabled: false,
+    enabled: true,
   },
   {
     href: '/dashboard/cobranca',
