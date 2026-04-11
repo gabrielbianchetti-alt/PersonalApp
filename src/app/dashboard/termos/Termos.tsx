@@ -5,10 +5,8 @@ import {
   registrarEnvioAction,
   saveModeloAction,
   getHistoricoAction,
-  type ModeloTermo,
-  type TermoEnviado,
-  type ModeloTipo,
 } from './actions'
+import type { ModeloTermo, TermoEnviado, ModeloTipo } from './types'
 import { DIAS_LABEL, formatCurrency, formatDate } from '@/types/aluno'
 
 // ─── types ────────────────────────────────────────────────────────────────────

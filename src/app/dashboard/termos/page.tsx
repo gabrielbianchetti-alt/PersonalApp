@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { seedModelosIfNeeded } from './actions'
 import { Termos } from './Termos'
-import type { ModeloTermo, TermoEnviado } from './actions'
+import type { ModeloTermo, TermoEnviado } from './types'
 
 export const metadata: Metadata = { title: 'Termos de Serviço — PersonalHub' }
 
