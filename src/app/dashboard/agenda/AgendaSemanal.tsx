@@ -1,22 +1,36 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragStartEvent,
+  type DragMoveEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core'
 import { createClient } from '@/lib/supabase/client'
 import {
   createEventoAction,
   updateEventoAction,
   deleteEventoAction,
+  updateAlunoScheduleAction,
   type EventoTipo,
   type EventoAgendaRow,
 } from './actions'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
-const HOUR_PX     = 64                        // pixels per hour
-const MIN_PX      = HOUR_PX / 60              // ~1.0667 px per minute
-const GRID_START  = 5 * 60 + 30              // 330 min = 5:30
-const GRID_END    = 22 * 60                  // 1320 min = 22:00
-const GRID_TOTAL  = GRID_END - GRID_START    // 990 min
+const HOUR_PX    = 64
+const MIN_PX     = HOUR_PX / 60
+const GRID_START = 5 * 60 + 30   // 330 min = 5:30
+const GRID_END   = 22 * 60       // 1320 min = 22:00
+const GRID_TOTAL = GRID_END - GRID_START
 
 const WEEK_KEYS   = ['seg','ter','qua','qui','sex','sab','dom'] as const
 const WEEK_LABELS = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
@@ -64,12 +78,43 @@ interface AlunoAgenda {
   observacoes: string | null
 }
 
+interface DragData {
+  blockType: 'aluno' | 'evento'
+  aluno?: AlunoAgenda
+  evento?: EventoAgendaRow
+  dayIdx: number
+  startMin: number
+  duracao: number
+}
+interface DropData { dayIdx: number }
+
+interface ActiveBlock extends DragData { id: string }
+
+interface DropTarget {
+  dayIdx: number
+  timeMin: number
+  duracao: number
+  valid: boolean
+}
+
+interface MoveConfirm {
+  blockType: 'aluno' | 'evento'
+  aluno?: AlunoAgenda
+  evento?: EventoAgendaRow
+  fromDayIdx: number
+  fromTimeMin: number
+  toDayIdx: number
+  toTimeMin: number
+  duracao: number
+}
+
 type Modal =
-  | { type: 'add'; dayIdx: number; date: Date; timeMin: number }
-  | { type: 'aluno-card'; aluno: AlunoAgenda; dayIdx: number; date: Date }
+  | { type: 'add';         dayIdx: number; date: Date; timeMin: number }
+  | { type: 'aluno-card';  aluno: AlunoAgenda; dayIdx: number; date: Date }
   | { type: 'evento-card'; evento: EventoAgendaRow; alunoNome?: string }
-  | { type: 'edit'; evento: EventoAgendaRow }
+  | { type: 'edit';        evento: EventoAgendaRow }
   | { type: 'slots' }
+  | { type: 'move-confirm'; confirm: MoveConfirm }
   | null
 
 interface Props {
@@ -82,16 +127,12 @@ interface Props {
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-
 function timeToMin(t: string): number {
-  const [h, m] = t.split(':').map(Number)
-  return h * 60 + m
+  const [h, m] = t.split(':').map(Number); return h * 60 + m
 }
-
 function minToTime(m: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 }
-
 function toPx(min: number): number { return min * MIN_PX }
 
 function getWeekDays(offset: number): Date[] {
@@ -106,76 +147,108 @@ function getWeekDays(offset: number): Date[] {
   })
 }
 
-function formatDayHeader(d: Date): string {
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
-function isToday(d: Date): boolean {
-  const t = new Date()
-  return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear()
+function formatDay(d: Date): string {
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`
 }
 
 function computeLayout(blocks: { id: string; startMin: number; endMin: number }[]) {
   const result: Record<string, { left: number; width: number }> = {}
   blocks.forEach((b) => {
-    const overlapping = blocks.filter(
-      (o) => o.id !== b.id && o.startMin < b.endMin && o.endMin > b.startMin
-    )
+    const overlapping = blocks.filter((o) => o.id !== b.id && o.startMin < b.endMin && o.endMin > b.startMin)
     const group = [...overlapping, b].sort((a, c) => a.id < c.id ? -1 : 1)
     const colIdx = group.findIndex((g) => g.id === b.id)
-    const total  = group.length
-    result[b.id] = { left: (colIdx / total) * 100, width: (1 / total) * 100 }
+    result[b.id] = { left: (colIdx / group.length) * 100, width: (1 / group.length) * 100 }
   })
   return result
 }
 
-function getFreeSlotsForDay(
-  dayIdx: number,
-  weekDays: Date[],
-  alunos: AlunoAgenda[],
-  eventos: EventoAgendaRow[]
-): string[] {
+function getFreeSlotsForDay(dayIdx: number, weekDays: Date[], alunos: AlunoAgenda[], eventos: EventoAgendaRow[]): string[] {
   const dayKey  = WEEK_KEYS[dayIdx]
   const cfg     = DAY_CFG[dayKey]
   const dateStr = toDateStr(weekDays[dayIdx])
-
   const busy: [number, number][] = []
   for (const a of alunos) {
     if (a.dias_semana.includes(dayKey)) {
-      const s = timeToMin(a.horario_inicio)
-      busy.push([s, s + a.duracao])
+      const s = timeToMin(a.horario_inicio); busy.push([s, s + a.duracao])
     }
   }
   for (const e of eventos) {
     if (e.dia_semana === dayKey || e.data_especifica === dateStr) {
-      const s = timeToMin(e.horario_inicio)
-      busy.push([s, s + e.duracao])
+      const s = timeToMin(e.horario_inicio); busy.push([s, s + e.duracao])
     }
   }
-
   const free: string[] = []
   for (let t = cfg.start; t + 30 <= cfg.end; t += 30) {
-    if (!busy.some(([s, e]) => s < t + 30 && e > t)) {
-      free.push(minToTime(t))
-    }
+    if (!busy.some(([s, e]) => s < t + 30 && e > t)) free.push(minToTime(t))
   }
   return free
 }
 
-// ─── sub-components ───────────────────────────────────────────────────────────
+// ─── DraggableBlock ────────────────────────────────────────────────────────────
+
+function DraggableBlock({
+  id, data, style, className, onClick, children,
+}: {
+  id: string
+  data: DragData
+  style?: React.CSSProperties
+  className?: string
+  onClick?: (e: React.MouseEvent) => void
+  children: React.ReactNode
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data: data as unknown as Record<string, unknown> })
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      data-block="true"
+      onClick={onClick}
+      style={{ ...style, opacity: isDragging ? 0 : 1, touchAction: 'none', userSelect: 'none' }}
+      className={className}
+    >
+      {children}
+    </div>
+  )
+}
+
+// ─── DroppableDay ──────────────────────────────────────────────────────────────
+
+function DroppableDay({
+  dayIdx, children, style, className, onClick, onMouseMove, onMouseLeave,
+}: {
+  dayIdx: number
+  children: React.ReactNode
+  style?: React.CSSProperties
+  className?: string
+  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void
+  onMouseMove?: (e: React.MouseEvent<HTMLDivElement>) => void
+  onMouseLeave?: () => void
+}) {
+  const { setNodeRef } = useDroppable({ id: `day-col-${dayIdx}`, data: { dayIdx } as DropData })
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={className}
+      onClick={onClick}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+    >
+      {children}
+    </div>
+  )
+}
+
+// ─── shared modal primitives ──────────────────────────────────────────────────
 
 function Overlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-6"
-      style={{ background: 'rgba(0,0,0,0.65)' }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full sm:max-w-md rounded-2xl overflow-hidden"
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-6"
+      style={{ background: 'rgba(0,0,0,0.65)' }} onClick={onClose}>
+      <div className="w-full sm:max-w-md rounded-2xl overflow-hidden"
         style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
+        onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>
@@ -194,6 +267,98 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
         </svg>
       </button>
     </div>
+  )
+}
+
+// ─── MoveConfirmModal ─────────────────────────────────────────────────────────
+
+function MoveConfirmModal({
+  confirm, onClose, onThisWeek, onPermanent, saving,
+}: {
+  confirm: MoveConfirm
+  onClose: () => void
+  onThisWeek: () => void
+  onPermanent: () => void
+  saving: boolean
+}) {
+  const [step, setStep] = useState<'confirm' | 'scope'>('confirm')
+  const name      = confirm.aluno?.nome.split(' ')[0] ?? confirm.evento?.titulo ?? 'Evento'
+  const fromLabel = `${WEEK_LABELS[confirm.fromDayIdx]}, ${minToTime(confirm.fromTimeMin)}`
+  const toLabel   = `${WEEK_LABELS[confirm.toDayIdx]}, ${minToTime(confirm.toTimeMin)}`
+
+  return (
+    <Overlay onClose={onClose}>
+      {step === 'confirm' ? (
+        <>
+          <ModalHeader title="Mover aula" onClose={onClose} />
+          <div className="p-5 flex flex-col gap-4">
+            <div className="rounded-xl p-4 text-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+              <p style={{ color: 'var(--text-secondary)' }}>
+                Mover aula de{' '}
+                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{name}</span>
+              </p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className="px-2.5 py-1 rounded-lg text-xs font-semibold"
+                  style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>{fromLabel}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+                <span className="px-2.5 py-1 rounded-lg text-xs font-semibold"
+                  style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>{toLabel}</span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl text-sm cursor-pointer"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                Cancelar
+              </button>
+              <button onClick={() => confirm.blockType === 'evento' ? onPermanent() : setStep('scope')}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+                style={{ background: 'var(--green-primary)', color: '#000' }}
+                disabled={saving}>
+                {saving ? 'Movendo...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <ModalHeader title="Aplicar mudança" onClose={onClose} />
+          <div className="p-5 flex flex-col gap-3">
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Como aplicar a mudança para{' '}
+              <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{name}</span>?
+            </p>
+            <button onClick={onThisWeek} disabled={saving}
+              className="w-full px-4 py-3.5 rounded-xl text-left cursor-pointer disabled:opacity-50 transition-colors"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-focus)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>📅 Apenas esta semana</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Cria uma reposição no novo horário só para esta semana</p>
+            </button>
+            <button onClick={onPermanent} disabled={saving}
+              className="w-full px-4 py-3.5 rounded-xl text-left cursor-pointer disabled:opacity-50 transition-colors"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--green-primary)'; e.currentTarget.style.background = 'var(--green-muted)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'var(--bg-card)' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--green-primary)' }}>🔄 Permanentemente</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Altera o horário fixo do aluno no cadastro</p>
+            </button>
+            {saving && (
+              <div className="flex items-center justify-center gap-2 py-2">
+                <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity=".25" strokeWidth="3"/>
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--green-primary)" strokeWidth="3" strokeLinecap="round"/>
+                </svg>
+                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Salvando...</span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </Overlay>
   )
 }
 
@@ -216,9 +381,10 @@ function AddEventModal({
   const [saving, setSaving]   = useState(false)
   const [err, setErr]         = useState('')
 
-  const dateStr = toDateStr(date)
-  const timeStr = minToTime(timeMin)
-  const dayLabel = `${WEEK_LABELS[dayIdx]} ${formatDayHeader(date)}`
+  const dateStr  = toDateStr(date)
+  const timeStr  = minToTime(timeMin)
+  const dayLabel = `${WEEK_LABELS[dayIdx]} ${formatDay(date)}`
+  const DURACAO_OPTS = [30, 45, 60, 90, 120]
 
   async function save() {
     setSaving(true); setErr('')
@@ -229,10 +395,7 @@ function AddEventModal({
       payload = {
         tipo: step === 'aula' ? 'aula' : 'reposicao',
         titulo: `${step === 'aula' ? 'Aula' : 'Reposição'} — ${aluno.nome.split(' ')[0]}`,
-        aluno_id: aluno.id,
-        data_especifica: dateStr,
-        horario_inicio: timeStr,
-        duracao,
+        aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: timeStr, duracao,
       }
     } else {
       if (!titulo.trim()) { setErr('Informe um título.'); setSaving(false); return }
@@ -244,25 +407,24 @@ function AddEventModal({
     onSaved(res.data!)
   }
 
-  const DURACAO_OPTS = [30, 45, 60, 90, 120]
-
   return (
     <Overlay onClose={onClose}>
       <ModalHeader title={`Novo evento · ${dayLabel} · ${timeStr}`} onClose={onClose} />
       <div className="p-5 flex flex-col gap-4">
         {step === 'choose' && (
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { id: 'aula',      label: '📅 Marcar aula',  color: TIPO_COLOR.aula },
-              { id: 'reposicao', label: '🔁 Reposição',    color: TIPO_COLOR.reposicao },
-              { id: 'outro',     label: '➕ Outros',       color: TIPO_COLOR.outro },
-            ].map(opt => (
-              <button key={opt.id} onClick={() => setStep(opt.id as typeof step)}
+            {([
+              { id: 'aula',      label: '📅 Marcar aula', color: TIPO_COLOR.aula },
+              { id: 'reposicao', label: '🔁 Reposição',   color: TIPO_COLOR.reposicao },
+              { id: 'outro',     label: '➕ Outros',      color: TIPO_COLOR.outro },
+            ] as const).map(opt => (
+              <button key={opt.id} onClick={() => setStep(opt.id)}
                 className="flex flex-col items-center gap-2 py-4 rounded-xl cursor-pointer transition-colors text-xs font-semibold"
-                style={{ background: 'var(--bg-card)', border: `1px solid var(--border-subtle)`, color: opt.color }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = opt.color)}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
-              >{opt.label}</button>
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: opt.color }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = opt.color}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}>
+                {opt.label}
+              </button>
             ))}
           </div>
         )}
@@ -278,8 +440,7 @@ function AddEventModal({
                     <label key={a.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer"
                       style={{ background: alunoId === a.id ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${alunoId === a.id ? 'rgba(0,230,118,0.2)' : 'var(--border-subtle)'}` }}>
                       <input type="radio" name="aluno" value={a.id} checked={alunoId === a.id}
-                        onChange={() => { setAlunoId(a.id); setDuracao(a.duracao) }}
-                        className="accent-[#00E676]" />
+                        onChange={() => { setAlunoId(a.id); setDuracao(a.duracao) }} className="accent-[#00E676]" />
                       <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{a.nome}</span>
                       <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{a.local}</span>
                     </label>
@@ -294,7 +455,7 @@ function AddEventModal({
                   <button key={d} onClick={() => setDuracao(d)}
                     className="flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer"
                     style={{ background: duracao === d ? 'var(--green-primary)' : 'var(--bg-card)', color: duracao === d ? '#000' : 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
-                    {d < 60 ? `${d}m` : `${d/60}h`}{d === 90 ? '30' : ''}
+                    {d < 60 ? `${d}m` : d === 60 ? '1h' : d === 90 ? '1h30' : '2h'}
                   </button>
                 ))}
               </div>
@@ -309,12 +470,12 @@ function AddEventModal({
               <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex: Reunião, Almoço..."
                 className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
-                onFocus={e => { e.target.style.borderColor = 'var(--border-focus)' }}
-                onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)' }} />
+                onFocus={e => e.target.style.borderColor = 'var(--border-focus)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'} />
             </div>
             <div>
               <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Tipo</label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-4 gap-1.5">
                 {(['reuniao','bloqueado','refeicao','outro'] as EventoTipo[]).map(t => (
                   <button key={t} onClick={() => { setTipo(t); setCor(TIPO_COLOR[t]) }}
                     className="py-2 rounded-lg text-xs font-semibold cursor-pointer"
@@ -334,10 +495,10 @@ function AddEventModal({
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="flex gap-1.5">
               {DURACAO_OPTS.map(d => (
                 <button key={d} onClick={() => setDuracao(d)}
-                  className="py-2 rounded-lg text-xs font-semibold cursor-pointer"
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer"
                   style={{ background: duracao === d ? 'var(--green-primary)' : 'var(--bg-card)', color: duracao === d ? '#000' : 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
                   {d < 60 ? `${d}m` : d === 60 ? '1h' : d === 90 ? '1h30' : '2h'}
                 </button>
@@ -347,9 +508,7 @@ function AddEventModal({
               <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Observação (opcional)</label>
               <textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} placeholder="..."
                 className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
-                onFocus={e => { e.target.style.borderColor = 'var(--border-focus)' }}
-                onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)' }} />
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }} />
             </div>
           </>
         )}
@@ -386,27 +545,22 @@ function AlunoCardModal({
   onCancelado: (ev: EventoAgendaRow) => void
   onSaved: (ev: EventoAgendaRow) => void
 }) {
-  const [saving, setSaving] = useState(false)
+  const [saving,  setSaving]  = useState(false)
   const [obsMode, setObsMode] = useState(false)
-  const [obs, setObs] = useState(aluno.observacoes ?? '')
+  const [obs,     setObs]     = useState(aluno.observacoes ?? '')
   const supabase = createClient()
 
   const dateStr = toDateStr(date)
   const isCancelled = eventos.some(e =>
-    e.tipo === 'bloqueado' &&
-    e.data_especifica === dateStr &&
+    e.tipo === 'bloqueado' && e.data_especifica === dateStr &&
     timeToMin(e.horario_inicio) === timeToMin(aluno.horario_inicio)
   )
 
   async function handleCancelar() {
     setSaving(true)
     const res = await createEventoAction({
-      tipo: 'bloqueado',
-      titulo: `Aula cancelada — ${aluno.nome.split(' ')[0]}`,
-      aluno_id: aluno.id,
-      data_especifica: dateStr,
-      horario_inicio: aluno.horario_inicio,
-      duracao: aluno.duracao,
+      tipo: 'bloqueado', titulo: `Aula cancelada — ${aluno.nome.split(' ')[0]}`,
+      aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: aluno.horario_inicio, duracao: aluno.duracao,
     })
     setSaving(false)
     if (res.data) { onCancelado(res.data); onClose() }
@@ -415,13 +569,8 @@ function AlunoCardModal({
   async function handleFalta() {
     setSaving(true)
     const res = await createEventoAction({
-      tipo: 'outro',
-      titulo: `Falta — ${aluno.nome.split(' ')[0]}`,
-      aluno_id: aluno.id,
-      data_especifica: dateStr,
-      horario_inicio: aluno.horario_inicio,
-      duracao: 15,
-      cor: '#FF5252',
+      tipo: 'outro', titulo: `Falta — ${aluno.nome.split(' ')[0]}`,
+      aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: aluno.horario_inicio, duracao: 15, cor: '#FF5252',
     })
     setSaving(false)
     if (res.data) { onSaved(res.data); onClose() }
@@ -430,8 +579,7 @@ function AlunoCardModal({
   async function handleSaveObs() {
     setSaving(true)
     await supabase.from('alunos').update({ observacoes: obs }).eq('id', aluno.id)
-    setSaving(false)
-    setObsMode(false)
+    setSaving(false); setObsMode(false)
   }
 
   const PLANO_LABEL: Record<string, string> = { por_aula: 'Por aula', mensalidade: 'Mensalidade' }
@@ -440,23 +588,19 @@ function AlunoCardModal({
     <Overlay onClose={onClose}>
       <ModalHeader title={aluno.nome} onClose={onClose} />
       <div className="p-5 flex flex-col gap-4">
-        {/* Info */}
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: 'Horário', value: `${aluno.horario_inicio} (${aluno.duracao}min)` },
             { label: 'Local',   value: aluno.local || '—' },
             { label: 'Plano',   value: PLANO_LABEL[aluno.modelo_cobranca] ?? aluno.modelo_cobranca },
-            { label: 'Data',    value: `${WEEK_LABELS[dayIdx]} ${formatDayHeader(date)}` },
+            { label: 'Data',    value: `${WEEK_LABELS[dayIdx]} ${formatDay(date)}` },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl p-3"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+            <div key={label} className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
               <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</p>
             </div>
           ))}
         </div>
-
-        {/* Obs */}
         {!obsMode && aluno.observacoes && (
           <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
             <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Observações</p>
@@ -482,30 +626,20 @@ function AlunoCardModal({
             </div>
           </div>
         )}
-
-        {/* Actions */}
         {!obsMode && (
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={handleFalta} disabled={saving || isCancelled}
-              className="py-2.5 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-40"
-              style={{ background: 'rgba(255,82,82,0.1)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.2)' }}>
-              ✗ Falta justificada
-            </button>
-            <button onClick={onReagendar}
-              className="py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
-              style={{ background: 'rgba(64,196,255,0.1)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}>
-              ↺ Reagendar
-            </button>
-            <button onClick={() => setObsMode(true)}
-              className="py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
-              style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
-              📝 Observação
-            </button>
-            <button onClick={handleCancelar} disabled={saving || isCancelled}
-              className="py-2.5 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-40"
-              style={{ background: 'rgba(255,82,82,0.1)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.2)' }}>
-              {isCancelled ? 'Já cancelada' : '⊘ Cancelar aula'}
-            </button>
+            {[
+              { label: '✗ Falta justificada', action: handleFalta,   color: '#FF5252',     bg: 'rgba(255,82,82,0.1)',   border: 'rgba(255,82,82,0.2)', disabled: saving || isCancelled },
+              { label: '↺ Reagendar',          action: onReagendar,   color: '#40C4FF',     bg: 'rgba(64,196,255,0.1)', border: 'rgba(64,196,255,0.2)', disabled: false },
+              { label: '📝 Observação',        action: ()=>setObsMode(true), color: 'var(--text-secondary)', bg: 'var(--bg-card)', border: 'var(--border-subtle)', disabled: false },
+              { label: isCancelled ? 'Já cancelada' : '⊘ Cancelar aula', action: handleCancelar, color: '#FF5252', bg: 'rgba(255,82,82,0.1)', border: 'rgba(255,82,82,0.2)', disabled: saving || isCancelled },
+            ].map(({ label, action, color, bg, border, disabled }) => (
+              <button key={label} onClick={action} disabled={disabled}
+                className="py-2.5 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-40"
+                style={{ background: bg, color, border: `1px solid ${border}` }}>
+                {label}
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -528,9 +662,7 @@ function EventoCardModal({
     if (!confirm('Remover este evento?')) return
     setSaving(true)
     await deleteEventoAction(evento.id)
-    setSaving(false)
-    onDeleted(evento.id)
-    onClose()
+    setSaving(false); onDeleted(evento.id); onClose()
   }
 
   return (
@@ -547,21 +679,18 @@ function EventoCardModal({
               : { label: 'Dia fixo', value: WEEK_LABELS[WEEK_KEYS.indexOf(evento.dia_semana as DayKey)] ?? evento.dia_semana ?? '—' },
             { label: 'Aluno',    value: alunoNome ?? '—' },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl p-3"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+            <div key={label} className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
               <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</p>
             </div>
           ))}
         </div>
-
         {evento.observacao && (
           <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
             <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Observação</p>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{evento.observacao}</p>
           </div>
         )}
-
         <div className="flex gap-2">
           <button onClick={onEditar}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
@@ -584,8 +713,7 @@ function EventoCardModal({
 function EditEventoModal({
   evento, onClose, onSaved,
 }: {
-  evento: EventoAgendaRow; onClose: () => void
-  onSaved: (ev: EventoAgendaRow) => void
+  evento: EventoAgendaRow; onClose: () => void; onSaved: (ev: EventoAgendaRow) => void
 }) {
   const [titulo,  setTitulo]  = useState(evento.titulo)
   const [duracao, setDuracao] = useState(evento.duracao)
@@ -597,16 +725,12 @@ function EditEventoModal({
 
   async function save() {
     setSaving(true); setErr('')
-    const res = await updateEventoAction(evento.id, {
-      titulo: titulo.trim(), duracao, horario_inicio: hora, observacao: obs.trim() || null, cor,
-    })
+    const res = await updateEventoAction(evento.id, { titulo: titulo.trim(), duracao, horario_inicio: hora, observacao: obs.trim() || null, cor })
     setSaving(false)
     if (res.error) { setErr(res.error); return }
-    onSaved(res.data!)
-    onClose()
+    onSaved(res.data!); onClose()
   }
 
-  const DURACAO_OPTS = [30, 45, 60, 90, 120]
   return (
     <Overlay onClose={onClose}>
       <ModalHeader title="Editar evento" onClose={onClose} />
@@ -631,7 +755,7 @@ function EditEventoModal({
             <select value={duracao} onChange={e => setDuracao(Number(e.target.value))}
               className="w-full px-4 py-2.5 rounded-xl text-sm outline-none cursor-pointer"
               style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}>
-              {DURACAO_OPTS.map(d => <option key={d} value={d}>{d < 60 ? `${d}min` : d === 60 ? '1h' : d === 90 ? '1h30' : '2h'}</option>)}
+              {[30,45,60,90,120].map(d => <option key={d} value={d}>{d < 60 ? `${d}min` : d === 60 ? '1h' : d === 90 ? '1h30' : '2h'}</option>)}
             </select>
           </div>
         </div>
@@ -679,7 +803,7 @@ function AvailableSlotsModal({
           return (
             <div key={dayIdx}>
               <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
-                {WEEK_LABELS[dayIdx]} {formatDayHeader(day)}
+                {WEEK_LABELS[dayIdx]} {formatDay(day)}
               </p>
               {slots.length === 0
                 ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Dia cheio</p>
@@ -710,17 +834,27 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   const [eventos, setEventos]           = useState<EventoAgendaRow[]>(eventosIniciais)
   const [modal, setModal]               = useState<Modal>(null)
   const [mobileDayIdx, setMobileDayIdx] = useState(() => {
-    const d = new Date().getDay()
-    return d === 0 ? 6 : d - 1  // convert Sun=0…Sat=6 → Mon-index 0…6
+    const d = new Date().getDay(); return d === 0 ? 6 : d - 1
   })
   const [hoverPos, setHoverPos]         = useState<{ dayIdx: number; y: number; timeMin: number } | null>(null)
   const [loadingWeek, setLoadingWeek]   = useState(false)
-  const isFirstMount                    = useRef(true)
 
-  const weekDays = getWeekDays(weekOffset)
-  const todayStr = toDateStr(new Date())
+  // ── DnD state ───────────────────────────────────────────────────────────────
+  const [activeBlock, setActiveBlock]   = useState<ActiveBlock | null>(null)
+  const [dropTarget, setDropTarget]     = useState<DropTarget | null>(null)
+  const [moveSaving, setMoveSaving]     = useState(false)
 
-  // Fetch eventos when week changes
+  const isFirstMount = useRef(true)
+  const weekDays     = getWeekDays(weekOffset)
+  const todayStr     = toDateStr(new Date())
+
+  // ── DnD sensors ─────────────────────────────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 8 } })
+  )
+
+  // ── Fetch eventos on week change ─────────────────────────────────────────────
   useEffect(() => {
     if (isFirstMount.current) { isFirstMount.current = false; return }
     setLoadingWeek(true)
@@ -731,59 +865,171 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
       .from('eventos_agenda')
       .select('*')
       .or(`dia_semana.not.is.null,and(data_especifica.gte.${start},data_especifica.lte.${end})`)
-      .then(({ data }) => {
-        setEventos(data ?? [])
-        setLoadingWeek(false)
-      })
+      .then(({ data }) => { setEventos(data ?? []); setLoadingWeek(false) })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekOffset])
 
-  // ── handlers ────────────────────────────────────────────────────────────────
+  // ── data mutators ────────────────────────────────────────────────────────────
+  const addEvento    = (ev: EventoAgendaRow) => setEventos(p => [...p, ev])
+  const updateEvento = (ev: EventoAgendaRow) => setEventos(p => p.map(e => e.id === ev.id ? ev : e))
+  const removeEvento = (id: string)          => setEventos(p => p.filter(e => e.id !== id))
 
-  function addEvento(ev: EventoAgendaRow) {
-    setEventos(prev => [...prev, ev])
+  // ── DnD handlers ─────────────────────────────────────────────────────────────
+
+  function handleDragStart({ active }: DragStartEvent) {
+    const d = active.data.current as DragData
+    setActiveBlock({ ...d, id: active.id as string })
+    setModal(null) // close any open modal
+  }
+
+  function handleDragMove({ active, over }: DragMoveEvent) {
+    if (!over || !active.rect.current.translated) { setDropTarget(null); return }
+    const d        = active.data.current as DragData
+    const dropData = over.data.current as DropData
+    const yInCol   = active.rect.current.translated.top - over.rect.top
+    const rawMin   = GRID_START + yInCol / MIN_PX
+    const snapped  = Math.round(rawMin / 30) * 30
+    const cfg      = DAY_CFG[WEEK_KEYS[dropData.dayIdx]]
+    const clamped  = Math.max(cfg.start, Math.min(cfg.end - d.duracao, snapped))
+    const valid    = snapped >= cfg.start && (snapped + d.duracao) <= cfg.end
+    setDropTarget({ dayIdx: dropData.dayIdx, timeMin: clamped, duracao: d.duracao, valid })
+  }
+
+  async function handleDragEnd({ active, over }: DragEndEvent) {
+    setActiveBlock(null)
+    setDropTarget(null)
+
+    if (!over || !active.rect.current.translated) return
+
+    const d        = active.data.current as DragData
+    const dropData = over.data.current as DropData
+
+    const yInCol  = active.rect.current.translated.top - over.rect.top
+    const rawMin  = GRID_START + yInCol / MIN_PX
+    const snapped = Math.round(rawMin / 30) * 30
+
+    const newDayIdx = dropData.dayIdx
+    const newDayKey = WEEK_KEYS[newDayIdx]
+    const cfg       = DAY_CFG[newDayKey]
+
+    // Validate range
+    if (snapped < cfg.start || snapped + d.duracao > cfg.end) return
+    const clamped = Math.max(cfg.start, Math.min(cfg.end - d.duracao, snapped))
+
+    // No movement
+    if (clamped === d.startMin && newDayIdx === d.dayIdx) return
+
+    if (d.blockType === 'evento' && d.evento) {
+      // Show confirmation (evento) - just confirm + move
+      setModal({
+        type: 'move-confirm',
+        confirm: {
+          blockType: 'evento',
+          evento: d.evento,
+          fromDayIdx: d.dayIdx,
+          fromTimeMin: d.startMin,
+          toDayIdx: newDayIdx,
+          toTimeMin: clamped,
+          duracao: d.duracao,
+        },
+      })
+    } else if (d.blockType === 'aluno' && d.aluno) {
+      setModal({
+        type: 'move-confirm',
+        confirm: {
+          blockType: 'aluno',
+          aluno: d.aluno,
+          fromDayIdx: d.dayIdx,
+          fromTimeMin: d.startMin,
+          toDayIdx: newDayIdx,
+          toTimeMin: clamped,
+          duracao: d.duracao,
+        },
+      })
+    }
+  }
+
+  // ── move handlers ─────────────────────────────────────────────────────────────
+
+  async function handleMoveEvento(confirm: MoveConfirm) {
+    if (!confirm.evento) return
+    setMoveSaving(true)
+    const ev         = confirm.evento
+    const newDayKey  = WEEK_KEYS[confirm.toDayIdx]
+    const newDateStr = toDateStr(weekDays[confirm.toDayIdx])
+    const update: Parameters<typeof updateEventoAction>[1] = {
+      horario_inicio: minToTime(confirm.toTimeMin),
+      ...(ev.data_especifica ? { data_especifica: newDateStr } : { dia_semana: newDayKey }),
+    }
+    const res = await updateEventoAction(ev.id, update)
+    setMoveSaving(false)
+    if (res.data) updateEvento(res.data)
     setModal(null)
   }
 
-  function updateEvento(ev: EventoAgendaRow) {
-    setEventos(prev => prev.map(e => e.id === ev.id ? ev : e))
+  async function handleMoveAlunoThisWeek(confirm: MoveConfirm) {
+    if (!confirm.aluno) return
+    setMoveSaving(true)
+    const a          = confirm.aluno
+    const oldDateStr = toDateStr(weekDays[confirm.fromDayIdx])
+    const newDateStr = toDateStr(weekDays[confirm.toDayIdx])
+    const [r1, r2]   = await Promise.all([
+      createEventoAction({
+        tipo: 'bloqueado', titulo: `Cancelado — ${a.nome.split(' ')[0]}`,
+        aluno_id: a.id, data_especifica: oldDateStr,
+        horario_inicio: a.horario_inicio, duracao: a.duracao,
+      }),
+      createEventoAction({
+        tipo: 'aula', titulo: `Reposição — ${a.nome.split(' ')[0]}`,
+        aluno_id: a.id, data_especifica: newDateStr,
+        horario_inicio: minToTime(confirm.toTimeMin), duracao: confirm.duracao,
+      }),
+    ])
+    setMoveSaving(false)
+    if (r1.data) addEvento(r1.data)
+    if (r2.data) addEvento(r2.data)
+    setModal(null)
   }
 
-  function removeEvento(id: string) {
-    setEventos(prev => prev.filter(e => e.id !== id))
+  async function handleMoveAlunoPermanent(confirm: MoveConfirm) {
+    if (!confirm.aluno) return
+    setMoveSaving(true)
+    const res = await updateAlunoScheduleAction(
+      confirm.aluno.id,
+      WEEK_KEYS[confirm.fromDayIdx],
+      WEEK_KEYS[confirm.toDayIdx],
+      minToTime(confirm.toTimeMin)
+    )
+    setMoveSaving(false)
+    if (!res.error) { setModal(null); window.location.reload() }
   }
+
+  // ── column click / hover (non-drag interactions) ─────────────────────────────
 
   function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, dayIdx: number) {
     if ((e.target as HTMLElement).closest('[data-block]')) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const y = e.clientY - rect.top
-    const raw = GRID_START + y / MIN_PX
+    const rect    = e.currentTarget.getBoundingClientRect()
+    const raw     = GRID_START + (e.clientY - rect.top) / MIN_PX
     const snapped = Math.round(raw / 30) * 30
-    const cfg = DAY_CFG[WEEK_KEYS[dayIdx]]
+    const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
     if (snapped < cfg.start || snapped >= cfg.end) return
     setModal({ type: 'add', dayIdx, date: weekDays[dayIdx], timeMin: snapped })
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>, dayIdx: number) {
-    if ((e.target as HTMLElement).closest('[data-block]')) { setHoverPos(null); return }
-    const rect = e.currentTarget.getBoundingClientRect()
-    const y = e.clientY - rect.top
-    const raw = GRID_START + y / MIN_PX
+    if ((e.target as HTMLElement).closest('[data-block]') || activeBlock) { setHoverPos(null); return }
+    const rect    = e.currentTarget.getBoundingClientRect()
+    const raw     = GRID_START + (e.clientY - rect.top) / MIN_PX
     const snapped = Math.round(raw / 30) * 30
-    const cfg = DAY_CFG[WEEK_KEYS[dayIdx]]
+    const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
     if (snapped < cfg.start || snapped >= cfg.end) { setHoverPos(null); return }
     setHoverPos({ dayIdx, y: toPx(snapped - GRID_START), timeMin: snapped })
   }
 
   // ── grid rendering ─────────────────────────────────────────────────────────
 
-  // Hour labels: 6:00 to 22:00
-  const hourLabels = Array.from({ length: 17 }, (_, i) => {
-    const h = i + 6
-    return { label: `${h}:00`, top: toPx(h * 60 - GRID_START) }
-  })
-
-  const gridHeight = toPx(GRID_TOTAL)
+  const hourLabels  = Array.from({ length: 17 }, (_, i) => ({ label: `${i+6}:00`, top: toPx((i+6)*60 - GRID_START) }))
+  const gridHeight  = toPx(GRID_TOTAL)
 
   function renderDayColumn(dayIdx: number) {
     const dayKey  = WEEK_KEYS[dayIdx]
@@ -791,13 +1037,16 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
     const dateStr = toDateStr(weekDays[dayIdx])
     const day     = weekDays[dayIdx]
 
-    // Aluno blocks (only if not cancelled)
-    type BlockItem = { id: string; startMin: number; endMin: number; isAluno: boolean; aluno?: AlunoAgenda; evento?: EventoAgendaRow }
+    type BlockItem = {
+      id: string; startMin: number; endMin: number
+      isAluno: boolean; aluno?: AlunoAgenda; evento?: EventoAgendaRow
+    }
     const allBlocks: BlockItem[] = []
 
+    // Aluno blocks (skip if cancelled)
     for (const a of alunos) {
       if (!a.dias_semana.includes(dayKey)) continue
-      const startMin = timeToMin(a.horario_inicio)
+      const startMin    = timeToMin(a.horario_inicio)
       const isCancelled = eventos.some(e =>
         e.tipo === 'bloqueado' && e.data_especifica === dateStr &&
         timeToMin(e.horario_inicio) === startMin
@@ -805,7 +1054,6 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
       if (isCancelled) continue
       allBlocks.push({ id: `a-${a.id}`, startMin, endMin: startMin + a.duracao, isAluno: true, aluno: a })
     }
-
     // Evento blocks
     for (const ev of eventos) {
       if (ev.dia_semana !== dayKey && ev.data_especifica !== dateStr) continue
@@ -813,20 +1061,20 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
       allBlocks.push({ id: `e-${ev.id}`, startMin, endMin: startMin + ev.duracao, isAluno: false, evento: ev })
     }
 
-    const layout = computeLayout(allBlocks)
+    const layout       = computeLayout(allBlocks)
     const closedTop    = toPx(cfg.start - GRID_START)
     const closedBottom = toPx(GRID_END - cfg.end)
     const isHovered    = hoverPos?.dayIdx === dayIdx
 
+    // Drop highlight in this column
+    const dropHere = dropTarget?.dayIdx === dayIdx ? dropTarget : null
+
     return (
-      <div
+      <DroppableDay
         key={dayIdx}
+        dayIdx={dayIdx}
         className="relative flex-1 border-l cursor-crosshair min-w-0"
-        style={{
-          height: gridHeight,
-          borderColor: 'var(--border-subtle)',
-          minWidth: 120,
-        }}
+        style={{ height: gridHeight, borderColor: 'var(--border-subtle)', minWidth: 120 }}
         onClick={(e) => handleColumnClick(e, dayIdx)}
         onMouseMove={(e) => handleMouseMove(e, dayIdx)}
         onMouseLeave={() => setHoverPos(null)}
@@ -836,26 +1084,34 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
           <div key={i} className="absolute left-0 right-0 pointer-events-none"
             style={{ top, borderTop: '1px solid var(--border-subtle)', opacity: 0.5 }} />
         ))}
-
-        {/* Half-hour lines */}
         {hourLabels.map(({ top }, i) => (
           <div key={`h-${i}`} className="absolute left-0 right-0 pointer-events-none"
             style={{ top: top + toPx(30), borderTop: '1px dashed var(--border-subtle)', opacity: 0.25 }} />
         ))}
 
-        {/* Closed top area */}
+        {/* Closed areas */}
         {closedTop > 0 && (
           <div className="absolute left-0 right-0 top-0 pointer-events-none"
             style={{ height: closedTop, background: 'rgba(0,0,0,0.25)', zIndex: 1 }} />
         )}
-        {/* Closed bottom area */}
         {closedBottom > 0 && (
           <div className="absolute left-0 right-0 bottom-0 pointer-events-none"
             style={{ height: closedBottom, background: 'rgba(0,0,0,0.25)', zIndex: 1 }} />
         )}
 
-        {/* Hover indicator */}
-        {isHovered && (
+        {/* Drop target highlight */}
+        {dropHere && (
+          <div className="absolute left-1 right-1 pointer-events-none rounded-lg z-10"
+            style={{
+              top:    toPx(dropHere.timeMin - GRID_START),
+              height: Math.max(toPx(dropHere.duracao), 24),
+              background: dropHere.valid ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)',
+              border: `2px dashed ${dropHere.valid ? '#00E676' : '#FF5252'}`,
+            }} />
+        )}
+
+        {/* Hover indicator (no drag active) */}
+        {isHovered && !activeBlock && (
           <div className="absolute left-0 right-0 pointer-events-none z-10"
             style={{ top: hoverPos!.y }}>
             <div style={{ borderTop: '1.5px dashed #00E676' }}>
@@ -869,29 +1125,29 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
         {/* Blocks */}
         {allBlocks.map((b) => {
-          const pos   = layout[b.id]
-          const top   = toPx(b.startMin - GRID_START)
+          const pos    = layout[b.id]
+          const top    = toPx(b.startMin - GRID_START)
           const height = Math.max(toPx(b.endMin - b.startMin), 24)
-          const left  = pos.left + 0.5
-          const width = pos.width - 1
+          const left   = pos.left + 0.5
+          const width  = pos.width - 1
 
           if (b.isAluno && b.aluno) {
             const a     = b.aluno
             const color = TIPO_COLOR.aula
+            const dragData: DragData = {
+              blockType: 'aluno', aluno: a,
+              dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
+            }
             return (
-              <div key={b.id} data-block="true"
-                onClick={(e) => { e.stopPropagation(); setModal({ type: 'aluno-card', aluno: a, dayIdx, date: day }) }}
-                className="absolute rounded-lg overflow-hidden cursor-pointer transition-opacity hover:opacity-90 select-none"
-                style={{ top, height, left: `${left}%`, width: `${width}%`, background: color + '20', borderLeft: `3px solid ${color}`, padding: '3px 5px', zIndex: 2 }}>
-                <p className="text-[11px] font-bold leading-tight truncate" style={{ color }}>
-                  {a.nome.split(' ')[0]}
-                </p>
-                {height > 26 && (
-                  <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>
-                    {a.horario_inicio} · {a.local}
-                  </p>
-                )}
-              </div>
+              <DraggableBlock key={b.id} id={b.id} data={dragData}
+                style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2 }}
+                onClick={(e) => { e.stopPropagation(); setModal({ type: 'aluno-card', aluno: a, dayIdx, date: day }) }}>
+                <div className="w-full h-full rounded-lg overflow-hidden"
+                  style={{ background: color + '20', borderLeft: `3px solid ${color}`, padding: '3px 5px', cursor: 'grab' }}>
+                  <p className="text-[11px] font-bold leading-tight truncate" style={{ color }}>{a.nome.split(' ')[0]}</p>
+                  {height > 26 && <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>{a.horario_inicio} · {a.local}</p>}
+                </div>
+              </DraggableBlock>
             )
           }
 
@@ -899,233 +1155,238 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
             const ev    = b.evento
             const color = ev.cor ?? TIPO_COLOR[ev.tipo]
             const alunoNome = alunos.find(a => a.id === ev.aluno_id)?.nome
+            const dragData: DragData = {
+              blockType: 'evento', evento: ev,
+              dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
+            }
             return (
-              <div key={b.id} data-block="true"
-                onClick={(e) => { e.stopPropagation(); setModal({ type: 'evento-card', evento: ev, alunoNome }) }}
-                className="absolute rounded-lg overflow-hidden cursor-pointer transition-opacity hover:opacity-90 select-none"
-                style={{ top, height, left: `${left}%`, width: `${width}%`, background: color + '20', borderLeft: `3px solid ${color}`, padding: '3px 5px', zIndex: 2 }}>
-                <p className="text-[11px] font-bold leading-tight truncate" style={{ color }}>
-                  {ev.titulo}
-                </p>
-                {height > 26 && alunoNome && (
-                  <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>
-                    {alunoNome.split(' ')[0]}
-                  </p>
-                )}
-              </div>
+              <DraggableBlock key={b.id} id={b.id} data={dragData}
+                style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2 }}
+                onClick={(e) => { e.stopPropagation(); setModal({ type: 'evento-card', evento: ev, alunoNome }) }}>
+                <div className="w-full h-full rounded-lg overflow-hidden"
+                  style={{ background: color + '20', borderLeft: `3px solid ${color}`, padding: '3px 5px', cursor: 'grab' }}>
+                  <p className="text-[11px] font-bold leading-tight truncate" style={{ color }}>{ev.titulo}</p>
+                  {height > 26 && alunoNome && <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>{alunoNome.split(' ')[0]}</p>}
+                </div>
+              </DraggableBlock>
             )
           }
           return null
         })}
+      </DroppableDay>
+    )
+  }
+
+  // ── drag overlay ghost ─────────────────────────────────────────────────────
+
+  function renderDragOverlay() {
+    if (!activeBlock) return null
+    const color  = activeBlock.blockType === 'aluno' ? TIPO_COLOR.aula : (activeBlock.evento?.cor ?? TIPO_COLOR[activeBlock.evento?.tipo ?? 'outro'])
+    const height = Math.max(toPx(activeBlock.duracao), 24)
+    const label  = activeBlock.blockType === 'aluno' ? activeBlock.aluno!.nome.split(' ')[0] : activeBlock.evento!.titulo
+    const sub    = activeBlock.blockType === 'aluno' ? activeBlock.aluno!.local : TIPO_LABEL[activeBlock.evento!.tipo]
+    return (
+      <div style={{
+        width: 150, height,
+        background: color + '30',
+        border: `2px solid ${color}`,
+        borderRadius: 8,
+        padding: '3px 7px',
+        boxShadow: `0 8px 24px rgba(0,0,0,0.4), 0 0 0 2px ${color}44`,
+        opacity: 0.92,
+        pointerEvents: 'none',
+      }}>
+        <p style={{ color, fontSize: 12, fontWeight: 700, lineHeight: 1.3 }}>{label}</p>
+        {height > 32 && <p style={{ color: color + 'cc', fontSize: 10, marginTop: 2 }}>{minToTime(activeBlock.startMin)} · {sub}</p>}
       </div>
     )
   }
 
-  // Week range label
-  const weekLabel = `${formatDayHeader(weekDays[0])} – ${formatDayHeader(weekDays[6])}`
+  const weekLabel = `${formatDay(weekDays[0])} – ${formatDay(weekDays[6])}`
 
   // ── render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 md:px-6 py-3 shrink-0"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Agenda</h1>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Semana {weekLabel}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Available slots button */}
-          <button onClick={() => setModal({ type: 'slots' })}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            Ver disponíveis
-          </button>
-          {/* Week nav */}
-          {[
-            { label: '‹', delta: -1, title: 'Semana anterior' },
-            { label: 'Hoje', delta: -weekOffset, title: 'Ir para hoje' },
-            { label: '›', delta: 1,  title: 'Próxima semana' },
-          ].map(({ label, delta, title }) => (
-            <button key={label} title={title}
-              onClick={() => setWeekOffset(w => w + delta)}
-              className="px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
-              style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-focus)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Mobile: day tabs */}
-      <div className="md:hidden flex overflow-x-auto shrink-0"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-        {weekDays.map((day, i) => {
-          const isTodayDay = toDateStr(day) === todayStr
-          const isActive   = mobileDayIdx === i
-          return (
-            <button key={i} onClick={() => setMobileDayIdx(i)}
-              className="flex-shrink-0 flex flex-col items-center px-4 py-2.5 text-xs font-semibold cursor-pointer transition-colors"
-              style={{
-                color: isActive ? 'var(--green-primary)' : 'var(--text-secondary)',
-                borderBottom: isActive ? '2px solid var(--green-primary)' : '2px solid transparent',
-                background: 'transparent',
-              }}>
-              <span>{WEEK_LABELS[i]}</span>
-              <span className="mt-0.5" style={{
-                background: isTodayDay ? 'var(--green-primary)' : 'transparent',
-                color: isTodayDay ? '#000' : 'inherit',
-                borderRadius: '50%',
-                width: 22, height: 22,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: isTodayDay ? 700 : 500,
-              }}>
-                {day.getDate()}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Grid area */}
-      <div className="flex-1 overflow-hidden relative">
-        {loadingWeek && (
-          <div className="absolute inset-0 flex items-center justify-center z-20"
-            style={{ background: 'rgba(0,0,0,0.3)' }}>
-            <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity=".25" strokeWidth="3"/>
-              <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--green-primary)" strokeWidth="3" strokeLinecap="round"/>
-            </svg>
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 shrink-0"
+          style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Agenda</h1>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Semana {weekLabel}</p>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <button onClick={() => setModal({ type: 'slots' })}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Ver disponíveis
+            </button>
+            {[
+              { label: '‹', delta: -1 },
+              { label: 'Hoje', delta: -weekOffset },
+              { label: '›', delta: 1 },
+            ].map(({ label, delta }) => (
+              <button key={label} onClick={() => setWeekOffset(w => w + delta)}
+                className="px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-focus)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <div className="overflow-auto h-full" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {/* Desktop grid */}
-          <div className="hidden md:flex flex-col" style={{ minWidth: 900 }}>
-            {/* Day headers – sticky */}
-            <div className="flex sticky top-0 z-10 shrink-0"
-              style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
-              <div className="shrink-0" style={{ width: 52 }} />
-              {weekDays.map((day, i) => {
-                const key      = WEEK_KEYS[i]
-                const isTodayDay = toDateStr(day) === todayStr
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center py-2 border-l text-center"
-                    style={{ borderColor: 'var(--border-subtle)', minWidth: 120 }}>
-                    <span className="text-xs font-medium" style={{ color: isTodayDay ? 'var(--green-primary)' : 'var(--text-muted)' }}>
-                      {WEEK_LABELS[i]}
-                    </span>
-                    <span className="text-lg font-bold mt-0.5" style={{ color: isTodayDay ? 'var(--green-primary)' : 'var(--text-primary)' }}>
-                      {day.getDate()}
-                    </span>
-                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      {String(day.getMonth() + 1).padStart(2, '0')}/{day.getFullYear()}
-                    </span>
-                    <span className="text-[10px] mt-0.5 px-1.5 py-px rounded"
-                      style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}>
-                      {minToTime(DAY_CFG[key].start)}–{minToTime(DAY_CFG[key].end)}
-                    </span>
-                  </div>
-                )
-              })}
+        {/* Mobile day tabs */}
+        <div className="md:hidden flex overflow-x-auto shrink-0"
+          style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          {weekDays.map((day, i) => {
+            const isTodayDay = toDateStr(day) === todayStr
+            const isActive   = mobileDayIdx === i
+            return (
+              <button key={i} onClick={() => setMobileDayIdx(i)}
+                className="flex-shrink-0 flex flex-col items-center px-4 py-2.5 text-xs font-semibold cursor-pointer"
+                style={{ color: isActive ? 'var(--green-primary)' : 'var(--text-secondary)', borderBottom: isActive ? '2px solid var(--green-primary)' : '2px solid transparent', background: 'transparent' }}>
+                <span>{WEEK_LABELS[i]}</span>
+                <span className="mt-0.5" style={{
+                  background: isTodayDay ? 'var(--green-primary)' : 'transparent',
+                  color: isTodayDay ? '#000' : 'inherit',
+                  borderRadius: '50%', width: 22, height: 22,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: isTodayDay ? 700 : 500,
+                }}>{day.getDate()}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Grid */}
+        <div className="flex-1 overflow-hidden relative">
+          {loadingWeek && (
+            <div className="absolute inset-0 flex items-center justify-center z-20"
+              style={{ background: 'rgba(0,0,0,0.3)' }}>
+              <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity=".25" strokeWidth="3"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--green-primary)" strokeWidth="3" strokeLinecap="round"/>
+              </svg>
             </div>
+          )}
+          <div className="overflow-auto h-full" style={{ WebkitOverflowScrolling: 'touch' }}>
 
-            {/* Grid body */}
-            <div className="flex" style={{ height: gridHeight }}>
-              {/* Time labels */}
-              <div className="relative shrink-0" style={{ width: 52, height: gridHeight }}>
-                {hourLabels.map(({ label, top }) => (
-                  <div key={label} className="absolute right-2 text-[10px] -translate-y-2"
-                    style={{ top, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    {label}
-                  </div>
-                ))}
+            {/* Desktop */}
+            <div className="hidden md:flex flex-col" style={{ minWidth: 900 }}>
+              <div className="flex sticky top-0 z-10 shrink-0"
+                style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div className="shrink-0" style={{ width: 52 }} />
+                {weekDays.map((day, i) => {
+                  const isTodayDay = toDateStr(day) === todayStr
+                  const key        = WEEK_KEYS[i]
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center py-2 border-l text-center"
+                      style={{ borderColor: 'var(--border-subtle)', minWidth: 120 }}>
+                      <span className="text-xs font-medium"
+                        style={{ color: isTodayDay ? 'var(--green-primary)' : 'var(--text-muted)' }}>{WEEK_LABELS[i]}</span>
+                      <span className="text-lg font-bold mt-0.5"
+                        style={{ color: isTodayDay ? 'var(--green-primary)' : 'var(--text-primary)' }}>{day.getDate()}</span>
+                      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        {String(day.getMonth()+1).padStart(2,'0')}/{day.getFullYear()}
+                      </span>
+                      <span className="text-[10px] mt-0.5 px-1.5 py-px rounded"
+                        style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}>
+                        {minToTime(DAY_CFG[key].start)}–{minToTime(DAY_CFG[key].end)}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
 
-              {/* Day columns */}
-              {weekDays.map((_, i) => renderDayColumn(i))}
+              <div className="flex" style={{ height: gridHeight }}>
+                <div className="relative shrink-0" style={{ width: 52, height: gridHeight }}>
+                  {hourLabels.map(({ label, top }) => (
+                    <div key={label} className="absolute right-2 text-[10px] -translate-y-2"
+                      style={{ top, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</div>
+                  ))}
+                </div>
+                {weekDays.map((_, i) => renderDayColumn(i))}
+              </div>
             </div>
-          </div>
 
-          {/* Mobile: single day */}
-          <div className="md:hidden flex flex-col">
-            {/* Mobile grid body */}
-            <div className="flex" style={{ height: gridHeight }}>
-              {/* Time labels */}
+            {/* Mobile */}
+            <div className="md:hidden flex" style={{ height: gridHeight }}>
               <div className="relative shrink-0" style={{ width: 44, height: gridHeight }}>
                 {hourLabels.map(({ label, top }) => (
                   <div key={label} className="absolute right-1.5 text-[10px] -translate-y-2"
-                    style={{ top, color: 'var(--text-muted)' }}>
-                    {label}
-                  </div>
+                    style={{ top, color: 'var(--text-muted)' }}>{label}</div>
                 ))}
               </div>
-              {/* Single day column */}
               {renderDayColumn(mobileDayIdx)}
             </div>
           </div>
         </div>
+
+        {/* Mobile available btn */}
+        <div className="md:hidden p-3 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          <button onClick={() => setModal({ type: 'slots' })}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+            Ver horários disponíveis
+          </button>
+        </div>
+
+        {/* Drag overlay ghost */}
+        <DragOverlay dropAnimation={null}>
+          {renderDragOverlay()}
+        </DragOverlay>
+
+        {/* Modals */}
+        {modal?.type === 'add' && (
+          <AddEventModal dayIdx={modal.dayIdx} date={modal.date} timeMin={modal.timeMin}
+            alunos={alunos} onClose={() => setModal(null)}
+            onSaved={(ev) => { addEvento(ev); setModal(null) }} />
+        )}
+        {modal?.type === 'aluno-card' && (
+          <AlunoCardModal aluno={modal.aluno} dayIdx={modal.dayIdx} date={modal.date}
+            eventos={eventos} onClose={() => setModal(null)}
+            onReagendar={() => setModal({ type: 'add', dayIdx: modal.dayIdx, date: modal.date, timeMin: timeToMin(modal.aluno.horario_inicio) })}
+            onCancelado={addEvento} onSaved={addEvento} />
+        )}
+        {modal?.type === 'evento-card' && (
+          <EventoCardModal evento={modal.evento} alunoNome={modal.alunoNome}
+            onClose={() => setModal(null)} onDeleted={removeEvento}
+            onEditar={() => setModal({ type: 'edit', evento: modal.evento })} />
+        )}
+        {modal?.type === 'edit' && (
+          <EditEventoModal evento={modal.evento} onClose={() => setModal(null)} onSaved={updateEvento} />
+        )}
+        {modal?.type === 'slots' && (
+          <AvailableSlotsModal weekDays={weekDays} alunos={alunos} eventos={eventos}
+            onClose={() => setModal(null)}
+            onSlotClick={(di, dt, tm) => setModal({ type: 'add', dayIdx: di, date: dt, timeMin: tm })} />
+        )}
+        {modal?.type === 'move-confirm' && (
+          <MoveConfirmModal
+            confirm={modal.confirm}
+            saving={moveSaving}
+            onClose={() => { if (!moveSaving) setModal(null) }}
+            onThisWeek={() => handleMoveAlunoThisWeek(modal.confirm)}
+            onPermanent={() =>
+              modal.confirm.blockType === 'evento'
+                ? handleMoveEvento(modal.confirm)
+                : handleMoveAlunoPermanent(modal.confirm)
+            }
+          />
+        )}
       </div>
-
-      {/* Mobile: available slots button */}
-      <div className="md:hidden p-3 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-        <button onClick={() => setModal({ type: 'slots' })}
-          className="w-full py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-          style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
-          Ver horários disponíveis
-        </button>
-      </div>
-
-      {/* ── Modals ── */}
-      {modal?.type === 'add' && (
-        <AddEventModal
-          dayIdx={modal.dayIdx} date={modal.date} timeMin={modal.timeMin}
-          alunos={alunos} onClose={() => setModal(null)} onSaved={addEvento}
-        />
-      )}
-
-      {modal?.type === 'aluno-card' && (
-        <AlunoCardModal
-          aluno={modal.aluno} dayIdx={modal.dayIdx} date={modal.date}
-          eventos={eventos}
-          onClose={() => setModal(null)}
-          onReagendar={() => setModal({ type: 'add', dayIdx: modal.dayIdx, date: modal.date, timeMin: timeToMin(modal.aluno.horario_inicio) })}
-          onCancelado={addEvento}
-          onSaved={addEvento}
-        />
-      )}
-
-      {modal?.type === 'evento-card' && (
-        <EventoCardModal
-          evento={modal.evento} alunoNome={modal.alunoNome}
-          onClose={() => setModal(null)}
-          onDeleted={removeEvento}
-          onEditar={() => setModal({ type: 'edit', evento: modal.evento })}
-        />
-      )}
-
-      {modal?.type === 'edit' && (
-        <EditEventoModal
-          evento={modal.evento}
-          onClose={() => setModal(null)}
-          onSaved={(ev) => { updateEvento(ev) }}
-        />
-      )}
-
-      {modal?.type === 'slots' && (
-        <AvailableSlotsModal
-          weekDays={weekDays} alunos={alunos} eventos={eventos}
-          onClose={() => setModal(null)}
-          onSlotClick={(di, dt, tm) => setModal({ type: 'add', dayIdx: di, date: dt, timeMin: tm })}
-        />
-      )}
-    </div>
+    </DndContext>
   )
 }

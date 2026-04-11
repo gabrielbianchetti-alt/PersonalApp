@@ -69,6 +69,38 @@ export async function updateEventoAction(
   return { data: row as EventoAgendaRow }
 }
 
+export async function updateAlunoScheduleAction(
+  alunoId: string,
+  oldDayKey: string,
+  newDayKey: string,
+  newHorario: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { data: aluno, error: fetchErr } = await supabase
+    .from('alunos')
+    .select('dias_semana')
+    .eq('id', alunoId)
+    .eq('professor_id', user.id)
+    .single()
+
+  if (fetchErr || !aluno) return { error: 'Aluno não encontrado.' }
+
+  const dias = (aluno.dias_semana as string[]).filter((d) => d !== oldDayKey)
+  if (!dias.includes(newDayKey)) dias.push(newDayKey)
+
+  const { error } = await supabase
+    .from('alunos')
+    .update({ dias_semana: dias, horario_inicio: newHorario })
+    .eq('id', alunoId)
+    .eq('professor_id', user.id)
+
+  if (error) { console.error('updateAlunoSchedule:', error); return { error: 'Erro ao atualizar agenda.' } }
+  return {}
+}
+
 export async function deleteEventoAction(
   id: string
 ): Promise<{ error?: string }> {
