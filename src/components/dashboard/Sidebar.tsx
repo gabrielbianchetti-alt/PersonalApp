@@ -64,7 +64,7 @@ const NAV_ITEMS = [
         <line x1="1" y1="10" x2="23" y2="10" />
       </svg>
     ),
-    enabled: false,
+    enabled: true,
   },
   {
     href: '/dashboard/financeiro',
