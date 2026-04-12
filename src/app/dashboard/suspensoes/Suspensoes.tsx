@@ -54,7 +54,7 @@ function NovaSuspensaoModal({
   onClose,
   onSaved,
 }: {
-  alunos: { id: string; nome: string; horario_inicio: string; dias_semana: string[] }[]
+  alunos: { id: string; nome: string; horarios: { dia: string; horario: string }[] }[]
   onClose: () => void
   onSaved: (s: SuspensaoRow) => void
 }) {
@@ -113,7 +113,7 @@ function NovaSuspensaoModal({
             </select>
             {alunoSel && (
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                📅 {diasLabel(alunoSel.dias_semana)} · 🕐 {String(alunoSel.horario_inicio).slice(0, 5)}
+                📅 {alunoSel.horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(', ')}
               </p>
             )}
           </div>
@@ -271,8 +271,10 @@ function ReativarModal({
   }
 
   const nome = suspensao.aluno_nome ?? 'Aluno'
-  const horario = String(suspensao.aluno_horario ?? '').slice(0, 5)
-  const dias = diasLabel(suspensao.aluno_dias ?? [])
+  const horarios = suspensao.aluno_horarios ?? []
+  const diasHorarioLabel = horarios.length > 0
+    ? horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(', ')
+    : '—'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={step.type === 'success' ? onClose : undefined}>
@@ -288,7 +290,7 @@ function ReativarModal({
           </div>
           <div>
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{nome}</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{dias} · {horario}</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{diasHorarioLabel}</p>
           </div>
         </div>
 
@@ -311,7 +313,7 @@ function ReativarModal({
               <div>
                 <p className="text-sm font-semibold" style={{ color: 'var(--green-primary)' }}>Horário disponível!</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  {dias} às {horario} — nenhum aluno ocupa este horário. A reativação pode ser feita imediatamente.
+                  {diasHorarioLabel} — nenhum aluno ocupa este horário. A reativação pode ser feita imediatamente.
                 </p>
               </div>
             </div>
@@ -341,7 +343,7 @@ function ReativarModal({
                 <p className="text-sm font-semibold" style={{ color: '#FFAB00' }}>Conflito de horário</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                   {step.conflitantes.length === 1
-                    ? `${step.conflitantes[0].nome} ocupa o mesmo horário (${diasLabel(step.conflitantes[0].dias_semana)} às ${String(step.conflitantes[0].horario_inicio).slice(0,5)}).`
+                    ? `${step.conflitantes[0].nome} ocupa o mesmo horário (${step.conflitantes[0].horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(', ')}).`
                     : `${step.conflitantes.length} alunos ocupam o mesmo horário.`
                   }
                 </p>
@@ -504,7 +506,9 @@ function SuspensaoCard({
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{suspensao.aluno_nome}</p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {suspensao.aluno_dias ? diasLabel(suspensao.aluno_dias) : '—'} · {String(suspensao.aluno_horario ?? '').slice(0, 5)}
+              {suspensao.aluno_horarios && suspensao.aluno_horarios.length > 0
+                ? suspensao.aluno_horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(', ')
+                : '—'}
             </p>
           </div>
         </div>
@@ -561,8 +565,8 @@ function SuspensaoCard({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
-  alunosAtivos:   { id: string; nome: string; horario_inicio: string; dias_semana: string[] }[]
-  alunosPausados: { id: string; nome: string; horario_inicio: string; dias_semana: string[] }[]
+  alunosAtivos:   { id: string; nome: string; horarios: { dia: string; horario: string }[] }[]
+  alunosPausados: { id: string; nome: string; horarios: { dia: string; horario: string }[] }[]
   suspensoesIniciais: SuspensaoRow[]
 }
 
@@ -586,9 +590,8 @@ export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }:
     const aluno = alunosAtivos.find(a => a.id === s.aluno_id)
     const enriched: SuspensaoRow = {
       ...s,
-      aluno_nome:    aluno?.nome ?? '—',
-      aluno_horario: aluno?.horario_inicio ?? '',
-      aluno_dias:    aluno?.dias_semana ?? [],
+      aluno_nome:     aluno?.nome ?? '—',
+      aluno_horarios: aluno?.horarios ?? [],
     }
     setSuspensoes(prev => [enriched, ...prev])
     setModal(null)

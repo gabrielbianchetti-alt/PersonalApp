@@ -28,8 +28,7 @@ export async function criarAlunoAction(
     emergencia_telefone: data.emergencia_telefone.replace(/\D/g, '') || null,
     emergencia_parentesco: data.emergencia_parentesco.trim() || null,
 
-    dias_semana: data.dias_semana,
-    horario_inicio: data.horario_inicio,
+    horarios: data.horarios,
     duracao: parseInt(data.duracao),
     local: data.local,
     endereco: data.endereco.trim() || null,

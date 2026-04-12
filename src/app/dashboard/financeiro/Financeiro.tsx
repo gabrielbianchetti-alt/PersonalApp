@@ -36,7 +36,7 @@ interface AlunoFin {
   nome: string
   modelo_cobranca: 'mensalidade' | 'por_aula'
   valor: number
-  dias_semana: string[]
+  horarios: { dia: string; horario: string }[]
 }
 
 interface Props {
@@ -63,7 +63,8 @@ function calcFaturamento(alunos: AlunoFin[], year: number, month: number): numbe
     let aulas = 0
     for (let d = 1; d <= days; d++) {
       const key = DAY_TO_KEY[new Date(year, month, d).getDay()]
-      if (key && a.dias_semana.includes(key)) aulas++
+      const dias = a.horarios.map(h => h.dia)
+      if (key && dias.includes(key)) aulas++
     }
     return sum + aulas * Number(a.valor)
   }, 0)

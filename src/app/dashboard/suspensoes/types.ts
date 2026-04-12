@@ -16,21 +16,18 @@ export interface SuspensaoRow {
   updated_at: string
   // joined
   aluno_nome?: string
-  aluno_horario?: string
-  aluno_dias?: string[]
+  aluno_horarios?: { dia: string; horario: string }[]
 }
 
 export interface AlunoSuspenso {
   id: string
   nome: string
-  horario_inicio: string
-  dias_semana: string[]
+  horarios: { dia: string; horario: string }[]
   suspensao: SuspensaoRow
 }
 
 export interface Conflitante {
   id: string
   nome: string
-  horario_inicio: string
-  dias_semana: string[]
+  horarios: { dia: string; horario: string }[]
 }

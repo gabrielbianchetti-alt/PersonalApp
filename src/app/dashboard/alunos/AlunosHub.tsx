@@ -18,8 +18,7 @@ export interface AlunoFull {
   id: string
   nome: string
   whatsapp: string
-  dias_semana: string[]
-  horario_inicio: string
+  horarios: { dia: string; horario: string }[]
   local: string
   valor: number
   modelo_cobranca: 'por_aula' | 'mensalidade'
@@ -31,8 +30,7 @@ export interface AlunoFull {
 export interface AlunoMinimal {
   id: string
   nome: string
-  horario_inicio: string
-  dias_semana: string[]
+  horarios: { dia: string; horario: string }[]
 }
 
 export type AlunosTab = 'lista' | 'novo' | 'suspensos' | 'termos'

@@ -40,7 +40,7 @@ interface AlunoCobranca {
   id: string
   nome: string
   whatsapp: string
-  dias_semana: string[]
+  horarios: { dia: string; horario: string }[]
   modelo_cobranca: string
   valor: number
   forma_pagamento: string
@@ -81,12 +81,13 @@ function formatMesRef(year: number, month: number) {
   return `${year}-${String(month + 1).padStart(2, '0')}`
 }
 
-function getAulasDates(year: number, month: number, diasSemana: string[]): number[] {
+function getAulasDates(year: number, month: number, horarios: { dia: string; horario: string }[]): number[] {
   const days = new Date(year, month + 1, 0).getDate()
   const dates: number[] = []
+  const dias = horarios.map(h => h.dia)
   for (let d = 1; d <= days; d++) {
     const key = GETDAY_TO_KEY[new Date(year, month, d).getDay()]
-    if (key && diasSemana.includes(key)) dates.push(d)
+    if (key && dias.includes(key)) dates.push(d)
   }
   return dates
 }
@@ -110,7 +111,7 @@ function buildMessage(
   prefs: Preferencias | null,
   template: string
 ): string {
-  const dates = getAulasDates(year, month, aluno.dias_semana)
+  const dates = getAulasDates(year, month, aluno.horarios)
   const total = aluno.modelo_cobranca === 'mensalidade'
     ? Number(aluno.valor)
     : dates.length * Number(aluno.valor)
@@ -126,7 +127,7 @@ function buildMessage(
 
 function calcTotal(aluno: AlunoCobranca, year: number, month: number): number {
   if (aluno.modelo_cobranca === 'mensalidade') return Number(aluno.valor)
-  return getAulasDates(year, month, aluno.dias_semana).length * Number(aluno.valor)
+  return getAulasDates(year, month, aluno.horarios).length * Number(aluno.valor)
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -439,10 +440,10 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
               const isSelected   = selectedIds.has(aluno.id)
               const cobranca     = cobrancas[aluno.id]
               const isLoading    = loadingSet.has(aluno.id)
-              const dates        = getAulasDates(year, month, aluno.dias_semana)
+              const dates        = getAulasDates(year, month, aluno.horarios)
               const aulas        = aluno.modelo_cobranca === 'mensalidade' ? null : dates.length
               const total        = calcTotal(aluno, year, month)
-              const diasLabels   = aluno.dias_semana.map(d => DIAS_SEMANA.find(s => s.key === d)?.label ?? d)
+              const diasLabels   = aluno.horarios.map(h => DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
               const credito      = creditosPorAluno[aluno.id] ?? 0
 
               return (

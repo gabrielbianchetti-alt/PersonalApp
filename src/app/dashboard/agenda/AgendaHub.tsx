@@ -12,8 +12,7 @@ import type { FaltaRow, PrefsF } from '../faltas/actions'
 interface AlunoAgenda {
   id: string
   nome: string
-  dias_semana: string[]
-  horario_inicio: string
+  horarios: { dia: string; horario: string }[]
   duracao: number
   local: string
   modelo_cobranca: string

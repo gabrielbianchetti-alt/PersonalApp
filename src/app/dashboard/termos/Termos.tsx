@@ -15,8 +15,7 @@ export interface AlunoTermo {
   id: string
   nome: string
   whatsapp: string
-  dias_semana: string[]
-  horario_inicio: string
+  horarios: { dia: string; horario: string }[]
   local: string
   valor: number
   modelo_cobranca: 'por_aula' | 'mensalidade'
@@ -34,8 +33,8 @@ function fmtEnviadoEm(iso: string): string {
 }
 
 function resolveVars(template: string, aluno: AlunoTermo): string {
-  const dias = aluno.dias_semana
-    .map(d => DIAS_LABEL[d] ?? d)
+  const dias = aluno.horarios
+    .map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`)
     .join(', ')
 
   const valor = aluno.modelo_cobranca === 'mensalidade'
@@ -45,7 +44,7 @@ function resolveVars(template: string, aluno: AlunoTermo): string {
   return template
     .replace(/{nome}/g, aluno.nome.split(' ')[0])
     .replace(/{dias}/g, dias)
-    .replace(/{horario}/g, String(aluno.horario_inicio).slice(0, 5))
+    .replace(/{horario}/g, aluno.horarios[0]?.horario ?? '')
     .replace(/{local}/g, aluno.local)
     .replace(/{valor}/g, valor)
     .replace(/{inicio}/g, formatDate(aluno.data_inicio))
@@ -244,7 +243,7 @@ function EnviarTermoModal({
                 {aluno.nome}
               </h2>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {aluno.dias_semana.map(d => DIAS_LABEL[d] ?? d).join(', ')} · {String(aluno.horario_inicio).slice(0, 5)}
+                {aluno.horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(', ')}
               </p>
             </div>
           </div>
@@ -563,7 +562,7 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{aluno.nome}</p>
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                          {aluno.dias_semana.map(d => DIAS_LABEL[d] ?? d).join(', ')} · {String(aluno.horario_inicio).slice(0, 5)} · {aluno.local}
+                          {aluno.horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(', ')} · {aluno.local}
                         </p>
                       </div>
 

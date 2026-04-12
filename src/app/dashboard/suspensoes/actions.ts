@@ -14,21 +14,20 @@ export async function getSuspensoesAction(): Promise<{ data?: SuspensaoRow[]; er
 
   const { data, error } = await supabase
     .from('suspensoes')
-    .select('*, alunos(nome, horario_inicio, dias_semana)')
+    .select('*, alunos(nome, horarios)')
     .eq('professor_id', user.id)
     .order('created_at', { ascending: false })
 
   if (error) { console.error('getSuspensoes:', error); return { error: 'Erro ao buscar suspensões.' } }
 
   const rows = (data ?? []).map((r: Record<string, unknown>) => {
-    const al = r.alunos as { nome: string; horario_inicio: string; dias_semana: string[] } | null
+    const al = r.alunos as { nome: string; horarios: { dia: string; horario: string }[] } | null
     const { alunos: _alunos, ...rest } = r
     void _alunos
     return {
       ...rest,
-      aluno_nome:    al?.nome ?? '—',
-      aluno_horario: al?.horario_inicio ?? '',
-      aluno_dias:    al?.dias_semana ?? [],
+      aluno_nome:     al?.nome ?? '—',
+      aluno_horarios: al?.horarios ?? [],
     }
   }) as unknown as SuspensaoRow[]
 
@@ -83,7 +82,7 @@ export async function criarSuspensaoAction(input: {
 
 export async function checkConflitosAction(
   alunoId: string
-): Promise<{ conflitantes: Conflitante[]; aluno?: { nome: string; horario_inicio: string; dias_semana: string[] }; error?: string }> {
+): Promise<{ conflitantes: Conflitante[]; aluno?: { nome: string; horarios: { dia: string; horario: string }[] }; error?: string }> {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { conflitantes: [], error: 'Sessão expirada.' }
@@ -91,33 +90,36 @@ export async function checkConflitosAction(
   // Get suspended aluno's schedule
   const { data: aluno, error: alunoError } = await supabase
     .from('alunos')
-    .select('nome, horario_inicio, dias_semana')
+    .select('nome, horarios')
     .eq('id', alunoId)
     .eq('professor_id', user.id)
     .single()
 
   if (alunoError || !aluno) return { conflitantes: [], error: 'Aluno não encontrado.' }
 
-  // Get all active alunos with same horario_inicio
+  // Get all active alunos
   const { data: ativos, error: ativosError } = await supabase
     .from('alunos')
-    .select('id, nome, horario_inicio, dias_semana')
+    .select('id, nome, horarios')
     .eq('professor_id', user.id)
     .eq('status', 'ativo')
-    .eq('horario_inicio', aluno.horario_inicio)
     .neq('id', alunoId)
 
   if (ativosError) return { conflitantes: [], error: 'Erro ao verificar conflitos.' }
 
-  // Check for overlapping dias_semana in JS
-  const alunosDias = aluno.dias_semana as string[]
+  // Check for overlapping horarios in JS
+  const alunoHorarios = aluno.horarios as { dia: string; horario: string }[]
   const conflitantes: Conflitante[] = (ativos ?? [])
-    .filter((a) => (a.dias_semana as string[]).some((d) => alunosDias.includes(d)))
-    .map((a) => ({
-      id:             a.id,
-      nome:           a.nome,
-      horario_inicio: a.horario_inicio,
-      dias_semana:    a.dias_semana as string[],
+    .filter(a => {
+      const aHorarios = a.horarios as { dia: string; horario: string }[]
+      return alunoHorarios.some(ah =>
+        aHorarios.some(bh => bh.dia === ah.dia && bh.horario === ah.horario)
+      )
+    })
+    .map(a => ({
+      id:      a.id,
+      nome:    a.nome,
+      horarios: a.horarios as { dia: string; horario: string }[],
     }))
 
   return { conflitantes, aluno }

@@ -7,6 +7,7 @@ import {
   calcularPrevisaoMensal,
   formatCurrency,
   formatDate,
+  DIAS_SEMANA,
 } from '@/types/aluno'
 
 interface Props {
@@ -72,7 +73,6 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 export function StepRevisao({ data, onEdit }: Props) {
   const duracaoLabel = DURACAO_OPCOES.find((d) => d.value === data.duracao)?.label ?? data.duracao
-  const diasLabels = data.dias_semana.map((d) => DIAS_LABEL[d] ?? d).join(', ')
   const previsao = calcularPrevisaoMensal(data)
 
   return (
@@ -108,8 +108,19 @@ export function StepRevisao({ data, onEdit }: Props) {
 
       {/* Treino */}
       <Section title="Treino" step={1} onEdit={onEdit}>
-        <Row label="Dias" value={diasLabels || '—'} />
-        <Row label="Horário" value={`${data.horario_inicio} · ${duracaoLabel}`} />
+        <Row label="Horários" value={
+          data.horarios.length === 0 ? '—' : (
+            <div className="flex flex-col gap-0.5 items-end">
+              {DIAS_SEMANA
+                .map(d => data.horarios.find(h => h.dia === d.key))
+                .filter((h): h is NonNullable<typeof h> => h !== undefined)
+                .map(h => (
+                  <span key={h.dia}>{DIAS_LABEL[h.dia] ?? h.dia}: {h.horario}</span>
+                ))}
+            </div>
+          )
+        } />
+        <Row label="Duração" value={duracaoLabel} />
         <Row label="Local" value={data.local + (data.endereco ? ` — ${data.endereco}` : '')} />
         <div className="h-px" style={{ background: 'var(--border-subtle)' }} />
         <Row

@@ -48,7 +48,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase
       .from('alunos')
-      .select('id, nome, dias_semana, horario_inicio, duracao, local, modelo_cobranca, valor, data_nascimento, whatsapp, status')
+      .select('id, nome, horarios, duracao, local, modelo_cobranca, valor, data_nascimento, whatsapp, status')
       .eq('professor_id', user.id)
       .eq('status', 'ativo'),
     supabase
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
   ])
 
   const alunos = (alunosRaw ?? []) as {
-    id: string; nome: string; dias_semana: string[]; horario_inicio: string | null
+    id: string; nome: string; horarios: { dia: string; horario: string }[] | null
     duracao: number | null; local: string | null; modelo_cobranca: string; valor: number
     data_nascimento: string | null; whatsapp: string | null; status: string
   }[]
@@ -91,8 +91,8 @@ export default async function DashboardPage() {
 
   const faturamento = alunos.reduce((sum, a) => {
     if (a.modelo_cobranca === 'mensalidade') return sum + Number(a.valor)
-    const aulas = (a.dias_semana ?? []).reduce(
-      (s, dia) => s + (weekdayCounts[dia] ?? 0), 0
+    const aulas = ((a.horarios ?? []) as { dia: string; horario: string }[]).reduce(
+      (s, h) => s + (weekdayCounts[h.dia] ?? 0), 0
     )
     return sum + aulas * Number(a.valor)
   }, 0)
@@ -109,17 +109,14 @@ export default async function DashboardPage() {
   // ── aulas de hoje ─────────────────────────────────────────────────────────
   const alunoMap = Object.fromEntries(alunos.map(a => [a.id, a]))
 
-  const aulasRegulares = todayKey
-    ? alunos
-        .filter(a => (a.dias_semana ?? []).includes(todayKey))
-        .map(a => ({
-          alunoId: a.id,
-          alunoNome: a.nome,
-          horario: String(a.horario_inicio ?? '').slice(0, 5),
-          local: a.local ?? '',
-          tipo: 'regular' as const,
-        }))
-    : []
+  const aulasRegulares = todayKey ? alunos
+    .map(a => {
+      const h = ((a.horarios ?? []) as { dia: string; horario: string }[]).find(x => x.dia === todayKey)
+      if (!h) return null
+      return { alunoId: a.id, alunoNome: a.nome, horario: h.horario.slice(0, 5), local: a.local ?? '', tipo: 'regular' as const }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+  : []
 
   const aulasReposicao = (eventosHoje ?? []).map(e => ({
     alunoId: e.aluno_id,

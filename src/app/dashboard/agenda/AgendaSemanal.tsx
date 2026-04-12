@@ -70,8 +70,7 @@ const OUTRO_CORES = ['#FFAB00','#CE93D8','#FF5252','#40C4FF','#9E9E9E']
 interface AlunoAgenda {
   id: string
   nome: string
-  dias_semana: string[]
-  horario_inicio: string
+  horarios: { dia: string; horario: string }[]
   duracao: number
   local: string
   modelo_cobranca: string
@@ -168,8 +167,9 @@ function getFreeSlotsForDay(dayIdx: number, weekDays: Date[], alunos: AlunoAgend
   const dateStr = toDateStr(weekDays[dayIdx])
   const busy: [number, number][] = []
   for (const a of alunos) {
-    if (a.dias_semana.includes(dayKey)) {
-      const s = timeToMin(a.horario_inicio); busy.push([s, s + a.duracao])
+    const h = a.horarios.find(x => x.dia === dayKey)
+    if (h) {
+      const s = timeToMin(h.horario); busy.push([s, s + a.duracao])
     }
   }
   for (const e of eventos) {
@@ -551,16 +551,18 @@ function AlunoCardModal({
   const supabase = createClient()
 
   const dateStr = toDateStr(date)
+  const dayKey = WEEK_KEYS[dayIdx]
+  const alunoHorario = aluno.horarios.find(x => x.dia === dayKey)?.horario ?? '08:00'
   const isCancelled = eventos.some(e =>
     e.tipo === 'bloqueado' && e.data_especifica === dateStr &&
-    timeToMin(e.horario_inicio) === timeToMin(aluno.horario_inicio)
+    timeToMin(e.horario_inicio) === timeToMin(alunoHorario)
   )
 
   async function handleCancelar() {
     setSaving(true)
     const res = await createEventoAction({
       tipo: 'bloqueado', titulo: `Aula cancelada — ${aluno.nome.split(' ')[0]}`,
-      aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: aluno.horario_inicio, duracao: aluno.duracao,
+      aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: alunoHorario, duracao: aluno.duracao,
     })
     setSaving(false)
     if (res.data) { onCancelado(res.data); onClose() }
@@ -570,7 +572,7 @@ function AlunoCardModal({
     setSaving(true)
     const res = await createEventoAction({
       tipo: 'outro', titulo: `Falta — ${aluno.nome.split(' ')[0]}`,
-      aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: aluno.horario_inicio, duracao: 15, cor: '#FF5252',
+      aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: alunoHorario, duracao: 15, cor: '#FF5252',
     })
     setSaving(false)
     if (res.data) { onSaved(res.data); onClose() }
@@ -590,7 +592,7 @@ function AlunoCardModal({
       <div className="p-5 flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: 'Horário', value: `${aluno.horario_inicio} (${aluno.duracao}min)` },
+            { label: 'Horário', value: `${alunoHorario} (${aluno.duracao}min)` },
             { label: 'Local',   value: aluno.local || '—' },
             { label: 'Plano',   value: PLANO_LABEL[aluno.modelo_cobranca] ?? aluno.modelo_cobranca },
             { label: 'Data',    value: `${WEEK_LABELS[dayIdx]} ${formatDay(date)}` },
@@ -977,7 +979,7 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
       createEventoAction({
         tipo: 'bloqueado', titulo: `Cancelado — ${a.nome.split(' ')[0]}`,
         aluno_id: a.id, data_especifica: oldDateStr,
-        horario_inicio: a.horario_inicio, duracao: a.duracao,
+        horario_inicio: a.horarios.find(x => x.dia === WEEK_KEYS[confirm.fromDayIdx])?.horario ?? '08:00', duracao: a.duracao,
       }),
       createEventoAction({
         tipo: 'aula', titulo: `Reposição — ${a.nome.split(' ')[0]}`,
@@ -1045,8 +1047,9 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
     // Aluno blocks (skip if cancelled)
     for (const a of alunos) {
-      if (!a.dias_semana.includes(dayKey)) continue
-      const startMin    = timeToMin(a.horario_inicio)
+      const h = a.horarios.find(x => x.dia === dayKey)
+      if (!h) continue
+      const startMin    = timeToMin(h.horario)
       const isCancelled = eventos.some(e =>
         e.tipo === 'bloqueado' && e.data_especifica === dateStr &&
         timeToMin(e.horario_inicio) === startMin
@@ -1145,7 +1148,7 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
                 <div className="w-full h-full rounded-lg overflow-hidden"
                   style={{ background: color + '20', borderLeft: `3px solid ${color}`, padding: '3px 5px', cursor: 'grab' }}>
                   <p className="text-[11px] font-bold leading-tight truncate" style={{ color }}>{a.nome.split(' ')[0]}</p>
-                  {height > 26 && <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>{a.horario_inicio} · {a.local}</p>}
+                  {height > 26 && <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>{a.horarios.find(x => x.dia === dayKey)?.horario ?? ''} · {a.local}</p>}
                 </div>
               </DraggableBlock>
             )
@@ -1357,7 +1360,7 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
         {modal?.type === 'aluno-card' && (
           <AlunoCardModal aluno={modal.aluno} dayIdx={modal.dayIdx} date={modal.date}
             eventos={eventos} onClose={() => setModal(null)}
-            onReagendar={() => setModal({ type: 'add', dayIdx: modal.dayIdx, date: modal.date, timeMin: timeToMin(modal.aluno.horario_inicio) })}
+            onReagendar={() => setModal({ type: 'add', dayIdx: modal.dayIdx, date: modal.date, timeMin: timeToMin(modal.aluno.horarios.find(x => x.dia === WEEK_KEYS[modal.dayIdx])?.horario ?? '08:00') })}
             onCancelado={addEvento} onSaved={addEvento} />
         )}
         {modal?.type === 'evento-card' && (

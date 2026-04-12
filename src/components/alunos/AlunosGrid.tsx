@@ -8,8 +8,7 @@ interface Aluno {
   nome: string
   local: string
   status: string
-  dias_semana: string[]
-  horario_inicio: string
+  horarios: { dia: string; horario: string }[]
   duracao: number
   valor: number
   modelo_cobranca: string
@@ -27,9 +26,12 @@ export function AlunosGrid({ alunos, diasSemana, duracaoOpcoes }: Props) {
       {alunos.map((aluno) => {
         const duracaoLabel =
           duracaoOpcoes.find((d) => d.value === String(aluno.duracao))?.label ?? `${aluno.duracao}min`
-        const diasLabels = (aluno.dias_semana as string[]).map(
-          (d) => diasSemana.find((s) => s.key === d)?.label ?? d
+        const diasLabels = aluno.horarios.map(
+          (h) => diasSemana.find((s) => s.key === h.dia)?.label ?? h.dia
         )
+        const horarios = aluno.horarios
+        const uniqueHorarios = [...new Set(horarios.map(h => h.horario.slice(0, 5)))]
+        const horarioDisplay = uniqueHorarios.length === 0 ? '—' : uniqueHorarios.length === 1 ? uniqueHorarios[0] : 'Múltiplos'
 
         return (
           <Link
@@ -93,7 +95,7 @@ export function AlunosGrid({ alunos, diasSemana, duracaoOpcoes }: Props) {
                   <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                 </svg>
                 <span className="text-xs">
-                  {String(aluno.horario_inicio).slice(0, 5)} · {duracaoLabel}
+                  {horarioDisplay} · {duracaoLabel}
                 </span>
               </div>
               <span className="text-sm font-semibold" style={{ color: 'var(--green-primary)' }}>

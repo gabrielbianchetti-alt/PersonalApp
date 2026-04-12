@@ -45,7 +45,7 @@ export default async function AgendaPage({
   ] = await Promise.all([
     supabase
       .from('alunos')
-      .select('id, nome, dias_semana, horario_inicio, duracao, local, modelo_cobranca, observacoes')
+      .select('id, nome, horarios, duracao, local, modelo_cobranca, observacoes')
       .eq('professor_id', user.id)
       .eq('status', 'ativo')
       .order('nome'),

@@ -43,8 +43,7 @@ export default async function AlunoPerfilPage({
     .eq('aluno_id', id)
     .eq('status', 'pendente')
 
-  const dias: string[] = aluno.dias_semana ?? []
-  const diasLabels = dias.map((d: string) => DIAS_LABEL[d] ?? d)
+  const horarios: { dia: string; horario: string }[] = aluno.horarios ?? []
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">
@@ -94,8 +93,7 @@ export default async function AlunoPerfilPage({
         {/* Treino info */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
           {[
-            { label: 'Dias', value: diasLabels.join(', ') || '—' },
-            { label: 'Horário', value: String(aluno.horario_inicio ?? '').slice(0, 5) || '—' },
+            { label: 'Horários', value: horarios.length === 0 ? '—' : horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(' · ') },
             { label: 'Local', value: aluno.local || '—' },
             { label: 'Valor', value: formatCurrency(Number(aluno.valor)) + (aluno.modelo_cobranca === 'mensalidade' ? '/mês' : '/aula') },
             { label: 'Início', value: aluno.data_inicio ? formatDate(aluno.data_inicio) : '—' },

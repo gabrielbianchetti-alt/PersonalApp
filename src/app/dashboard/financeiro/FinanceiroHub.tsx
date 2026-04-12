@@ -12,7 +12,7 @@ import type { CustoRow } from './actions'
 interface AlunoCalculo {
   id: string
   nome: string
-  dias_semana: string[]
+  horarios: { dia: string; horario: string }[]
   modelo_cobranca: string
   valor: number
 }
@@ -21,7 +21,7 @@ interface AlunoCobranca {
   id: string
   nome: string
   whatsapp: string
-  dias_semana: string[]
+  horarios: { dia: string; horario: string }[]
   modelo_cobranca: string
   valor: number
   forma_pagamento: string
@@ -48,7 +48,7 @@ interface AlunoFin {
   nome: string
   modelo_cobranca: 'mensalidade' | 'por_aula'
   valor: number
-  dias_semana: string[]
+  horarios: { dia: string; horario: string }[]
 }
 
 export type FinanceiroTab = 'calculo' | 'cobranca' | 'custos'

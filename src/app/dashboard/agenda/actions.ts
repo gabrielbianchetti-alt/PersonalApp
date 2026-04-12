@@ -81,19 +81,27 @@ export async function updateAlunoScheduleAction(
 
   const { data: aluno, error: fetchErr } = await supabase
     .from('alunos')
-    .select('dias_semana')
+    .select('horarios')
     .eq('id', alunoId)
     .eq('professor_id', user.id)
     .single()
 
   if (fetchErr || !aluno) return { error: 'Aluno não encontrado.' }
 
-  const dias = (aluno.dias_semana as string[]).filter((d) => d !== oldDayKey)
-  if (!dias.includes(newDayKey)) dias.push(newDayKey)
+  const horarios = (aluno.horarios as { dia: string; horario: string }[] ?? [])
+    .filter(h => h.dia !== oldDayKey)
+
+  // Add the new day/time (or update if newDayKey already exists)
+  const existing = horarios.find(h => h.dia === newDayKey)
+  if (existing) {
+    existing.horario = newHorario
+  } else {
+    horarios.push({ dia: newDayKey, horario: newHorario })
+  }
 
   const { error } = await supabase
     .from('alunos')
-    .update({ dias_semana: dias, horario_inicio: newHorario })
+    .update({ horarios })
     .eq('id', alunoId)
     .eq('professor_id', user.id)
 

@@ -31,7 +31,7 @@ function countWeekdaysInMonth(year: number, month: number): Record<string, numbe
 interface Aluno {
   id: string
   nome: string
-  dias_semana: string[]
+  horarios: { dia: string; horario: string }[]
   modelo_cobranca: string
   valor: number
 }
@@ -74,7 +74,7 @@ export function CalculoMensal({ alunos }: Props) {
 
   function getCalculatedAulas(aluno: Aluno): number {
     if (aluno.modelo_cobranca === 'mensalidade') return 0
-    return aluno.dias_semana.reduce((sum, dia) => sum + (weekdayCounts[dia] ?? 0), 0)
+    return aluno.horarios.reduce((sum, h) => sum + (weekdayCounts[h.dia] ?? 0), 0)
   }
 
   function getAulas(aluno: Aluno): number {
@@ -259,9 +259,10 @@ export function CalculoMensal({ alunos }: Props) {
             const isAjustado = adjustments[aluno.id] !== undefined
             const isAjustando = adjustingId === aluno.id
             const isMensalidade = aluno.modelo_cobranca === 'mensalidade'
-            const diasLabels = aluno.dias_semana.map(
-              (d) => DIAS_SEMANA.find((s) => s.key === d)?.label ?? d
-            )
+            const diasLabels = aluno.horarios.map(h => {
+              const found = DIAS_SEMANA.find(s => s.key === h.dia)
+              return `${found?.label ?? h.dia} ${h.horario}`
+            })
 
             return (
               <div

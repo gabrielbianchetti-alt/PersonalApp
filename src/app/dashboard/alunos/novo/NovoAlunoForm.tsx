@@ -9,7 +9,7 @@ import { StepSaude } from '@/components/alunos/steps/StepSaude'
 import { StepRevisao } from '@/components/alunos/steps/StepRevisao'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
-import { AlunoFormData, initialFormData } from '@/types/aluno'
+import { AlunoFormData, HorarioDia, initialFormData } from '@/types/aluno'
 import { criarAlunoAction } from './actions'
 
 const STEPS = ['Dados Pessoais', 'Treino', 'Saúde', 'Revisão']
@@ -26,8 +26,11 @@ function validateStep(step: number, data: AlunoFormData): Record<string, string>
   }
 
   if (step === 1) {
-    if (data.dias_semana.length === 0) errors.dias_semana = 'Selecione ao menos um dia'
-    if (!data.horario_inicio) errors.horario_inicio = 'Horário é obrigatório'
+    if (data.horarios.length === 0) errors.horarios = 'Selecione ao menos um dia'
+    // Check each selected day has a horario
+    data.horarios.forEach(h => {
+      if (!h.horario) errors[`horarios_${h.dia}`] = 'Informe o horário'
+    })
     if (!data.local) errors.local = 'Local é obrigatório'
     const valorNum = parseFloat(data.valor)
     if (!data.valor || isNaN(valorNum) || valorNum <= 0) errors.valor = 'Informe um valor válido'
@@ -48,7 +51,7 @@ export function NovoAlunoForm() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  function handleChange(field: keyof AlunoFormData, value: string | string[]) {
+  function handleChange(field: keyof AlunoFormData, value: string | string[] | HorarioDia[]) {
     setFormData((prev) => ({ ...prev, [field]: value }))
     if (errors[field]) setErrors((prev) => { const e = { ...prev }; delete e[field]; return e })
   }
