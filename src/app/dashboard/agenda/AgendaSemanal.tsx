@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   DndContext,
-  DragOverlay,
   MouseSensor,
   TouchSensor,
   useSensor,
@@ -846,6 +845,29 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   const [dropTarget, setDropTarget]     = useState<DropTarget | null>(null)
   const [moveSaving, setMoveSaving]     = useState(false)
 
+  // ── custom overlay: track pointer + grab offset ───────────────────────────
+  // grabOffsetRef: where within the block the user clicked (px from block top-left)
+  const grabOffsetRef = useRef({ x: 0, y: 0 })
+  // pointerPosRef: latest pointer position in viewport coords (used in drag end)
+  const pointerPosRef = useRef({ x: 0, y: 0 })
+  // overlayXY: fixed-position for the custom ghost overlay
+  const [overlayXY, setOverlayXY] = useState<{ x: number; y: number } | null>(null)
+
+  // Track pointer globally while dragging so the overlay follows pixel-perfectly
+  useEffect(() => {
+    if (!activeBlock) { setOverlayXY(null); return }
+
+    function onMove(e: PointerEvent) {
+      pointerPosRef.current = { x: e.clientX, y: e.clientY }
+      setOverlayXY({
+        x: e.clientX - grabOffsetRef.current.x,
+        y: e.clientY - grabOffsetRef.current.y,
+      })
+    }
+    window.addEventListener('pointermove', onMove, { passive: true })
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [activeBlock])
+
   const isFirstMount = useRef(true)
   const weekDays     = getWeekDays(weekOffset)
   const todayStr     = toDateStr(new Date())
@@ -878,17 +900,34 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
   // ── DnD handlers ─────────────────────────────────────────────────────────────
 
-  function handleDragStart({ active }: DragStartEvent) {
+  function handleDragStart({ active, activatorEvent }: DragStartEvent) {
     const d = active.data.current as DragData
     setActiveBlock({ ...d, id: active.id as string })
-    setModal(null) // close any open modal
+    setModal(null)
+
+    // Capture where within the block the user clicked (grab offset)
+    if (activatorEvent && active.rect.current.initial) {
+      const ev = activatorEvent as MouseEvent | TouchEvent
+      const clientX = 'touches' in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX
+      const clientY = 'touches' in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY
+      const rect = active.rect.current.initial
+      grabOffsetRef.current = {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      }
+      pointerPosRef.current = { x: clientX, y: clientY }
+      // Set initial overlay position so it appears immediately without flicker
+      setOverlayXY({ x: rect.left, y: rect.top })
+    }
   }
 
   function handleDragMove({ active, over }: DragMoveEvent) {
-    if (!over || !active.rect.current.translated) { setDropTarget(null); return }
+    if (!over) { setDropTarget(null); return }
     const d        = active.data.current as DragData
     const dropData = over.data.current as DropData
-    const yInCol   = active.rect.current.translated.top - over.rect.top
+    // Use the actual pointer position (tracked via pointermove) minus the grab offset
+    // so yInCol represents where the block's TOP is relative to the column top
+    const yInCol   = (pointerPosRef.current.y - grabOffsetRef.current.y) - over.rect.top
     const rawMin   = GRID_START + yInCol / MIN_PX
     const snapped  = Math.round(rawMin / 30) * 30
     const cfg      = DAY_CFG[WEEK_KEYS[dropData.dayIdx]]
@@ -898,15 +937,18 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   }
 
   async function handleDragEnd({ active, over }: DragEndEvent) {
+    // Capture drag data BEFORE clearing activeBlock
+    const d        = active.data.current as DragData
+
     setActiveBlock(null)
     setDropTarget(null)
 
-    if (!over || !active.rect.current.translated) return
+    if (!over) return
 
-    const d        = active.data.current as DragData
     const dropData = over.data.current as DropData
 
-    const yInCol  = active.rect.current.translated.top - over.rect.top
+    // Same calculation as handleDragMove, using last known pointer position
+    const yInCol  = (pointerPosRef.current.y - grabOffsetRef.current.y) - over.rect.top
     const rawMin  = GRID_START + yInCol / MIN_PX
     const snapped = Math.round(rawMin / 30) * 30
 
@@ -1346,10 +1388,21 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
           </button>
         </div>
 
-        {/* Drag overlay ghost */}
-        <DragOverlay dropAnimation={null}>
-          {renderDragOverlay()}
-        </DragOverlay>
+        {/* Custom drag overlay — fixed-positioned, follows pointer pixel-perfectly */}
+        {activeBlock && overlayXY && (
+          <div
+            style={{
+              position: 'fixed',
+              left: overlayXY.x,
+              top: overlayXY.y,
+              zIndex: 9999,
+              pointerEvents: 'none',
+              willChange: 'transform',
+            }}
+          >
+            {renderDragOverlay()}
+          </div>
+        )}
 
         {/* Modals */}
         {modal?.type === 'add' && (
