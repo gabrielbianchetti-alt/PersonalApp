@@ -14,7 +14,7 @@ const MESES = [
 ]
 
 const GETDAY_TO_KEY: Record<number, string> = {
-  1: 'seg', 2: 'ter', 3: 'qua', 4: 'qui', 5: 'sex', 6: 'sab',
+  1: 'seg', 2: 'ter', 3: 'qua', 4: 'qui', 5: 'sex', 6: 'sab', 0: 'dom',
 }
 
 const DEFAULT_TEMPLATE = `Olá, {nome}! 👋

@@ -11,7 +11,7 @@ const DOW_TO_KEY: Record<number, string> = {
 }
 
 function countWeekdaysInMonth(year: number, month: number): Record<string, number> {
-  const counts: Record<string, number> = { seg: 0, ter: 0, qua: 0, qui: 0, sex: 0, sab: 0 }
+  const counts: Record<string, number> = { seg: 0, ter: 0, qua: 0, qui: 0, sex: 0, sab: 0, dom: 0 }
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   for (let d = 1; d <= daysInMonth; d++) {
     const key = DOW_TO_KEY[new Date(year, month, d).getDay()]

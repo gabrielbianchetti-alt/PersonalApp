@@ -27,7 +27,7 @@ const MESES = [
   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
 ]
 
-const DAY_TO_KEY: Record<number, string> = { 1:'seg',2:'ter',3:'qua',4:'qui',5:'sex',6:'sab' }
+const DAY_TO_KEY: Record<number, string> = { 1:'seg',2:'ter',3:'qua',4:'qui',5:'sex',6:'sab',0:'dom' }
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
