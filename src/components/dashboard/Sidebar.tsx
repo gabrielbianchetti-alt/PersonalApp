@@ -59,9 +59,10 @@ interface SidebarProps {
   onClose: () => void
   fotoUrl: string | null
   professorNome: string
+  isAdmin?: boolean
 }
 
-export function Sidebar({ isOpen, onClose, fotoUrl, professorNome }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const firstName = professorNome.split(' ')[0] || professorNome
@@ -161,6 +162,23 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome }: SidebarProp
           )}
           <span className="text-sm font-medium flex-1 truncate">{firstName}</span>
         </Link>
+
+        {/* Admin (only visible to admin user) */}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            onClick={onClose}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
+            style={{ color: '#A78BFA' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(167,139,250,0.1)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span className="text-sm font-medium">Admin</span>
+          </Link>
+        )}
 
         {/* Configurações */}
         <Link

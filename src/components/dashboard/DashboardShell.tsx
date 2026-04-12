@@ -9,9 +9,10 @@ interface Props {
   fotoUrl: string | null
   professorNome: string
   corTema: string
+  isAdmin?: boolean
 }
 
-export function DashboardShell({ children, fotoUrl, professorNome, corTema }: Props) {
+export function DashboardShell({ children, fotoUrl, professorNome, corTema, isAdmin }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Re-apply theme on client after hydration (handles non-default colors;
@@ -28,6 +29,7 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema }: Pr
         onClose={() => setSidebarOpen(false)}
         fotoUrl={fotoUrl}
         professorNome={professorNome}
+        isAdmin={isAdmin}
       />
 
       {/* Mobile overlay */}

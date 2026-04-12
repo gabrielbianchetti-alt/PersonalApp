@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { themeStyle } from '@/lib/color'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 
+const ADMIN_EMAIL = 'gabrielbianchetti@hotmail.com'
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -22,6 +24,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     (user?.user_metadata?.full_name as string | undefined) ??
     'Professor'
 
+  const isAdmin = user?.email === ADMIN_EMAIL
+
   // Only inject if different from the default (avoids empty style tag)
   const injectStyle = corTema !== '#00E676' ? themeStyle(corTema) : null
 
@@ -35,6 +39,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         fotoUrl={fotoUrl}
         professorNome={professorNome}
         corTema={corTema}
+        isAdmin={isAdmin}
       >
         {children}
       </DashboardShell>
