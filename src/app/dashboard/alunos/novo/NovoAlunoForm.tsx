@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Stepper } from '@/components/alunos/Stepper'
 import { StepDadosPessoais } from '@/components/alunos/steps/StepDadosPessoais'
 import { StepTreino } from '@/components/alunos/steps/StepTreino'
@@ -27,7 +26,6 @@ function validateStep(step: number, data: AlunoFormData): Record<string, string>
 
   if (step === 1) {
     if (data.horarios.length === 0) errors.horarios = 'Selecione ao menos um dia'
-    // Check each selected day has a horario
     data.horarios.forEach(h => {
       if (!h.horario) errors[`horarios_${h.dia}`] = 'Informe o horário'
     })
@@ -43,8 +41,12 @@ function validateStep(step: number, data: AlunoFormData): Record<string, string>
   return errors
 }
 
-export function NovoAlunoForm() {
-  const router = useRouter()
+interface Props {
+  onSuccess?: (aluno: Record<string, unknown>) => void
+  onCancel?: () => void
+}
+
+export function NovoAlunoForm({ onSuccess, onCancel }: Props) {
   const [step, setStep] = useState(0)
   const [formData, setFormData] = useState<AlunoFormData>(initialFormData())
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -58,10 +60,7 @@ export function NovoAlunoForm() {
 
   function handleNext() {
     const errs = validateStep(step, formData)
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs)
-      return
-    }
+    if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setErrors({})
     setStep((s) => s + 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -83,12 +82,15 @@ export function NovoAlunoForm() {
     setLoading(true)
     setSaveError(null)
     const result = await criarAlunoAction(formData)
+    setLoading(false)
     if (result?.error) {
       setSaveError(result.error)
-      setLoading(false)
       return
     }
-    router.push('/dashboard/alunos?success=1')
+    // Pass the newly created aluno back to the parent — no page navigation needed
+    if (result?.data && onSuccess) {
+      onSuccess(result.data)
+    }
   }
 
   return (
@@ -97,7 +99,7 @@ export function NovoAlunoForm() {
         {/* Back link */}
         <button
           type="button"
-          onClick={() => router.push('/dashboard/alunos')}
+          onClick={onCancel}
           className="flex items-center gap-2 mb-6 text-sm transition-colors cursor-pointer"
           style={{ color: 'var(--text-secondary)' }}
           onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
@@ -128,18 +130,10 @@ export function NovoAlunoForm() {
           className="rounded-2xl p-6 md:p-8 mb-6"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
         >
-          {step === 0 && (
-            <StepDadosPessoais data={formData} errors={errors} onChange={handleChange} />
-          )}
-          {step === 1 && (
-            <StepTreino data={formData} errors={errors} onChange={handleChange} />
-          )}
-          {step === 2 && (
-            <StepSaude data={formData} errors={errors} onChange={handleChange} />
-          )}
-          {step === 3 && (
-            <StepRevisao data={formData} onEdit={handleEdit} />
-          )}
+          {step === 0 && <StepDadosPessoais data={formData} errors={errors} onChange={handleChange} />}
+          {step === 1 && <StepTreino data={formData} errors={errors} onChange={handleChange} />}
+          {step === 2 && <StepSaude data={formData} errors={errors} onChange={handleChange} />}
+          {step === 3 && <StepRevisao data={formData} onEdit={handleEdit} />}
         </div>
 
         {/* Save error */}

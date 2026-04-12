@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { TabBar } from '@/components/dashboard/TabBar'
 import { AlunosGrid } from '@/components/alunos/AlunosGrid'
 import { NovoAlunoForm } from './novo/NovoAlunoForm'
 import { Suspensoes } from '../suspensoes/Suspensoes'
 import { Termos } from '../termos/Termos'
-import { SuccessToast } from '@/components/ui/SuccessToast'
 import { DIAS_SEMANA, DURACAO_OPCOES } from '@/types/aluno'
 import type { SuspensaoRow } from '../suspensoes/types'
 import type { ModeloTermo, TermoEnviado } from '../termos/types'
@@ -53,23 +52,104 @@ const TABS = [
   { key: 'termos',    label: 'Termos' },
 ]
 
+// ─── inline toast (sem side-effects de roteamento) ───────────────────────────
+
+function Toast({ message, onDone }: { message: string; onDone: () => void }) {
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => { setVisible(false); onDone() }, 4000)
+    return () => clearTimeout(t)
+  }, [onDone])
+
+  if (!visible) return null
+
+  return (
+    <div
+      className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl"
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid rgba(0,230,118,0.3)',
+        color: 'var(--text-primary)',
+        animation: 'slideUp 0.25s ease-out',
+      }}
+    >
+      <span
+        className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+        style={{ background: 'var(--green-muted)' }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green-primary)" strokeWidth="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </span>
+      <span className="text-sm font-medium">{message}</span>
+      <button
+        onClick={() => { setVisible(false); onDone() }}
+        className="ml-2 cursor-pointer"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(12px); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 // ─── component ────────────────────────────────────────────────────────────────
 
 export function AlunosHub({
   initialTab,
   showSuccess,
-  alunos,
+  alunos: initialAlunos,
   alunosPausados,
   suspensoesIniciais,
   modelos,
   historicoTermos,
   alunoIdInicial,
 }: Props) {
+  const router = useRouter()
   const [tab, setTab] = useState<AlunosTab>(initialTab)
+
+  // Local alunos list — updated immediately on creation, no page reload needed
+  const [alunos, setAlunos] = useState<AlunoFull[]>(initialAlunos)
+
+  // Toast: toastKey > 0 means "show toast"; increment to re-trigger
+  const [toastKey, setToastKey] = useState(showSuccess ? 1 : 0)
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Called by NovoAlunoForm after a successful insert
+  function handleAlunoCreated(raw: Record<string, unknown>) {
+    const newAluno = raw as unknown as AlunoFull
+    setAlunos(prev =>
+      [...prev, newAluno].sort((a, b) =>
+        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
+      )
+    )
+    setTab('lista')
+    setToastKey(k => k + 1)
+
+    // Sync server cache in the background (after UI is already updated)
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+    refreshTimerRef.current = setTimeout(() => router.refresh(), 300)
+  }
 
   return (
     <div className="flex flex-col min-h-full">
-      {showSuccess && <SuccessToast message="Aluno cadastrado com sucesso!" />}
+
+      {toastKey > 0 && (
+        <Toast
+          key={toastKey}
+          message="Aluno cadastrado com sucesso!"
+          onDone={() => setToastKey(0)}
+        />
+      )}
 
       {/* Section header + tabs */}
       <div
@@ -137,7 +217,10 @@ export function AlunosHub({
 
         {/* ── Novo Aluno ── */}
         {tab === 'novo' && (
-          <NovoAlunoForm />
+          <NovoAlunoForm
+            onSuccess={handleAlunoCreated}
+            onCancel={() => setTab('lista')}
+          />
         )}
 
         {/* ── Suspensos ── */}
