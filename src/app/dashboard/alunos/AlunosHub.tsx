@@ -1,0 +1,167 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { TabBar } from '@/components/dashboard/TabBar'
+import { AlunosGrid } from '@/components/alunos/AlunosGrid'
+import { NovoAlunoForm } from './novo/NovoAlunoForm'
+import { Suspensoes } from '../suspensoes/Suspensoes'
+import { Termos } from '../termos/Termos'
+import { SuccessToast } from '@/components/ui/SuccessToast'
+import { DIAS_SEMANA, DURACAO_OPCOES } from '@/types/aluno'
+import type { SuspensaoRow } from '../suspensoes/types'
+import type { ModeloTermo, TermoEnviado } from '../termos/types'
+
+// ─── types ────────────────────────────────────────────────────────────────────
+
+export interface AlunoFull {
+  id: string
+  nome: string
+  whatsapp: string
+  dias_semana: string[]
+  horario_inicio: string
+  local: string
+  valor: number
+  modelo_cobranca: 'por_aula' | 'mensalidade'
+  data_inicio: string
+  status: string
+  duracao: number
+}
+
+export interface AlunoMinimal {
+  id: string
+  nome: string
+  horario_inicio: string
+  dias_semana: string[]
+}
+
+export type AlunosTab = 'lista' | 'novo' | 'suspensos' | 'termos'
+
+interface Props {
+  initialTab: AlunosTab
+  showSuccess: boolean
+  alunos: AlunoFull[]
+  alunosPausados: AlunoMinimal[]
+  suspensoesIniciais: SuspensaoRow[]
+  modelos: ModeloTermo[]
+  historicoTermos: TermoEnviado[]
+  alunoIdInicial?: string
+}
+
+const TABS = [
+  { key: 'lista',     label: 'Lista' },
+  { key: 'novo',      label: '+ Novo Aluno' },
+  { key: 'suspensos', label: 'Suspensos' },
+  { key: 'termos',    label: 'Termos' },
+]
+
+// ─── component ────────────────────────────────────────────────────────────────
+
+export function AlunosHub({
+  initialTab,
+  showSuccess,
+  alunos,
+  alunosPausados,
+  suspensoesIniciais,
+  modelos,
+  historicoTermos,
+  alunoIdInicial,
+}: Props) {
+  const [tab, setTab] = useState<AlunosTab>(initialTab)
+
+  return (
+    <div className="flex flex-col min-h-full">
+      {showSuccess && <SuccessToast message="Aluno cadastrado com sucesso!" />}
+
+      {/* Section header + tabs */}
+      <div
+        className="px-4 md:px-6 pt-5 shrink-0"
+        style={{ background: 'var(--bg-surface)' }}
+      >
+        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Alunos</h1>
+            {tab === 'lista' && (
+              <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                {alunos.length} {alunos.length === 1 ? 'aluno ativo' : 'alunos ativos'}
+              </p>
+            )}
+            {tab === 'suspensos' && (
+              <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                {alunosPausados.length} {alunosPausados.length === 1 ? 'aluno pausado' : 'alunos pausados'}
+              </p>
+            )}
+          </div>
+        </div>
+        <TabBar tabs={TABS} active={tab} onChange={(k) => setTab(k as AlunosTab)} />
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1">
+
+        {/* ── Lista ── */}
+        {tab === 'lista' && (
+          <div className="p-4 md:p-6">
+            {alunos.length === 0 ? (
+              <div
+                className="flex flex-col items-center justify-center py-20 rounded-2xl"
+                style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-subtle)' }}
+              >
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                  style={{ background: 'var(--bg-input)' }}
+                >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Nenhum aluno cadastrado</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>Comece adicionando seu primeiro aluno</p>
+                <button
+                  onClick={() => setTab('novo')}
+                  className="mt-5 flex items-center gap-2 h-10 px-5 rounded-xl font-semibold text-sm"
+                  style={{ background: 'var(--green-primary)', color: '#000' }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Cadastrar primeiro aluno
+                </button>
+              </div>
+            ) : (
+              <AlunosGrid alunos={alunos} diasSemana={DIAS_SEMANA} duracaoOpcoes={DURACAO_OPCOES} />
+            )}
+          </div>
+        )}
+
+        {/* ── Novo Aluno ── */}
+        {tab === 'novo' && (
+          <NovoAlunoForm />
+        )}
+
+        {/* ── Suspensos ── */}
+        {tab === 'suspensos' && (
+          <Suspensoes
+            alunosAtivos={alunos}
+            alunosPausados={alunosPausados}
+            suspensoesIniciais={suspensoesIniciais}
+          />
+        )}
+
+        {/* ── Termos ── */}
+        {tab === 'termos' && (
+          <Termos
+            alunos={alunos}
+            modelos={modelos}
+            historicoInicial={historicoTermos}
+            alunoIdInicial={alunoIdInicial}
+          />
+        )}
+
+      </div>
+    </div>
+  )
+}

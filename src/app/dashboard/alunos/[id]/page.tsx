@@ -113,7 +113,7 @@ export default async function AlunoPerfilPage({
       <div className="grid grid-cols-2 gap-3 mb-4">
         {/* Enviar Termo */}
         <Link
-          href={`/dashboard/termos?aluno_id=${id}`}
+          href={`/dashboard/alunos?tab=termos&aluno_id=${id}`}
           className="flex flex-col items-center gap-2 p-4 rounded-xl transition-colors"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
         >

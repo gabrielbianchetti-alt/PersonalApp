@@ -1,13 +1,24 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
-import { AgendaSemanal } from './AgendaSemanal'
+import { processVencidosAction } from '../faltas/actions'
+import { AgendaHub } from './AgendaHub'
+import type { AgendaTab } from './AgendaHub'
+import type { FaltaRow, PrefsF } from '../faltas/actions'
 
 export const metadata: Metadata = { title: 'Agenda — PersonalHub' }
 
-export default async function AgendaPage() {
+export default async function AgendaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>
+}) {
+  const params = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  // Auto-process expired faltas on page load
+  await processVencidosAction()
 
   // Current week Mon–Sun
   const today = new Date()
@@ -26,7 +37,12 @@ export default async function AgendaPage() {
   const weekStart = toDateStr(monday)
   const weekEnd   = toDateStr(sunday)
 
-  const [{ data: alunos }, { data: eventos }] = await Promise.all([
+  const [
+    { data: alunos },
+    { data: eventos },
+    { data: faltas },
+    { data: prefs },
+  ] = await Promise.all([
     supabase
       .from('alunos')
       .select('id, nome, dias_semana, horario_inicio, duracao, local, modelo_cobranca, observacoes')
@@ -37,14 +53,43 @@ export default async function AgendaPage() {
       .from('eventos_agenda')
       .select('*')
       .eq('professor_id', user.id)
-      // Recurring (dia_semana set) OR one-time within current week
       .or(`dia_semana.not.is.null,and(data_especifica.gte.${weekStart},data_especifica.lte.${weekEnd})`),
+    supabase
+      .from('faltas')
+      .select('*, alunos(nome)')
+      .eq('professor_id', user.id)
+      .order('data_falta', { ascending: false }),
+    supabase
+      .from('preferencias_faltas')
+      .select('ativo, prazo_dias, alerta_dias')
+      .eq('professor_id', user.id)
+      .single(),
   ])
 
+  // Enrich faltas with aluno names
+  const faltasRows: FaltaRow[] = (faltas ?? []).map((r: Record<string, unknown>) => ({
+    ...r,
+    aluno_nome: (r.alunos as { nome: string } | null)?.nome ?? '—',
+  })) as FaltaRow[]
+
+  const prefsDefault: PrefsF = prefs ?? { ativo: false, prazo_dias: 30, alerta_dias: 5 }
+
+  // Alunos for faltas (id + nome only)
+  const alunosFaltas = (alunos ?? []).map(a => ({ id: a.id, nome: a.nome }))
+
+  // Determine initial tab
+  const validTabs: AgendaTab[] = ['grade', 'faltas']
+  const rawTab = params.tab as AgendaTab
+  const initialTab: AgendaTab = validTabs.includes(rawTab) ? rawTab : 'grade'
+
   return (
-    <AgendaSemanal
+    <AgendaHub
+      initialTab={initialTab}
       alunos={alunos ?? []}
       eventosIniciais={eventos ?? []}
+      alunosFaltas={alunosFaltas}
+      faltasIniciais={faltasRows}
+      prefsIniciais={prefsDefault}
     />
   )
 }

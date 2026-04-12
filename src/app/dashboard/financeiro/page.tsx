@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
-import { Financeiro } from './Financeiro'
+import { FinanceiroHub } from './FinanceiroHub'
+import type { FinanceiroTab } from './FinanceiroHub'
 import type { CustoRow } from './actions'
 
 export const metadata: Metadata = { title: 'Financeiro — PersonalHub' }
@@ -35,21 +36,32 @@ async function seedFixosIfNeeded(
   )
 }
 
-export default async function FinanceiroPage() {
+export default async function FinanceiroPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>
+}) {
+  const params = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const today  = new Date()
+  const today   = new Date()
   const mesAtual = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
-  // Seed fixos, then fetch everything in parallel
+  // Seed fixos for current month before parallel fetch
   await seedFixosIfNeeded(supabase, user.id, mesAtual)
 
-  const [{ data: alunos }, { data: custos }] = await Promise.all([
+  const [
+    { data: alunos },
+    { data: custos },
+    { data: cobrancas },
+    { data: prefs },
+    { data: creditos },
+  ] = await Promise.all([
     supabase
       .from('alunos')
-      .select('id, nome, modelo_cobranca, valor, dias_semana')
+      .select('id, nome, whatsapp, dias_semana, modelo_cobranca, valor, forma_pagamento')
       .eq('professor_id', user.id)
       .eq('status', 'ativo')
       .order('nome'),
@@ -59,13 +71,49 @@ export default async function FinanceiroPage() {
       .eq('professor_id', user.id)
       .eq('mes_referencia', mesAtual)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('cobrancas')
+      .select('*')
+      .eq('professor_id', user.id)
+      .eq('mes_referencia', mesAtual),
+    supabase
+      .from('preferencias_cobranca')
+      .select('*')
+      .eq('professor_id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('faltas')
+      .select('aluno_id, credito_valor')
+      .eq('professor_id', user.id)
+      .eq('status', 'credito'),
   ])
 
+  // Build creditos map
+  const creditosPorAluno: Record<string, number> = {}
+  for (const row of (creditos ?? [])) {
+    if (row.credito_valor) {
+      creditosPorAluno[row.aluno_id] = (creditosPorAluno[row.aluno_id] ?? 0) + Number(row.credito_valor)
+    }
+  }
+
+  // Determine initial tab
+  const validTabs: FinanceiroTab[] = ['calculo', 'cobranca', 'custos']
+  const rawTab = params.tab as FinanceiroTab
+  const initialTab: FinanceiroTab = validTabs.includes(rawTab) ? rawTab : 'calculo'
+
+  const alunosList = alunos ?? []
+
   return (
-    <Financeiro
-      alunos={alunos ?? []}
-      custosIniciais={(custos ?? []) as CustoRow[]}
+    <FinanceiroHub
+      initialTab={initialTab}
+      alunosCalculo={alunosList}
+      alunosCobranca={alunosList}
+      cobrancasIniciais={cobrancas ?? []}
+      preferencias={prefs ?? null}
+      creditosPorAluno={creditosPorAluno}
       mesInicial={mesAtual}
+      alunosCustos={alunosList}
+      custosIniciais={(custos ?? []) as CustoRow[]}
     />
   )
 }
