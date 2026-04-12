@@ -67,9 +67,12 @@ export function Configuracoes({ perfil, email }: Props) {
 
   // ── indicação ───────────────────────────────────────────────────────────────
   const [copied, setCopied] = useState(false)
-  const referralLink = typeof window !== 'undefined'
-    ? `${window.location.origin}/register?ref=${perfil.codigo_indicacao}`
-    : `https://personalhub.app/register?ref=${perfil.codigo_indicacao}`
+  // Start with a relative URL (same on server and client) to avoid hydration mismatch.
+  // Upgrade to the full absolute URL after mount so it's correct for copy/share.
+  const [referralLink, setReferralLink] = useState(`/register?ref=${perfil.codigo_indicacao}`)
+  useEffect(() => {
+    setReferralLink(`${window.location.origin}/register?ref=${perfil.codigo_indicacao}`)
+  }, [perfil.codigo_indicacao])
 
   // Apply theme preview in real-time
   useEffect(() => {

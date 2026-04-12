@@ -186,13 +186,14 @@ function getFreeSlotsForDay(dayIdx: number, weekDays: Date[], alunos: AlunoAgend
 // ─── DraggableBlock ────────────────────────────────────────────────────────────
 
 function DraggableBlock({
-  id, data, style, className, onClick, children,
+  id, data, style, className, onClick, children, onPointerDown,
 }: {
   id: string
   data: DragData
   style?: React.CSSProperties
   className?: string
   onClick?: (e: React.MouseEvent) => void
+  onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void
   children: React.ReactNode
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data: data as unknown as Record<string, unknown> })
@@ -203,6 +204,7 @@ function DraggableBlock({
       {...listeners}
       data-block="true"
       onClick={onClick}
+      onPointerDown={onPointerDown}
       style={{ ...style, opacity: isDragging ? 0 : 1, touchAction: 'none', userSelect: 'none' }}
       className={className}
     >
@@ -850,6 +852,9 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   const grabOffsetRef = useRef({ x: 0, y: 0 })
   // pointerPosRef: latest pointer position in viewport coords (used in drag end)
   const pointerPosRef = useRef({ x: 0, y: 0 })
+  // initBlockRectRef: the block's getBoundingClientRect at the moment of pointerdown
+  // (captured before dnd-kit's activation threshold moves the pointer)
+  const initBlockRectRef = useRef<DOMRect | null>(null)
   // overlayXY: fixed-position for the custom ghost overlay
   const [overlayXY, setOverlayXY] = useState<{ x: number; y: number } | null>(null)
 
@@ -900,25 +905,37 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
   // ── DnD handlers ─────────────────────────────────────────────────────────────
 
+  // Called by each DraggableBlock at pointerdown — captures the element rect
+  // BEFORE dnd-kit's activation threshold causes any pointer movement.
+  function handleBlockPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    initBlockRectRef.current = e.currentTarget.getBoundingClientRect()
+    pointerPosRef.current = { x: e.clientX, y: e.clientY }
+  }
+
   function handleDragStart({ active, activatorEvent }: DragStartEvent) {
     const d = active.data.current as DragData
     setActiveBlock({ ...d, id: active.id as string })
     setModal(null)
 
-    // Capture where within the block the user clicked (grab offset)
-    if (activatorEvent && active.rect.current.initial) {
-      const ev = activatorEvent as MouseEvent | TouchEvent
-      const clientX = 'touches' in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX
-      const clientY = 'touches' in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY
-      const rect = active.rect.current.initial
+    // Use the rect captured at pointerdown (most accurate) to compute grab offset.
+    // Fallback to activatorEvent + dnd-kit rect if pointerdown wasn't captured.
+    const rect = initBlockRectRef.current ?? active.rect.current.initial
+    const ev = activatorEvent as MouseEvent | TouchEvent | null
+    const clientX = ev
+      ? ('touches' in ev ? (ev as TouchEvent).touches[0]?.clientX ?? pointerPosRef.current.x : (ev as MouseEvent).clientX)
+      : pointerPosRef.current.x
+    const clientY = ev
+      ? ('touches' in ev ? (ev as TouchEvent).touches[0]?.clientY ?? pointerPosRef.current.y : (ev as MouseEvent).clientY)
+      : pointerPosRef.current.y
+
+    if (rect) {
       grabOffsetRef.current = {
         x: clientX - rect.left,
         y: clientY - rect.top,
       }
-      pointerPosRef.current = { x: clientX, y: clientY }
-      // Set initial overlay position so it appears immediately without flicker
       setOverlayXY({ x: rect.left, y: rect.top })
     }
+    pointerPosRef.current = { x: clientX, y: clientY }
   }
 
   function handleDragMove({ active, over }: DragMoveEvent) {
@@ -1185,6 +1202,7 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
             }
             return (
               <DraggableBlock key={b.id} id={b.id} data={dragData}
+                onPointerDown={handleBlockPointerDown}
                 style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2 }}
                 onClick={(e) => { e.stopPropagation(); setModal({ type: 'aluno-card', aluno: a, dayIdx, date: day }) }}>
                 <div className="w-full h-full rounded-lg overflow-hidden"
@@ -1206,6 +1224,7 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
             }
             return (
               <DraggableBlock key={b.id} id={b.id} data={dragData}
+                onPointerDown={handleBlockPointerDown}
                 style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2 }}
                 onClick={(e) => { e.stopPropagation(); setModal({ type: 'evento-card', evento: ev, alunoNome }) }}>
                 <div className="w-full h-full rounded-lg overflow-hidden"
