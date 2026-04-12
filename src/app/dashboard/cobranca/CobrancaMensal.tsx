@@ -264,7 +264,30 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
   // ── whatsapp ─────────────────────────────────────────────────────────────────
 
   const handleWhatsApp = useCallback(async (aluno: AlunoCobranca) => {
-    const msg    = messages[aluno.id] ?? buildMessage(aluno, year, month, preferencias, template)
+    // ── 1. Build & validate phone number FIRST (synchronously) ───────────────
+    const raw   = (aluno.whatsapp ?? '').replace(/\D/g, '')
+    // Prepend country code 55 only if it isn't already there
+    const phone = raw.length >= 12 ? raw : `55${raw}`
+
+    if (raw.length < 10) {
+      alert(`⚠️ ${aluno.nome} não tem WhatsApp cadastrado ou o número é inválido.\nCadastre o número no perfil do aluno.`)
+      return
+    }
+
+    const msg = messages[aluno.id] ?? buildMessage(aluno, year, month, preferencias, template)
+    const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
+
+    console.log('[WhatsApp] aluno:', aluno.nome)
+    console.log('[WhatsApp] raw digits:', raw)
+    console.log('[WhatsApp] phone:', phone)
+    console.log('[WhatsApp] url:', url)
+
+    // ── 2. Open WhatsApp BEFORE any await ────────────────────────────────────
+    // Mobile browsers block window.open() called after an await (treated as
+    // non-user-gesture and silently suppressed by popup blockers).
+    window.open(url, '_blank')
+
+    // ── 3. Save cobrança in background (non-blocking) ────────────────────────
     const total  = calcTotal(aluno, year, month)
     const mesRef = formatMesRef(year, month)
 
@@ -291,10 +314,6 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
       }))
     }
     setLoading(aluno.id, false)
-
-    const raw   = aluno.whatsapp.replace(/\D/g, '')
-    const phone = raw.length >= 12 ? raw : `55${raw}`   // prepend 55 only if no country code yet
-    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank')
   }, [messages, year, month, preferencias, template])
 
   // ── status update ─────────────────────────────────────────────────────────────

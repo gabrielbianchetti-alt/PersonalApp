@@ -205,6 +205,22 @@ function EnviarTermoModal({
   }, [selectedTipo, modeloAtual, aluno])
 
   async function handleEnviar() {
+    // ── 1. Validate & build WhatsApp URL synchronously (BEFORE any await) ────
+    const raw   = (aluno.whatsapp ?? '').replace(/\D/g, '')
+    const phone = raw.length >= 12 ? raw : `55${raw}`
+
+    if (raw.length < 10) {
+      setError('Aluno sem WhatsApp cadastrado ou número inválido. Atualize o cadastro do aluno.')
+      return
+    }
+
+    const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(texto)}`
+    console.log('[Termos WhatsApp] phone:', phone, '| url:', url)
+
+    // ── 2. Open WhatsApp BEFORE the await (avoids popup blocker) ─────────────
+    window.open(url, '_blank')
+
+    // ── 3. Register the send in the background ────────────────────────────────
     setSending(true)
     const res = await registrarEnvioAction({
       aluno_id: aluno.id,
@@ -213,11 +229,6 @@ function EnviarTermoModal({
     })
     setSending(false)
     if (res.error) { setError(res.error); return }
-
-    // Open WhatsApp
-    const raw   = aluno.whatsapp.replace(/\D/g, '')
-    const phone = raw.length >= 12 ? raw : `55${raw}`   // prepend 55 only if no country code yet
-    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(texto)}`, '_blank')
     setSent(true)
     onSent(res.data!)
   }
