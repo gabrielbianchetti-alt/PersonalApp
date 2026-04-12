@@ -57,11 +57,17 @@ const NAV_ITEMS = [
 interface SidebarProps {
   isOpen: boolean
   onClose: () => void
+  fotoUrl: string | null
+  professorNome: string
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, fotoUrl, professorNome }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const firstName = professorNome.split(' ')[0] || professorNome
+  const initials = professorNome.slice(0, 2).toUpperCase() || 'PH'
+
+  const isConfiguracoes = pathname === '/dashboard/configuracoes'
 
   async function handleLogout() {
     const supabase = createClient()
@@ -113,19 +119,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-100"
               style={
                 isActive
-                  ? {
-                      background: 'var(--green-muted)',
-                      color: 'var(--green-primary)',
-                      border: '1px solid rgba(0,230,118,0.15)',
-                    }
+                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.15)' }
                   : { color: 'var(--text-secondary)' }
               }
-              onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'var(--bg-card)'
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'transparent'
-              }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--bg-card)' }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
             >
               {item.icon}
               <span className="text-sm font-medium">{item.label}</span>
@@ -134,8 +132,57 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* Logout */}
+      {/* Bottom section: profile card + configurações + sair */}
       <div className="p-3 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+
+        {/* Profile card */}
+        <Link
+          href="/dashboard/configuracoes"
+          onClick={onClose}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
+          style={{ color: 'var(--text-secondary)' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+        >
+          {fotoUrl ? (
+            <img
+              src={fotoUrl}
+              alt={firstName}
+              className="w-8 h-8 rounded-full object-cover shrink-0"
+              style={{ border: '1.5px solid var(--green-primary)' }}
+            />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1.5px solid var(--green-primary)' }}
+            >
+              {initials}
+            </div>
+          )}
+          <span className="text-sm font-medium flex-1 truncate">{firstName}</span>
+        </Link>
+
+        {/* Configurações */}
+        <Link
+          href="/dashboard/configuracoes"
+          onClick={onClose}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
+          style={
+            isConfiguracoes
+              ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.15)' }
+              : { color: 'var(--text-secondary)' }
+          }
+          onMouseEnter={e => { if (!isConfiguracoes) e.currentTarget.style.background = 'var(--bg-card)' }}
+          onMouseLeave={e => { if (!isConfiguracoes) e.currentTarget.style.background = 'transparent' }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          <span className="text-sm font-medium">Configurações</span>
+        </Link>
+
+        {/* Sair */}
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-100 cursor-pointer"

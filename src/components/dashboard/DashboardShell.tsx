@@ -1,15 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from './Sidebar'
+import { applyTheme } from '@/lib/color'
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+interface Props {
+  children: React.ReactNode
+  fotoUrl: string | null
+  professorNome: string
+  corTema: string
+}
+
+export function DashboardShell({ children, fotoUrl, professorNome, corTema }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Re-apply theme on client after hydration (handles non-default colors;
+  // the <style> tag in layout.tsx already covers SSR so there's no flash)
+  useEffect(() => {
+    if (corTema && corTema !== '#00E676') applyTheme(corTema)
+  }, [corTema])
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-base)' }}>
       {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        fotoUrl={fotoUrl}
+        professorNome={professorNome}
+      />
 
       {/* Mobile overlay */}
       {sidebarOpen && (
