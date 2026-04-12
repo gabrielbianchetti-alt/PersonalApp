@@ -292,8 +292,9 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
     }
     setLoading(aluno.id, false)
 
-    const digits = aluno.whatsapp.replace(/\D/g, '')
-    window.open(`https://wa.me/55${digits}?text=${encodeURIComponent(msg)}`, '_blank')
+    const raw   = aluno.whatsapp.replace(/\D/g, '')
+    const phone = raw.length >= 12 ? raw : `55${raw}`   // prepend 55 only if no country code yet
+    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank')
   }, [messages, year, month, preferencias, template])
 
   // ── status update ─────────────────────────────────────────────────────────────

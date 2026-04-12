@@ -215,8 +215,9 @@ function EnviarTermoModal({
     if (res.error) { setError(res.error); return }
 
     // Open WhatsApp
-    const digits = aluno.whatsapp.replace(/\D/g, '')
-    window.open(`https://wa.me/55${digits}?text=${encodeURIComponent(texto)}`, '_blank')
+    const raw   = aluno.whatsapp.replace(/\D/g, '')
+    const phone = raw.length >= 12 ? raw : `55${raw}`   // prepend 55 only if no country code yet
+    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(texto)}`, '_blank')
     setSent(true)
     onSent(res.data!)
   }

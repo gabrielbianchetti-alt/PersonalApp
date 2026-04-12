@@ -162,7 +162,7 @@ export function Configuracoes({ perfil, email }: Props) {
     const msg = encodeURIComponent(
       `Oi! 👋 Uso o PersonalHub para gerenciar meus alunos e recomendo muito.\nCadastre-se pelo meu link: ${referralLink}`
     )
-    window.open(`https://wa.me/?text=${msg}`, '_blank')
+    window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank')
   }
 
   // ─── render ─────────────────────────────────────────────────────────────────
