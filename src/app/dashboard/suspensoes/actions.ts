@@ -18,7 +18,7 @@ export async function getSuspensoesAction(): Promise<{ data?: SuspensaoRow[]; er
     .eq('professor_id', user.id)
     .order('created_at', { ascending: false })
 
-  if (error) { console.error('getSuspensoes:', error); return { error: 'Erro ao buscar suspensões.' } }
+  if (error) { console.error('getSuspensoes:', error); return { error: `Erro ao buscar suspensões: ${error.message} (código: ${error.code})` } }
 
   const rows = (data ?? []).map((r: Record<string, unknown>) => {
     const al = r.alunos as { nome: string; horarios: { dia: string; horario: string }[] } | null
@@ -64,7 +64,10 @@ export async function criarSuspensaoAction(input: {
     .select()
     .single()
 
-  if (insertError) { console.error('criarSuspensao:', insertError); return { error: 'Erro ao criar suspensão.' } }
+  if (insertError) {
+    console.error('criarSuspensao:', insertError)
+    return { error: `Erro ao criar suspensão: ${insertError.message} (código: ${insertError.code})` }
+  }
 
   // Update aluno status to 'pausado'
   const { error: statusError } = await supabase
@@ -138,11 +141,14 @@ export async function reativarAlunoAction(
   // Mark suspension as encerrada
   const { error: suspError } = await supabase
     .from('suspensoes')
-    .update({ status: 'encerrada', updated_at: new Date().toISOString() })
+    .update({ status: 'encerrada' })
     .eq('id', suspensaoId)
     .eq('professor_id', user.id)
 
-  if (suspError) { console.error('encerrarSuspensao:', suspError); return { error: 'Erro ao encerrar suspensão.' } }
+  if (suspError) {
+    console.error('encerrarSuspensao:', suspError)
+    return { error: `Erro ao encerrar suspensão: ${suspError.message}` }
+  }
 
   // Update aluno status to 'ativo'
   const { error: alunoError } = await supabase
@@ -167,10 +173,13 @@ export async function encerrarSuspensaoAction(
 
   const { error } = await supabase
     .from('suspensoes')
-    .update({ status: 'encerrada', updated_at: new Date().toISOString() })
+    .update({ status: 'encerrada' })
     .eq('id', suspensaoId)
     .eq('professor_id', user.id)
 
-  if (error) { console.error('encerrarSuspensao:', error); return { error: 'Erro ao encerrar suspensão.' } }
+  if (error) {
+    console.error('encerrarSuspensao:', error)
+    return { error: `Erro ao encerrar suspensão: ${error.message}` }
+  }
   return {}
 }
