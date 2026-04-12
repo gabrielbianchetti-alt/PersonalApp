@@ -1,18 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import {
-  DndContext,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  useDraggable,
-  useDroppable,
-  type DragStartEvent,
-  type DragMoveEvent,
-  type DragEndEvent,
-} from '@dnd-kit/core'
 import { createClient } from '@/lib/supabase/client'
 import {
   createEventoAction,
@@ -84,8 +72,6 @@ interface DragData {
   startMin: number
   duracao: number
 }
-interface DropData { dayIdx: number }
-
 interface ActiveBlock extends DragData { id: string }
 
 interface DropTarget {
@@ -186,26 +172,21 @@ function getFreeSlotsForDay(dayIdx: number, weekDays: Date[], alunos: AlunoAgend
 // ─── DraggableBlock ────────────────────────────────────────────────────────────
 
 function DraggableBlock({
-  id, data, style, className, onClick, children, onPointerDown,
+  isSource, style, className, onClick, onPointerDown, children,
 }: {
-  id: string
-  data: DragData
+  isSource?: boolean
   style?: React.CSSProperties
   className?: string
   onClick?: (e: React.MouseEvent) => void
   onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void
   children: React.ReactNode
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data: data as unknown as Record<string, unknown> })
   return (
     <div
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
       data-block="true"
       onClick={onClick}
       onPointerDown={onPointerDown}
-      style={{ ...style, opacity: isDragging ? 0 : 1, touchAction: 'none', userSelect: 'none' }}
+      style={{ ...style, opacity: isSource ? 0 : 1, touchAction: 'none', userSelect: 'none' }}
       className={className}
     >
       {children}
@@ -216,9 +197,9 @@ function DraggableBlock({
 // ─── DroppableDay ──────────────────────────────────────────────────────────────
 
 function DroppableDay({
-  dayIdx, children, style, className, onClick, onMouseMove, onMouseLeave,
+  colRef, children, style, className, onClick, onMouseMove, onMouseLeave,
 }: {
-  dayIdx: number
+  colRef?: (el: HTMLDivElement | null) => void
   children: React.ReactNode
   style?: React.CSSProperties
   className?: string
@@ -226,10 +207,9 @@ function DroppableDay({
   onMouseMove?: (e: React.MouseEvent<HTMLDivElement>) => void
   onMouseLeave?: () => void
 }) {
-  const { setNodeRef } = useDroppable({ id: `day-col-${dayIdx}`, data: { dayIdx } as DropData })
   return (
     <div
-      ref={setNodeRef}
+      ref={colRef}
       style={style}
       className={className}
       onClick={onClick}
@@ -846,42 +826,127 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   const [activeBlock, setActiveBlock]   = useState<ActiveBlock | null>(null)
   const [dropTarget, setDropTarget]     = useState<DropTarget | null>(null)
   const [moveSaving, setMoveSaving]     = useState(false)
+  const [overlayXY, setOverlayXY]       = useState<{ x: number; y: number } | null>(null)
 
-  // ── custom overlay: track pointer + grab offset ───────────────────────────
-  // grabOffsetRef: where within the block the user clicked (px from block top-left)
-  const grabOffsetRef = useRef({ x: 0, y: 0 })
-  // pointerPosRef: latest pointer position in viewport coords (used in drag end)
-  const pointerPosRef = useRef({ x: 0, y: 0 })
-  // initBlockRectRef: the block's getBoundingClientRect at the moment of pointerdown
-  // (captured before dnd-kit's activation threshold moves the pointer)
-  const initBlockRectRef = useRef<DOMRect | null>(null)
-  // overlayXY: fixed-position for the custom ghost overlay
-  const [overlayXY, setOverlayXY] = useState<{ x: number; y: number } | null>(null)
+  // Manual DnD refs
+  const grabOffsetRef   = useRef({ x: 0, y: 0 })
+  const dragDataRef     = useRef<DragData | null>(null)
+  const isDraggingRef   = useRef(false)   // true once pointer moves > threshold
+  const pointerStartRef = useRef({ x: 0, y: 0 })
+  // 7 column refs — one per week day (index matches WEEK_KEYS)
+  const colRefs = useRef<(HTMLDivElement | null)[]>(Array(7).fill(null))
 
-  // Track pointer globally while dragging so the overlay follows pixel-perfectly
+  // Helper: find which column a clientX falls in and return {dayIdx, rect}
+  function findColumn(clientX: number) {
+    for (let i = 0; i < colRefs.current.length; i++) {
+      const el = colRefs.current[i]
+      if (!el) continue
+      const rect = el.getBoundingClientRect()
+      if (clientX >= rect.left && clientX <= rect.right) return { dayIdx: i, rect }
+    }
+    return null
+  }
+
+  // Add window pointermove + pointerup when a drag is active
   useEffect(() => {
     if (!activeBlock) { setOverlayXY(null); return }
 
-    function onMove(e: PointerEvent) {
-      pointerPosRef.current = { x: e.clientX, y: e.clientY }
+    function onPointerMove(e: PointerEvent) {
+      const dx = e.clientX - pointerStartRef.current.x
+      const dy = e.clientY - pointerStartRef.current.y
+
+      // Activation threshold: 6px total movement
+      if (!isDraggingRef.current) {
+        if (Math.abs(dx) + Math.abs(dy) < 6) return
+        isDraggingRef.current = true
+      }
+
+      // Update ghost overlay position
       setOverlayXY({
         x: e.clientX - grabOffsetRef.current.x,
         y: e.clientY - grabOffsetRef.current.y,
       })
+
+      // Compute drop target
+      const data = dragDataRef.current
+      if (!data) return
+      const col = findColumn(e.clientX)
+      if (!col) { setDropTarget(null); return }
+      const yInCol  = (e.clientY - grabOffsetRef.current.y) - col.rect.top
+      const rawMin  = GRID_START + yInCol / MIN_PX
+      const snapped = Math.round(rawMin / 30) * 30
+      const cfg     = DAY_CFG[WEEK_KEYS[col.dayIdx]]
+      const clamped = Math.max(cfg.start, Math.min(cfg.end - data.duracao, snapped))
+      const valid   = snapped >= cfg.start && (snapped + data.duracao) <= cfg.end
+      setDropTarget({ dayIdx: col.dayIdx, timeMin: clamped, duracao: data.duracao, valid })
     }
-    window.addEventListener('pointermove', onMove, { passive: true })
-    return () => window.removeEventListener('pointermove', onMove)
+
+    function onPointerUp(e: PointerEvent) {
+      const wasDragging = isDraggingRef.current
+      const data = dragDataRef.current
+
+      // Reset drag state
+      isDraggingRef.current = false
+      dragDataRef.current   = null
+      setActiveBlock(null)
+      setDropTarget(null)
+
+      if (!wasDragging || !data) return
+
+      const col = findColumn(e.clientX)
+      if (!col) return
+
+      const yInCol   = (e.clientY - grabOffsetRef.current.y) - col.rect.top
+      const rawMin   = GRID_START + yInCol / MIN_PX
+      const snapped  = Math.round(rawMin / 30) * 30
+      const newDayKey = WEEK_KEYS[col.dayIdx]
+      const cfg       = DAY_CFG[newDayKey]
+
+      if (snapped < cfg.start || snapped + data.duracao > cfg.end) return
+      const clamped = Math.max(cfg.start, Math.min(cfg.end - data.duracao, snapped))
+      if (clamped === data.startMin && col.dayIdx === data.dayIdx) return
+
+      if (data.blockType === 'evento' && data.evento) {
+        setModal({
+          type: 'move-confirm',
+          confirm: {
+            blockType: 'evento',
+            evento: data.evento,
+            fromDayIdx: data.dayIdx,
+            fromTimeMin: data.startMin,
+            toDayIdx: col.dayIdx,
+            toTimeMin: clamped,
+            duracao: data.duracao,
+          },
+        })
+      } else if (data.blockType === 'aluno' && data.aluno) {
+        setModal({
+          type: 'move-confirm',
+          confirm: {
+            blockType: 'aluno',
+            aluno: data.aluno,
+            fromDayIdx: data.dayIdx,
+            fromTimeMin: data.startMin,
+            toDayIdx: col.dayIdx,
+            toTimeMin: clamped,
+            duracao: data.duracao,
+          },
+        })
+      }
+    }
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true })
+    window.addEventListener('pointerup', onPointerUp)
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBlock])
 
   const isFirstMount = useRef(true)
   const weekDays     = getWeekDays(weekOffset)
   const todayStr     = toDateStr(new Date())
-
-  // ── DnD sensors ─────────────────────────────────────────────────────────────
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 8 } })
-  )
 
   // ── Fetch eventos on week change ─────────────────────────────────────────────
   useEffect(() => {
@@ -905,109 +970,22 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
   // ── DnD handlers ─────────────────────────────────────────────────────────────
 
-  // Called by each DraggableBlock at pointerdown — captures the element rect
-  // BEFORE dnd-kit's activation threshold causes any pointer movement.
-  function handleBlockPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    initBlockRectRef.current = e.currentTarget.getBoundingClientRect()
-    pointerPosRef.current = { x: e.clientX, y: e.clientY }
-  }
-
-  function handleDragStart({ active, activatorEvent }: DragStartEvent) {
-    const d = active.data.current as DragData
-    setActiveBlock({ ...d, id: active.id as string })
+  function handleBlockPointerDown(
+    e: React.PointerEvent<HTMLDivElement>,
+    blockId: string,
+    data: DragData,
+  ) {
+    // Don't start drag if a modal is open
+    if (modal) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    grabOffsetRef.current   = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    pointerStartRef.current = { x: e.clientX, y: e.clientY }
+    isDraggingRef.current   = false
+    dragDataRef.current     = data
+    setActiveBlock({ ...data, id: blockId })
+    // Ghost starts at the block's current position
+    setOverlayXY({ x: rect.left, y: rect.top })
     setModal(null)
-
-    // Use the rect captured at pointerdown (most accurate) to compute grab offset.
-    // Fallback to activatorEvent + dnd-kit rect if pointerdown wasn't captured.
-    const rect = initBlockRectRef.current ?? active.rect.current.initial
-    const ev = activatorEvent as MouseEvent | TouchEvent | null
-    const clientX = ev
-      ? ('touches' in ev ? (ev as TouchEvent).touches[0]?.clientX ?? pointerPosRef.current.x : (ev as MouseEvent).clientX)
-      : pointerPosRef.current.x
-    const clientY = ev
-      ? ('touches' in ev ? (ev as TouchEvent).touches[0]?.clientY ?? pointerPosRef.current.y : (ev as MouseEvent).clientY)
-      : pointerPosRef.current.y
-
-    if (rect) {
-      grabOffsetRef.current = {
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-      }
-      setOverlayXY({ x: rect.left, y: rect.top })
-    }
-    pointerPosRef.current = { x: clientX, y: clientY }
-  }
-
-  function handleDragMove({ active, over }: DragMoveEvent) {
-    if (!over) { setDropTarget(null); return }
-    const d        = active.data.current as DragData
-    const dropData = over.data.current as DropData
-    // Use the actual pointer position (tracked via pointermove) minus the grab offset
-    // so yInCol represents where the block's TOP is relative to the column top
-    const yInCol   = (pointerPosRef.current.y - grabOffsetRef.current.y) - over.rect.top
-    const rawMin   = GRID_START + yInCol / MIN_PX
-    const snapped  = Math.round(rawMin / 30) * 30
-    const cfg      = DAY_CFG[WEEK_KEYS[dropData.dayIdx]]
-    const clamped  = Math.max(cfg.start, Math.min(cfg.end - d.duracao, snapped))
-    const valid    = snapped >= cfg.start && (snapped + d.duracao) <= cfg.end
-    setDropTarget({ dayIdx: dropData.dayIdx, timeMin: clamped, duracao: d.duracao, valid })
-  }
-
-  async function handleDragEnd({ active, over }: DragEndEvent) {
-    // Capture drag data BEFORE clearing activeBlock
-    const d        = active.data.current as DragData
-
-    setActiveBlock(null)
-    setDropTarget(null)
-
-    if (!over) return
-
-    const dropData = over.data.current as DropData
-
-    // Same calculation as handleDragMove, using last known pointer position
-    const yInCol  = (pointerPosRef.current.y - grabOffsetRef.current.y) - over.rect.top
-    const rawMin  = GRID_START + yInCol / MIN_PX
-    const snapped = Math.round(rawMin / 30) * 30
-
-    const newDayIdx = dropData.dayIdx
-    const newDayKey = WEEK_KEYS[newDayIdx]
-    const cfg       = DAY_CFG[newDayKey]
-
-    // Validate range
-    if (snapped < cfg.start || snapped + d.duracao > cfg.end) return
-    const clamped = Math.max(cfg.start, Math.min(cfg.end - d.duracao, snapped))
-
-    // No movement
-    if (clamped === d.startMin && newDayIdx === d.dayIdx) return
-
-    if (d.blockType === 'evento' && d.evento) {
-      // Show confirmation (evento) - just confirm + move
-      setModal({
-        type: 'move-confirm',
-        confirm: {
-          blockType: 'evento',
-          evento: d.evento,
-          fromDayIdx: d.dayIdx,
-          fromTimeMin: d.startMin,
-          toDayIdx: newDayIdx,
-          toTimeMin: clamped,
-          duracao: d.duracao,
-        },
-      })
-    } else if (d.blockType === 'aluno' && d.aluno) {
-      setModal({
-        type: 'move-confirm',
-        confirm: {
-          blockType: 'aluno',
-          aluno: d.aluno,
-          fromDayIdx: d.dayIdx,
-          fromTimeMin: d.startMin,
-          toDayIdx: newDayIdx,
-          toTimeMin: clamped,
-          duracao: d.duracao,
-        },
-      })
-    }
   }
 
   // ── move handlers ─────────────────────────────────────────────────────────────
@@ -1134,7 +1112,7 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
     return (
       <DroppableDay
         key={dayIdx}
-        dayIdx={dayIdx}
+        colRef={(el) => { colRefs.current[dayIdx] = el }}
         className="relative flex-1 border-l cursor-crosshair min-w-0"
         style={{ height: gridHeight, borderColor: 'var(--border-subtle)', minWidth: 120 }}
         onClick={(e) => handleColumnClick(e, dayIdx)}
@@ -1194,17 +1172,23 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
           const width  = pos.width - 1
 
           if (b.isAluno && b.aluno) {
-            const a     = b.aluno
-            const color = TIPO_COLOR.aula
+            const a       = b.aluno
+            const color   = TIPO_COLOR.aula
+            const blockId = b.id
             const dragData: DragData = {
               blockType: 'aluno', aluno: a,
               dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
             }
             return (
-              <DraggableBlock key={b.id} id={b.id} data={dragData}
-                onPointerDown={handleBlockPointerDown}
+              <DraggableBlock key={b.id}
+                isSource={activeBlock?.id === blockId && isDraggingRef.current}
+                onPointerDown={(e) => handleBlockPointerDown(e, blockId, dragData)}
                 style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2 }}
-                onClick={(e) => { e.stopPropagation(); setModal({ type: 'aluno-card', aluno: a, dayIdx, date: day }) }}>
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (isDraggingRef.current) { isDraggingRef.current = false; return }
+                  setModal({ type: 'aluno-card', aluno: a, dayIdx, date: day })
+                }}>
                 <div className="w-full h-full rounded-lg overflow-hidden"
                   style={{ background: color + '20', borderLeft: `3px solid ${color}`, padding: '3px 5px', cursor: 'grab' }}>
                   <p className="text-[11px] font-bold leading-tight truncate" style={{ color }}>{a.nome.split(' ')[0]}</p>
@@ -1215,18 +1199,24 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
           }
 
           if (!b.isAluno && b.evento) {
-            const ev    = b.evento
-            const color = ev.cor ?? TIPO_COLOR[ev.tipo]
+            const ev        = b.evento
+            const color     = ev.cor ?? TIPO_COLOR[ev.tipo]
             const alunoNome = alunos.find(a => a.id === ev.aluno_id)?.nome
+            const blockId   = b.id
             const dragData: DragData = {
               blockType: 'evento', evento: ev,
               dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
             }
             return (
-              <DraggableBlock key={b.id} id={b.id} data={dragData}
-                onPointerDown={handleBlockPointerDown}
+              <DraggableBlock key={b.id}
+                isSource={activeBlock?.id === blockId && isDraggingRef.current}
+                onPointerDown={(e) => handleBlockPointerDown(e, blockId, dragData)}
                 style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2 }}
-                onClick={(e) => { e.stopPropagation(); setModal({ type: 'evento-card', evento: ev, alunoNome }) }}>
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (isDraggingRef.current) { isDraggingRef.current = false; return }
+                  setModal({ type: 'evento-card', evento: ev, alunoNome })
+                }}>
                 <div className="w-full h-full rounded-lg overflow-hidden"
                   style={{ background: color + '20', borderLeft: `3px solid ${color}`, padding: '3px 5px', cursor: 'grab' }}>
                   <p className="text-[11px] font-bold leading-tight truncate" style={{ color }}>{ev.titulo}</p>
@@ -1271,13 +1261,7 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   // ── render ─────────────────────────────────────────────────────────────────
 
   return (
-    <DndContext
-      sensors={sensors}
-      onDragStart={handleDragStart}
-      onDragMove={handleDragMove}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
+    <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
 
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 md:px-6 py-3 shrink-0"
@@ -1461,7 +1445,6 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
             }
           />
         )}
-      </div>
-    </DndContext>
+    </div>
   )
 }
