@@ -119,7 +119,6 @@ export async function deleteModeloAction(
     .delete()
     .eq('id', modeloId)
     .eq('professor_id', user.id)
-    .in('tipo', ['personalizado']) // safety: never delete formal/descontraido via this action
 
   if (error) { console.error('deleteModelo:', error); return { error: 'Erro ao excluir modelo.' } }
   return {}

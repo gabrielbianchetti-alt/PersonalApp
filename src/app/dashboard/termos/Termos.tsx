@@ -867,34 +867,19 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
                         Editar
                       </button>
 
-                      {modelo.tipo === 'personalizado' ? (
-                        <button
-                          onClick={() => setModal({ type: 'confirmDeleteModelo', modelo })}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
-                          style={{ background: 'rgba(255,82,82,0.1)', color: '#FF5252' }}
-                          title="Excluir modelo"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                            <path d="M10 11v6"/><path d="M14 11v6"/>
-                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                          </svg>
-                        </button>
-                      ) : (
-                        <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center opacity-30 cursor-not-allowed"
-                          style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}
-                          title="Modelo padrão não pode ser excluído"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                            <path d="M10 11v6"/><path d="M14 11v6"/>
-                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                          </svg>
-                        </div>
-                      )}
+                      <button
+                        onClick={() => setModal({ type: 'confirmDeleteModelo', modelo })}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
+                        style={{ background: 'rgba(255,82,82,0.1)', color: '#FF5252' }}
+                        title="Excluir modelo"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                          <path d="M10 11v6"/><path d="M14 11v6"/>
+                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                        </svg>
+                      </button>
                     </div>
                   </div>
                   <p className="text-xs font-mono" style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>{preview}</p>
