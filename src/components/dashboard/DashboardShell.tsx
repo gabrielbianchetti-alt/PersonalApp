@@ -18,11 +18,16 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Re-apply theme on client after hydration.
-  // The <style> tag in layout.tsx already covers SSR (no flash).
-  // This useEffect keeps things correct after client navigation.
+  // The <style> tag in layout.tsx + the data-theme on <html> (via cookie in root layout)
+  // already cover SSR (no flash). This effect keeps things correct after client-side
+  // navigation and syncs the ph-modo cookie so future SSR renders are also correct
+  // (e.g. on a new device where the cookie doesn't exist yet).
   useEffect(() => {
     if (corTema && corTema !== '#00E676') applyTheme(corTema)
     applyModo(modoTema)
+    // Sync cookie client-side so the root layout reads the correct value on next SSR
+    const maxAge = 60 * 60 * 24 * 365
+    document.cookie = `ph-modo=${modoTema};path=/;max-age=${maxAge};samesite=lax`
   }, [corTema, modoTema])
 
   return (

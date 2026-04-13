@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { themeStyle } from '@/lib/color'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
@@ -28,13 +27,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
     'Professor'
 
   const isAdmin = user?.email === ADMIN_EMAIL
-
-  // Sync cookie so the root layout (and other pages) always use the DB value
-  const cookieStore = await cookies()
-  const cookieModo = cookieStore.get('ph-modo')?.value
-  if (cookieModo !== modoTema) {
-    cookieStore.set('ph-modo', modoTema, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' })
-  }
 
   // Inject a <style> tag with accent + optional light-mode vars to avoid SSR flash
   const injectStyle = themeStyle(corTema, modoTema)
