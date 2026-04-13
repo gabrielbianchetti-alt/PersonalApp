@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DIAS_LABEL, formatCurrency, formatDate } from '@/types/aluno'
+import { DeleteAlunoButton } from './DeleteAlunoButton'
 
 export const metadata: Metadata = { title: 'Perfil do Aluno — PersonalHub' }
 
@@ -172,11 +173,17 @@ export default async function AlunoPerfilPage({
 
       {/* Observações */}
       {aluno.observacoes && (
-        <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+        <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
           <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Observações</p>
           <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>{aluno.observacoes}</p>
         </div>
       )}
+
+      {/* Danger zone */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid rgba(255,82,82,0.15)' }}>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'rgba(255,82,82,0.7)' }}>Zona de perigo</p>
+        <DeleteAlunoButton alunoId={id} alunoNome={aluno.nome} />
+      </div>
     </div>
   )
 }

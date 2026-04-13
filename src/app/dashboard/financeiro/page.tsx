@@ -18,7 +18,7 @@ async function seedFixosIfNeeded(
   if (existing && existing.length > 0) return
 
   const { data: allFixos } = await supabase
-    .from('custos').select('nome, valor, categoria, mes_referencia')
+    .from('custos').select('id, nome, valor, categoria, mes_referencia, origem_id')
     .eq('professor_id', professorId).eq('tipo', 'fixo').neq('mes_referencia', mesRef)
     .order('mes_referencia', { ascending: false })
   if (!allFixos || allFixos.length === 0) return
@@ -32,6 +32,7 @@ async function seedFixosIfNeeded(
       professor_id: professorId,
       nome: f.nome, valor: f.valor, tipo: 'fixo', categoria: f.categoria,
       mes_referencia: mesRef, data: null,
+      origem_id: f.origem_id ?? f.id,
     }))
   )
 }
@@ -85,7 +86,8 @@ export default async function FinanceiroPage({
       .from('faltas')
       .select('aluno_id, credito_valor')
       .eq('professor_id', user.id)
-      .eq('status', 'credito'),
+      .eq('status', 'credito')
+      .or(`mes_validade.is.null,mes_validade.eq.${mesAtual}`),
   ])
 
   // Build creditos map

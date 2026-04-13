@@ -171,6 +171,9 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
   })
   const [fetchingCobrancas, setFetchingCobrancas] = useState(false)
 
+  // Credits filtered by current billing month (refetched on month change)
+  const [creditos, setCreditos] = useState<Record<string, number>>(creditosPorAluno)
+
   const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set())
   const [messages, setMessages]             = useState<Record<string, string>>({})
   const [originalMessages, setOriginalMessages] = useState<Record<string, string>>({})
@@ -179,7 +182,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
   const template = preferencias?.modelo_mensagem ?? DEFAULT_TEMPLATE
   const isFirstMount = useRef(true)
 
-  // Re-fetch cobrancas when month changes (skip first mount, server already provided them)
+  // Re-fetch cobrancas AND credits when month changes
   useEffect(() => {
     if (isFirstMount.current) { isFirstMount.current = false; return }
 
@@ -190,7 +193,9 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
     setOriginalMessages({})
 
     const supabase = createClient()
-    supabase
+
+    // Fetch cobrancas
+    const fetchCobrancas = supabase
       .from('cobrancas')
       .select('*')
       .eq('mes_referencia', mesRef)
@@ -198,8 +203,25 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
         const m: Record<string, CobrancaRow> = {}
         for (const c of (data ?? [])) m[c.aluno_id] = c
         setCobrancas(m)
-        setFetchingCobrancas(false)
       })
+
+    // Fetch credits valid for this month (mes_validade = mesRef or null for legacy)
+    const fetchCreditos = supabase
+      .from('faltas')
+      .select('aluno_id, credito_valor')
+      .eq('status', 'credito')
+      .or(`mes_validade.is.null,mes_validade.eq.${mesRef}`)
+      .then(({ data }) => {
+        const map: Record<string, number> = {}
+        for (const row of (data ?? [])) {
+          if (row.credito_valor) {
+            map[row.aluno_id] = (map[row.aluno_id] ?? 0) + Number(row.credito_valor)
+          }
+        }
+        setCreditos(map)
+      })
+
+    Promise.all([fetchCobrancas, fetchCreditos]).then(() => setFetchingCobrancas(false))
   }, [year, month])
 
   // ── navigation ──────────────────────────────────────────────────────────────
@@ -464,7 +486,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
               const aulas        = aluno.modelo_cobranca === 'mensalidade' ? null : dates.length
               const total        = calcTotal(aluno, year, month)
               const diasLabels   = aluno.horarios.map(h => DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
-              const credito      = creditosPorAluno[aluno.id] ?? 0
+              const credito      = creditos[aluno.id] ?? 0
 
               return (
                 <div key={aluno.id}

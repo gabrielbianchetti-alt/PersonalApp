@@ -11,6 +11,7 @@ export interface CustoRow {
   categoria: string
   data: string | null          // "YYYY-MM-DD" (variável only)
   mes_referencia: string       // "YYYY-MM"
+  origem_id: string | null     // root id for replicated fixos — used to cascade deletes
   created_at: string
   updated_at: string
 }
@@ -70,6 +71,37 @@ export async function deleteCustoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
+  // For fixos: find the root id so we can delete this record and all its replicas
+  const { data: custo } = await supabase
+    .from('custos')
+    .select('id, tipo, origem_id')
+    .eq('id', id)
+    .eq('professor_id', user.id)
+    .single()
+
+  if (custo?.tipo === 'fixo') {
+    // root = the original (has no origem_id itself), or the origem_id if this is already a copy
+    const rootId = custo.origem_id ?? custo.id
+
+    // Delete all replicas that point to this root
+    await supabase
+      .from('custos')
+      .delete()
+      .eq('professor_id', user.id)
+      .eq('origem_id', rootId)
+
+    // Delete the root itself
+    const { error } = await supabase
+      .from('custos')
+      .delete()
+      .eq('id', rootId)
+      .eq('professor_id', user.id)
+
+    if (error) { console.error('deleteCusto (fixo):', error); return { error: 'Erro ao remover custo.' } }
+    return {}
+  }
+
+  // For variáveis: simple delete
   const { error } = await supabase
     .from('custos')
     .delete()
@@ -125,7 +157,7 @@ export async function ensureFixosForMesAction(
   // Find most recent month that has fixos (excluding target month)
   const { data: allFixos } = await supabase
     .from('custos')
-    .select('nome, valor, categoria, mes_referencia')
+    .select('id, nome, valor, categoria, mes_referencia, origem_id')
     .eq('professor_id', user.id)
     .eq('tipo', 'fixo')
     .neq('mes_referencia', mesRef)
@@ -146,6 +178,8 @@ export async function ensureFixosForMesAction(
       categoria:     f.categoria,
       mes_referencia: mesRef,
       data:          null,
+      // Always point to the root original, never to a copy
+      origem_id:     f.origem_id ?? f.id,
     }))
   )
 

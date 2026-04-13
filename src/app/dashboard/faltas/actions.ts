@@ -13,6 +13,7 @@ export interface FaltaRow {
   status: 'pendente' | 'reposta' | 'credito' | 'vencida'
   data_reposicao: string | null  // "YYYY-MM-DD"
   credito_valor: number | null
+  mes_validade: string | null    // "YYYY-MM" — month the credit is valid for
   prazo_vencimento: string    // "YYYY-MM-DD"
   observacao: string | null
   created_at: string
@@ -134,6 +135,12 @@ export async function resolveFaltaAction(
   } else {
     updates.status = 'credito'
     updates.credito_valor = resolution.credito_valor
+    // Credit is valid only for the NEXT calendar month
+    const now = new Date()
+    const nm = now.getMonth() === 11
+      ? `${now.getFullYear() + 1}-01`
+      : `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}`
+    updates.mes_validade = nm
   }
 
   const { error } = await supabase
@@ -184,8 +191,10 @@ export async function processVencidosAction(): Promise<{ updated: number; error?
 }
 
 // ─── créditos pendentes por aluno (para cobrança) ─────────────────────────────
+// Pass mesRef ("YYYY-MM") to filter credits valid for that billing month.
+// Credits with mes_validade = null are legacy and shown regardless (backward compat).
 
-export async function getCreditosPorAlunoAction(): Promise<{
+export async function getCreditosPorAlunoAction(mesRef?: string): Promise<{
   data?: Record<string, number>
   error?: string
 }> {
@@ -193,11 +202,18 @@ export async function getCreditosPorAlunoAction(): Promise<{
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('faltas')
-    .select('aluno_id, credito_valor')
+    .select('aluno_id, credito_valor, mes_validade')
     .eq('professor_id', user.id)
     .eq('status', 'credito')
+
+  if (mesRef) {
+    // Show: credits with no expiry (legacy) OR credits valid for this specific month
+    query = query.or(`mes_validade.is.null,mes_validade.eq.${mesRef}`)
+  }
+
+  const { data, error } = await query
 
   if (error) { console.error('getCreditos:', error); return { error: 'Erro ao buscar créditos.' } }
 
