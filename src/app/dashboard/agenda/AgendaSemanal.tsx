@@ -780,7 +780,7 @@ function EditEventoModal({
         <div>
           <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Cor</label>
           <div className="flex gap-2">
-            {[...OUTRO_CORES, TIPO_COLOR.aula, TIPO_COLOR.reposicao].map(c => (
+            {[...new Set([...OUTRO_CORES, TIPO_COLOR.aula, TIPO_COLOR.reposicao])].map(c => (
               <button key={c} onClick={() => setCor(c)}
                 className="w-7 h-7 rounded-full cursor-pointer transition-transform hover:scale-110"
                 style={{ background: c, outline: cor === c ? `3px solid ${c}` : 'none', outlineOffset: 2 }} />
