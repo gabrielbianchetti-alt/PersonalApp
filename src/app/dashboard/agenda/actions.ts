@@ -47,7 +47,10 @@ export async function createEventoAction(
     .select()
     .single()
 
-  if (error) { console.error('createEvento:', error); return { error: 'Erro ao criar evento.' } }
+  if (error) {
+    console.error('createEvento error:', error.code, error.message, error.details, error.hint)
+    return { error: `Erro ao criar evento: ${error.message ?? error.code}` }
+  }
   return { data: row as EventoAgendaRow }
 }
 
