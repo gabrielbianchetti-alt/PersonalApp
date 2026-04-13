@@ -175,6 +175,119 @@ function EditModeloModal({
   )
 }
 
+// ─── NewModeloModal ───────────────────────────────────────────────────────────
+
+function NewModeloModal({
+  templateConteudo,
+  onClose,
+  onCreated,
+}: {
+  templateConteudo: string
+  onClose: () => void
+  onCreated: (m: ModeloTermo) => void
+}) {
+  const [nome, setNome]       = useState('')
+  const [conteudo, setConteudo] = useState(templateConteudo)
+  const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState('')
+
+  async function handleCreate() {
+    if (!nome.trim()) { setError('Informe um nome para o modelo.'); return }
+    if (!conteudo.trim()) { setError('O conteúdo não pode ser vazio.'); return }
+    setSaving(true)
+    const res = await saveModeloAction({ nome: nome.trim(), conteudo, tipo: 'personalizado' })
+    setSaving(false)
+    if (res.error) { setError(res.error); return }
+    onCreated(res.data!)
+  }
+
+  const VARS = ['{nome}', '{dias}', '{horario}', '{local}', '{valor}', '{inicio}']
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={onClose}>
+      <div
+        className="w-full max-w-2xl rounded-xl flex flex-col"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', maxHeight: '90vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <div>
+            <h2 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>Criar Novo Modelo</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Use as variáveis abaixo para inserir dados do aluno automaticamente
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Variables chips */}
+        <div className="px-5 py-3 flex flex-wrap gap-1.5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          {VARS.map(v => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setConteudo(c => c + v)}
+              className="px-2.5 py-1 rounded-full text-xs font-mono font-medium transition-colors"
+              style={{ background: 'var(--bg-input)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}
+              title={`Inserir ${v}`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+
+        {/* Nome */}
+        <div className="px-5 pt-4 flex flex-col gap-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Nome do modelo</label>
+          <input
+            value={nome}
+            onChange={e => setNome(e.target.value)}
+            placeholder="Ex: Contrato VIP, Modelo Academia…"
+            className="rounded-lg px-3 py-2 text-sm outline-none"
+            style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+            onFocus={e => { e.target.style.borderColor = 'var(--border-focus)' }}
+            onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)' }}
+          />
+        </div>
+
+        {/* Conteúdo */}
+        <div className="px-5 pt-3 pb-4 flex flex-col gap-1 flex-1 min-h-0">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Conteúdo</label>
+          <textarea
+            value={conteudo}
+            onChange={e => setConteudo(e.target.value)}
+            className="rounded-lg px-3 py-2.5 text-sm outline-none resize-none font-mono flex-1"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              lineHeight: '1.6',
+              minHeight: '280px',
+            }}
+          />
+        </div>
+
+        {error && <p className="px-5 pb-2 text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+
+        {/* Footer */}
+        <div className="flex gap-2 px-5 pb-5">
+          <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+            Cancelar
+          </button>
+          <button type="button" onClick={handleCreate} disabled={saving} className="flex-1 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--green-primary)', color: '#000', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Criando…' : 'Criar Modelo'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── EnviarTermoModal ─────────────────────────────────────────────────────────
 
 function EnviarTermoModal({
@@ -427,6 +540,7 @@ type Tab = 'enviar' | 'historico' | 'modelos'
 type Modal =
   | { type: 'enviar'; aluno: AlunoTermo }
   | { type: 'editModelo'; modelo: ModeloTermo }
+  | { type: 'newModelo' }
 
 export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alunoIdInicial }: Props) {
   const [tab, setTab] = useState<Tab>(alunoIdInicial ? 'enviar' : 'enviar')
@@ -478,18 +592,9 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
     setModal(null)
   }
 
-  const hasPersonalizado = modelos.some(m => m.tipo === 'personalizado')
-
-  async function handleCreatePersonalizado() {
-    const res = await saveModeloAction({
-      nome: 'Personalizado',
-      conteudo: modelos.find(m => m.tipo === 'formal')?.conteudo ?? '',
-      tipo: 'personalizado',
-    })
-    if (res.data) {
-      setModelos(prev => [...prev, res.data!])
-      setModal({ type: 'editModelo', modelo: res.data! })
-    }
+  function handleModeloCreated(m: ModeloTermo) {
+    setModelos(prev => [...prev, m])
+    setModal(null)
   }
 
   return (
@@ -684,18 +789,18 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
               )
             })}
 
-            {!hasPersonalizado && (
-              <button
-                onClick={handleCreatePersonalizado}
-                className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium"
-                style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-subtle)', color: 'var(--text-muted)' }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Criar Modelo Personalizado
-              </button>
-            )}
+            <button
+              onClick={() => setModal({ type: 'newModelo' })}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium"
+              style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-subtle)', color: 'var(--text-muted)' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-focus)'; e.currentTarget.style.color = 'var(--green-primary)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Criar Novo Modelo
+            </button>
           </div>
         )}
 
@@ -715,6 +820,13 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
           modelo={modal.modelo}
           onClose={() => setModal(null)}
           onSaved={handleModeloSaved}
+        />
+      )}
+      {modal?.type === 'newModelo' && (
+        <NewModeloModal
+          templateConteudo={modelos.find(m => m.tipo === 'formal')?.conteudo ?? ''}
+          onClose={() => setModal(null)}
+          onCreated={handleModeloCreated}
         />
       )}
     </>

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { DIAS_SEMANA, formatCurrency } from '@/types/aluno'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -54,6 +55,10 @@ export function CalculoMensal({ alunos }: Props) {
   // valor temporário enquanto o usuário digita
   const [adjustingValue, setAdjustingValue] = useState<string>('')
 
+  // aulas_extra do mês ANTERIOR: aluno_id → { count, totalValor }
+  const [extras, setExtras] = useState<Record<string, { count: number; totalValor: number }>>({})
+  const isFirstMount = useRef(true)
+
   // ── navegação de mês ──────────────────────────────────────────────────────
 
   function prevMonth() {
@@ -66,15 +71,56 @@ export function CalculoMensal({ alunos }: Props) {
     else setMonth((m) => m + 1)
   }
 
+  // ── aulas extras do mês anterior (fetched on month change) ───────────────
+
+  useEffect(() => {
+    // Compute previous month
+    const prevMonth = month === 0 ? 11 : month - 1
+    const prevYear  = month === 0 ? year - 1 : year
+    const prevMesRef = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}`
+    const startDate  = `${prevMesRef}-01`
+    const lastDay    = new Date(prevYear, prevMonth + 1, 0).getDate()
+    const endDate    = `${prevMesRef}-${String(lastDay).padStart(2, '0')}`
+
+    const supabase = createClient()
+    supabase
+      .from('eventos_agenda')
+      .select('aluno_id, valor')
+      .eq('tipo', 'aula_extra')
+      .gte('data_especifica', startDate)
+      .lte('data_especifica', endDate)
+      .then(({ data }) => {
+        const map: Record<string, { count: number; totalValor: number }> = {}
+        for (const row of (data ?? [])) {
+          if (!row.aluno_id) continue
+          const prev = map[row.aluno_id] ?? { count: 0, totalValor: 0 }
+          map[row.aluno_id] = {
+            count:      prev.count + 1,
+            totalValor: prev.totalValor + Number(row.valor ?? 0),
+          }
+        }
+        setExtras(map)
+        // Clear adjustments when month changes (after first mount)
+        if (!isFirstMount.current) setAdjustments({})
+        isFirstMount.current = false
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month])
+
   // ── contagem de dias ──────────────────────────────────────────────────────
 
   const weekdayCounts = useMemo(() => countWeekdaysInMonth(year, month), [year, month])
 
   // ── cálculos por aluno ────────────────────────────────────────────────────
 
-  function getCalculatedAulas(aluno: Aluno): number {
+  function getFixedAulas(aluno: Aluno): number {
     if (aluno.modelo_cobranca === 'mensalidade') return 0
     return aluno.horarios.reduce((sum, h) => sum + (weekdayCounts[h.dia] ?? 0), 0)
+  }
+
+  function getCalculatedAulas(aluno: Aluno): number {
+    if (aluno.modelo_cobranca === 'mensalidade') return 0
+    return getFixedAulas(aluno) + (extras[aluno.id]?.count ?? 0)
   }
 
   function getAulas(aluno: Aluno): number {
@@ -84,7 +130,10 @@ export function CalculoMensal({ alunos }: Props) {
   }
 
   function getTotal(aluno: Aluno): number {
-    if (aluno.modelo_cobranca === 'mensalidade') return Number(aluno.valor)
+    if (aluno.modelo_cobranca === 'mensalidade') {
+      // Mensalidade + valor das aulas extras do mês anterior
+      return Number(aluno.valor) + (extras[aluno.id]?.totalValor ?? 0)
+    }
     return getAulas(aluno) * Number(aluno.valor)
   }
 
@@ -253,11 +302,13 @@ export function CalculoMensal({ alunos }: Props) {
       ) : (
         <div className="flex flex-col gap-3">
           {alunos.map((aluno) => {
-            const calculado = getCalculatedAulas(aluno)
-            const aulas = getAulas(aluno)
-            const total = getTotal(aluno)
-            const isAjustado = adjustments[aluno.id] !== undefined
-            const isAjustando = adjustingId === aluno.id
+            const fixedAulas = getFixedAulas(aluno)
+            const extraInfo  = extras[aluno.id]
+            const calculado  = getCalculatedAulas(aluno)
+            const aulas      = getAulas(aluno)
+            const total      = getTotal(aluno)
+            const isAjustado    = adjustments[aluno.id] !== undefined
+            const isAjustando   = adjustingId === aluno.id
             const isMensalidade = aluno.modelo_cobranca === 'mensalidade'
             const diasLabels = aluno.horarios.map(h => {
               const found = DIAS_SEMANA.find(s => s.key === h.dia)
@@ -309,7 +360,17 @@ export function CalculoMensal({ alunos }: Props) {
                     <p className="text-lg font-bold" style={{ color: 'var(--green-primary)' }}>
                       {formatCurrency(total)}
                     </p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>total</p>
+                    {!isMensalidade && extraInfo && (
+                      <p className="text-xs font-medium" style={{ color: '#69F0AE' }}>
+                        +{extraInfo.count} extra{extraInfo.count > 1 ? 's' : ''}
+                      </p>
+                    )}
+                    {isMensalidade && extraInfo && (
+                      <p className="text-xs font-medium" style={{ color: '#69F0AE' }}>
+                        +{formatCurrency(extraInfo.totalValor)} extras
+                      </p>
+                    )}
+                    {!extraInfo && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>total</p>}
                   </div>
                 </div>
 
@@ -374,6 +435,11 @@ export function CalculoMensal({ alunos }: Props) {
                             {isAjustado && (
                               <span className="text-xs font-normal ml-1" style={{ color: 'var(--text-muted)' }}>
                                 (calc: {calculado})
+                              </span>
+                            )}
+                            {!isAjustado && extraInfo && (
+                              <span className="text-xs font-normal ml-1" style={{ color: '#69F0AE' }}>
+                                ({fixedAulas} fixas + {extraInfo.count} extra{extraInfo.count > 1 ? 's' : ''})
                               </span>
                             )}
                           </span>

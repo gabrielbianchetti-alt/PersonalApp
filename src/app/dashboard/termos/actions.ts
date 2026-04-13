@@ -13,17 +13,28 @@ import {
 export type { ModeloTipo, ModeloTermo, TermoEnviado } from './types'
 
 // ─── seed defaults ────────────────────────────────────────────────────────────
-// Uses upsert with onConflict so concurrent calls are safe and idempotent.
-// The unique constraint (professor_id, tipo) must exist — see SQL migration.
+// SELECT-then-insert pattern. The partial unique index on (professor_id, tipo)
+// WHERE tipo IN ('formal','descontraido') prevents duplicates even on race conditions.
 
 export async function seedModelosIfNeeded(professorId: string): Promise<void> {
   const supabase = await createClient()
 
-  // Check each tipo individually to avoid inserting a tipo that already exists
+  // Count existing default models for this professor
+  const { count } = await supabase
+    .from('modelos_termo')
+    .select('id', { count: 'exact', head: true })
+    .eq('professor_id', professorId)
+    .in('tipo', ['formal', 'descontraido'])
+
+  // If both already exist, nothing to do
+  if ((count ?? 0) >= 2) return
+
+  // Re-fetch tipos to decide which are missing
   const { data: existing } = await supabase
     .from('modelos_termo')
     .select('tipo')
     .eq('professor_id', professorId)
+    .in('tipo', ['formal', 'descontraido'])
 
   const existingTipos = new Set((existing ?? []).map((r: { tipo: string }) => r.tipo))
 
@@ -47,10 +58,8 @@ export async function seedModelosIfNeeded(professorId: string): Promise<void> {
 
   if (toInsert.length === 0) return
 
-  // ignoreDuplicates: true protects against race conditions (two parallel SSR calls)
-  await supabase
-    .from('modelos_termo')
-    .upsert(toInsert, { onConflict: 'professor_id,tipo', ignoreDuplicates: true })
+  // Insert — the partial unique index silently ignores conflicts for formal/descontraido
+  await supabase.from('modelos_termo').insert(toInsert)
 }
 
 // ─── modelos ──────────────────────────────────────────────────────────────────

@@ -109,25 +109,34 @@ function buildMessage(
   year: number,
   month: number,
   prefs: Preferencias | null,
-  template: string
+  template: string,
+  credito = 0
 ): string {
   const dates = getAulasDates(year, month, aluno.horarios)
-  const total = aluno.modelo_cobranca === 'mensalidade'
+  const gross = aluno.modelo_cobranca === 'mensalidade'
     ? Number(aluno.valor)
     : dates.length * Number(aluno.valor)
+  const net = Math.max(0, gross - credito)
+
+  // When there is a credit, show the full breakdown; otherwise just net
+  const totalStr = credito > 0
+    ? `${formatCurrency(gross)} − Crédito: ${formatCurrency(credito)} = *${formatCurrency(net)}*`
+    : formatCurrency(net)
 
   return template
     .replace(/{nome}/g, aluno.nome.split(' ')[0])
     .replace(/{mes}/g, `${MESES[month]} de ${year}`)
     .replace(/{datas}/g, dates.join(', ') || '—')
     .replace(/{aulas}/g, String(dates.length))
-    .replace(/{total}/g, formatCurrency(total))
+    .replace(/{total}/g, totalStr)
     .replace(/{pagamento}/g, buildPaymentBlock(aluno, prefs))
 }
 
-function calcTotal(aluno: AlunoCobranca, year: number, month: number): number {
-  if (aluno.modelo_cobranca === 'mensalidade') return Number(aluno.valor)
-  return getAulasDates(year, month, aluno.horarios).length * Number(aluno.valor)
+function calcTotal(aluno: AlunoCobranca, year: number, month: number, credito = 0): number {
+  const gross = aluno.modelo_cobranca === 'mensalidade'
+    ? Number(aluno.valor)
+    : getAulasDates(year, month, aluno.horarios).length * Number(aluno.valor)
+  return Math.max(0, gross - credito)
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -247,7 +256,8 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
         // Initialize message if not yet set
         if (!messages[aluno.id]) {
           const savedMsg = cobrancas[aluno.id]?.mensagem
-          const generated = buildMessage(aluno, year, month, preferencias, template)
+          const credito = creditos[aluno.id] ?? 0
+          const generated = buildMessage(aluno, year, month, preferencias, template, credito)
           setOriginalMessages(p => ({ ...p, [aluno.id]: generated }))
           setMessages(p => ({ ...p, [aluno.id]: savedMsg ?? generated }))
         }
@@ -266,7 +276,8 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
       const newOrig: Record<string, string> = { ...originalMessages }
       for (const aluno of alunos) {
         if (!newMsgs[aluno.id]) {
-          const generated = buildMessage(aluno, year, month, preferencias, template)
+          const credito = creditos[aluno.id] ?? 0
+          const generated = buildMessage(aluno, year, month, preferencias, template, credito)
           newOrig[aluno.id] = generated
           newMsgs[aluno.id] = cobrancas[aluno.id]?.mensagem ?? generated
         }
@@ -296,7 +307,8 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
       return
     }
 
-    const msg = messages[aluno.id] ?? buildMessage(aluno, year, month, preferencias, template)
+    const creditoAl = creditos[aluno.id] ?? 0
+    const msg = messages[aluno.id] ?? buildMessage(aluno, year, month, preferencias, template, creditoAl)
     const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
 
     console.log('[WhatsApp] aluno:', aluno.nome)
@@ -310,7 +322,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
     window.open(url, '_blank')
 
     // ── 3. Save cobrança in background (non-blocking) ────────────────────────
-    const total  = calcTotal(aluno, year, month)
+    const total  = calcTotal(aluno, year, month, creditoAl)
     const mesRef = formatMesRef(year, month)
 
     setLoading(aluno.id, true)
@@ -356,7 +368,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
 
   // ── summary ───────────────────────────────────────────────────────────────────
 
-  const totalFaturamento = alunos.reduce((s, a) => s + calcTotal(a, year, month), 0)
+  const totalFaturamento = alunos.reduce((s, a) => s + calcTotal(a, year, month, creditos[a.id] ?? 0), 0)
   const countPendente = Object.values(cobrancas).filter(c => c.status === 'pendente').length
   const countEnviado  = Object.values(cobrancas).filter(c => c.status === 'enviado').length
   const countPago     = Object.values(cobrancas).filter(c => c.status === 'pago').length
@@ -484,9 +496,9 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
               const isLoading    = loadingSet.has(aluno.id)
               const dates        = getAulasDates(year, month, aluno.horarios)
               const aulas        = aluno.modelo_cobranca === 'mensalidade' ? null : dates.length
-              const total        = calcTotal(aluno, year, month)
-              const diasLabels   = aluno.horarios.map(h => DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
               const credito      = creditos[aluno.id] ?? 0
+              const total        = calcTotal(aluno, year, month, credito)
+              const diasLabels   = aluno.horarios.map(h => DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
 
               return (
                 <div key={aluno.id}

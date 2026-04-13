@@ -35,20 +35,22 @@ const DAY_CFG: Record<DayKey, DayConfig> = {
 }
 
 const TIPO_COLOR: Record<EventoTipo, string> = {
-  aula:      '#00E676',
-  reposicao: '#40C4FF',
-  reuniao:   '#FFAB00',
-  bloqueado: '#FF5252',
-  refeicao:  '#9E9E9E',
-  outro:     '#CE93D8',
+  aula:       '#00E676',
+  reposicao:  '#40C4FF',
+  reuniao:    '#FFAB00',
+  bloqueado:  '#FF5252',
+  refeicao:   '#9E9E9E',
+  outro:      '#CE93D8',
+  aula_extra: '#69F0AE',
 }
 const TIPO_LABEL: Record<EventoTipo, string> = {
-  aula:      'Aula',
-  reposicao: 'Reposição',
-  reuniao:   'Reunião',
-  bloqueado: 'Bloqueado',
-  refeicao:  'Refeição',
-  outro:     'Outro',
+  aula:       'Aula',
+  reposicao:  'Reposição',
+  reuniao:    'Reunião',
+  bloqueado:  'Bloqueado',
+  refeicao:   'Refeição',
+  outro:      'Outro',
+  aula_extra: 'Aula Extra',
 }
 const OUTRO_CORES = ['#FFAB00','#CE93D8','#FF5252','#40C4FF','#9E9E9E']
 
@@ -352,15 +354,16 @@ function AddEventModal({
   alunos: AlunoAgenda[]; onClose: () => void
   onSaved: (ev: EventoAgendaRow) => void
 }) {
-  const [step, setStep]       = useState<'choose' | 'aula' | 'reposicao' | 'outro'>('choose')
-  const [alunoId, setAlunoId] = useState('')
-  const [duracao, setDuracao] = useState(60)
-  const [titulo, setTitulo]   = useState('')
-  const [tipo, setTipo]       = useState<EventoTipo>('outro')
-  const [cor, setCor]         = useState(OUTRO_CORES[0])
-  const [obs, setObs]         = useState('')
-  const [saving, setSaving]   = useState(false)
-  const [err, setErr]         = useState('')
+  const [step, setStep]         = useState<'choose' | 'aula' | 'reposicao' | 'aula_extra' | 'outro'>('choose')
+  const [alunoId, setAlunoId]   = useState('')
+  const [duracao, setDuracao]   = useState(60)
+  const [titulo, setTitulo]     = useState('')
+  const [tipo, setTipo]         = useState<EventoTipo>('outro')
+  const [cor, setCor]           = useState(OUTRO_CORES[0])
+  const [obs, setObs]           = useState('')
+  const [valorExtra, setValorExtra] = useState('')
+  const [saving, setSaving]     = useState(false)
+  const [err, setErr]           = useState('')
 
   const dateStr  = toDateStr(date)
   const timeStr  = minToTime(timeMin)
@@ -378,6 +381,17 @@ function AddEventModal({
         titulo: `${step === 'aula' ? 'Aula' : 'Reposição'} — ${aluno.nome.split(' ')[0]}`,
         aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: timeStr, duracao,
       }
+    } else if (step === 'aula_extra') {
+      const aluno = alunos.find(a => a.id === alunoId)
+      if (!aluno) { setErr('Selecione um aluno.'); setSaving(false); return }
+      const valorNum = parseFloat(valorExtra.replace(',', '.'))
+      if (isNaN(valorNum) || valorNum <= 0) { setErr('Informe o valor da aula extra.'); setSaving(false); return }
+      payload = {
+        tipo: 'aula_extra',
+        titulo: `Aula Extra — ${aluno.nome.split(' ')[0]}`,
+        aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: timeStr, duracao,
+        cor: TIPO_COLOR.aula_extra, valor: valorNum,
+      }
     } else {
       if (!titulo.trim()) { setErr('Informe um título.'); setSaving(false); return }
       payload = { tipo, titulo: titulo.trim(), data_especifica: dateStr, horario_inicio: timeStr, duracao, cor, observacao: obs.trim() || null }
@@ -393,11 +407,12 @@ function AddEventModal({
       <ModalHeader title={`Novo evento · ${dayLabel} · ${timeStr}`} onClose={onClose} />
       <div className="p-5 flex flex-col gap-4">
         {step === 'choose' && (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {([
-              { id: 'aula',      label: '📅 Marcar aula', color: TIPO_COLOR.aula },
-              { id: 'reposicao', label: '🔁 Reposição',   color: TIPO_COLOR.reposicao },
-              { id: 'outro',     label: '➕ Outros',      color: TIPO_COLOR.outro },
+              { id: 'aula',       label: '📅 Marcar aula', color: TIPO_COLOR.aula },
+              { id: 'reposicao',  label: '🔁 Reposição',   color: TIPO_COLOR.reposicao },
+              { id: 'aula_extra', label: '⚡ Aula Extra',  color: TIPO_COLOR.aula_extra },
+              { id: 'outro',      label: '➕ Outros',      color: TIPO_COLOR.outro },
             ] as const).map(opt => (
               <button key={opt.id} onClick={() => setStep(opt.id)}
                 className="flex flex-col items-center gap-2 py-4 rounded-xl cursor-pointer transition-colors text-xs font-semibold"
@@ -410,7 +425,7 @@ function AddEventModal({
           </div>
         )}
 
-        {(step === 'aula' || step === 'reposicao') && (
+        {(step === 'aula' || step === 'reposicao' || step === 'aula_extra') && (
           <>
             <div>
               <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Aluno</label>
@@ -441,6 +456,26 @@ function AddEventModal({
                 ))}
               </div>
             </div>
+            {step === 'aula_extra' && (
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>
+                  Valor da aula extra (R$)
+                </label>
+                <input
+                  type="number" min="0" step="0.01"
+                  placeholder="Ex: 80.00"
+                  value={valorExtra}
+                  onChange={e => setValorExtra(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                  onFocus={e => { e.target.style.borderColor = 'var(--border-focus)' }}
+                  onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)' }}
+                />
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Será somado na cobrança do próximo mês
+                </p>
+              </div>
+            )}
           </>
         )}
 
@@ -505,8 +540,8 @@ function AddEventModal({
             </button>
             <button onClick={save} disabled={saving}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
-              style={{ background: 'var(--green-primary)', color: '#000' }}>
-              {saving ? 'Salvando...' : 'Salvar'}
+              style={{ background: step === 'aula_extra' ? TIPO_COLOR.aula_extra : 'var(--green-primary)', color: '#000' }}>
+              {saving ? 'Salvando...' : step === 'aula_extra' ? '⚡ Salvar Aula Extra' : 'Salvar'}
             </button>
           </div>
         )}
@@ -1200,9 +1235,10 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
           if (!b.isAluno && b.evento) {
             const ev        = b.evento
-            const color     = ev.cor ?? TIPO_COLOR[ev.tipo]
+            const color     = ev.tipo === 'aula_extra' ? TIPO_COLOR.aula_extra : (ev.cor ?? TIPO_COLOR[ev.tipo])
             const alunoNome = alunos.find(a => a.id === ev.aluno_id)?.nome
             const blockId   = b.id
+            const isExtra   = ev.tipo === 'aula_extra'
             const dragData: DragData = {
               blockType: 'evento', evento: ev,
               dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
@@ -1219,7 +1255,12 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
                 }}>
                 <div className="w-full h-full rounded-lg overflow-hidden"
                   style={{ background: color + '20', borderLeft: `3px solid ${color}`, padding: '3px 5px', cursor: 'grab' }}>
-                  <p className="text-[11px] font-bold leading-tight truncate" style={{ color }}>{ev.titulo}</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-[11px] font-bold leading-tight truncate flex-1" style={{ color }}>{ev.titulo}</p>
+                    {isExtra && (
+                      <span className="text-[9px] font-bold px-1 rounded shrink-0" style={{ background: color, color: '#000', lineHeight: '14px' }}>Extra</span>
+                    )}
+                  </div>
                   {height > 26 && alunoNome && <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>{alunoNome.split(' ')[0]}</p>}
                 </div>
               </DraggableBlock>

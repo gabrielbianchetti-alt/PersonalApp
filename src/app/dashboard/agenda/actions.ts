@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-export type EventoTipo = 'aula' | 'reposicao' | 'reuniao' | 'bloqueado' | 'refeicao' | 'outro'
+export type EventoTipo = 'aula' | 'reposicao' | 'reuniao' | 'bloqueado' | 'refeicao' | 'outro' | 'aula_extra'
 
 export interface EventoAgendaRow {
   id: string
@@ -16,6 +16,7 @@ export interface EventoAgendaRow {
   duracao: number
   cor: string | null
   observacao: string | null
+  valor: number | null
   created_at: string
   updated_at: string
 }
@@ -30,6 +31,7 @@ type CreateInput = {
   duracao: number
   cor?: string | null
   observacao?: string | null
+  valor?: number | null
 }
 
 export async function createEventoAction(
