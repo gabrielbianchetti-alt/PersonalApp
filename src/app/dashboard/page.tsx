@@ -102,9 +102,7 @@ export default async function DashboardPage() {
   const lucro = faturamento - custoTotal
   const margem = faturamento > 0 ? Math.round((lucro / faturamento) * 100) : 0
 
-  // ── recebimentos ─────────────────────────────────────────────────────────
-  const cobrancasPagas = (cobrancas ?? []).filter(c => c.status === 'pago').length
-  const cobrancasTotal = (cobrancas ?? []).length
+  // ── recebimentos (derived from todosAlunos below) ────────────────────────
 
   // ── aulas de hoje ─────────────────────────────────────────────────────────
   const alunoMap = Object.fromEntries(alunos.map(a => [a.id, a]))
@@ -165,31 +163,27 @@ export default async function DashboardPage() {
     }
   })
 
-  // ── cobranças pendentes (não pagas) com info do aluno ────────────────────
+  // ── todos alunos com status de cobrança do mês ───────────────────────────
   const todayMs = new Date(todayStr + 'T00:00:00').getTime()
-  const cobrancasPendentes = (cobrancas ?? [])
-    .filter(c => c.status !== 'pago')
-    .map(c => {
-      const aluno = alunoMap[c.aluno_id]
-      const createdDate = c.created_at ? new Date(c.created_at) : null
-      const diasDesdeEnvio = createdDate
-        ? Math.floor((todayMs - createdDate.getTime()) / (1000 * 60 * 60 * 24))
-        : null
-      return {
-        id: c.id,
-        alunoId: c.aluno_id,
-        alunoNome: aluno?.nome ?? 'Aluno',
-        whatsapp: aluno?.whatsapp ?? null,
-        valor: Number(c.valor),
-        status: c.status as 'pendente' | 'enviado',
-        diasDesdeEnvio,
-      }
-    })
-    .sort((a, b) => {
-      if (a.status === 'enviado' && b.status !== 'enviado') return -1
-      if (a.status !== 'enviado' && b.status === 'enviado') return 1
-      return (b.diasDesdeEnvio ?? 0) - (a.diasDesdeEnvio ?? 0)
-    })
+  const todosAlunos = alunos.map(a => {
+    const c = (cobrancas ?? []).find(r => r.aluno_id === a.id)
+    const createdDate = c?.created_at ? new Date(c.created_at) : null
+    const diasDesdeEnvio = createdDate
+      ? Math.floor((todayMs - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+      : null
+    return {
+      alunoId:       a.id,
+      alunoNome:     a.nome,
+      whatsapp:      a.whatsapp ?? null,
+      valor:         Number(a.valor),
+      cobrancaId:    c?.id ?? null,
+      status:        ((c?.status) ?? 'pendente') as 'pendente' | 'enviado' | 'pago',
+      diasDesdeEnvio,
+    }
+  }).sort((a, b) => {
+    const order = { pendente: 0, enviado: 1, pago: 2 }
+    return order[a.status] - order[b.status]
+  })
 
   return (
     <DashboardHome
@@ -198,14 +192,12 @@ export default async function DashboardPage() {
       lucro={lucro}
       margem={margem}
       custoTotal={custoTotal}
-      cobrancasPagas={cobrancasPagas}
-      cobrancasTotal={cobrancasTotal}
       totalAlunos={alunos.length}
       aulasHoje={aulasHoje}
       reposicoesPendentes={reposicoesPendentes}
       aniversarios={aniversarios}
       alunos={alunos.map(a => ({ id: a.id, nome: a.nome }))}
-      cobrancasPendentes={cobrancasPendentes}
+      todosAlunos={todosAlunos}
       mesRef={mesRef}
     />
   )

@@ -353,23 +353,53 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
   // ── status update ─────────────────────────────────────────────────────────────
 
   async function handleStatusCycle(alunoId: string) {
-    const cobranca = cobrancas[alunoId]
-    if (!cobranca?.id) return
-    const nextIdx  = (STATUS_CYCLE.indexOf(cobranca.status) + 1) % STATUS_CYCLE.length
-    const nextStatus = STATUS_CYCLE[nextIdx]
+    const cobranca    = cobrancas[alunoId]
+    const curStatus   = cobranca?.status ?? 'pendente'
+    const nextIdx     = (STATUS_CYCLE.indexOf(curStatus) + 1) % STATUS_CYCLE.length
+    const nextStatus  = STATUS_CYCLE[nextIdx]
 
     setLoading(alunoId, true)
-    const result = await updateStatusAction(cobranca.id, nextStatus)
-    if (!result?.error) {
-      setCobrancas(prev => ({ ...prev, [alunoId]: { ...prev[alunoId], status: nextStatus } }))
+
+    if (!cobranca?.id) {
+      // No record yet — create one directly with the next status
+      const aluno    = alunos.find(a => a.id === alunoId)
+      if (!aluno) { setLoading(alunoId, false); return }
+      const total    = calcTotal(aluno, year, month, creditos[alunoId] ?? 0)
+      const result   = await upsertCobrancaAction({
+        aluno_id:       alunoId,
+        mes_referencia: mesRef,
+        valor:          total,
+        status:         nextStatus,
+        mensagem:       '',
+      })
+      if (!result?.error && result?.id) {
+        setCobrancas(prev => ({
+          ...prev,
+          [alunoId]: {
+            id:             result.id!,
+            aluno_id:       alunoId,
+            mes_referencia: mesRef,
+            valor:          total,
+            status:         nextStatus,
+            mensagem:       null,
+          },
+        }))
+      }
+    } else {
+      const result = await updateStatusAction(cobranca.id, nextStatus)
+      if (!result?.error) {
+        setCobrancas(prev => ({ ...prev, [alunoId]: { ...prev[alunoId], status: nextStatus } }))
+      }
     }
+
     setLoading(alunoId, false)
   }
 
   // ── summary ───────────────────────────────────────────────────────────────────
 
   const totalFaturamento = alunos.reduce((s, a) => s + calcTotal(a, year, month, creditos[a.id] ?? 0), 0)
-  const countPendente = Object.values(cobrancas).filter(c => c.status === 'pendente').length
+  // Alunos without a record are implicitly 'pendente'
+  const countPendente = alunos.filter(a => !cobrancas[a.id] || cobrancas[a.id].status === 'pendente').length
   const countEnviado  = Object.values(cobrancas).filter(c => c.status === 'enviado').length
   const countPago     = Object.values(cobrancas).filter(c => c.status === 'pago').length
 
@@ -552,14 +582,12 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                       )}
                     </div>
 
-                    {/* Status badge */}
-                    {cobranca && (
-                      <StatusBadge
-                        status={cobranca.status}
-                        loading={isLoading}
-                        onClick={() => handleStatusCycle(aluno.id)}
-                      />
-                    )}
+                    {/* Status badge — shown for all alunos */}
+                    <StatusBadge
+                      status={cobranca?.status ?? 'pendente'}
+                      loading={isLoading}
+                      onClick={() => handleStatusCycle(aluno.id)}
+                    />
                   </div>
 
                   {/* Mobile: aulas + total */}

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { formatCurrency, formatDate } from '@/types/aluno'
-import { marcarCobrancaPagoAction } from './actions'
+import { upsertCobrancaPagoAction, desfazerPagoAction } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -32,13 +32,15 @@ interface Aniversario {
   diasRestantes: number
 }
 
-interface CobrancaPendente {
-  id: string
+type CobrancaStatus = 'pendente' | 'enviado' | 'pago'
+
+interface AlunoCobranca {
   alunoId: string
   alunoNome: string
   whatsapp: string | null
   valor: number
-  status: 'pendente' | 'enviado'
+  cobrancaId: string | null   // null = no record yet
+  status: CobrancaStatus
   diasDesdeEnvio: number | null
 }
 
@@ -48,14 +50,12 @@ interface Props {
   lucro: number
   margem: number
   custoTotal: number
-  cobrancasPagas: number
-  cobrancasTotal: number
   totalAlunos: number
   aulasHoje: AulaHoje[]
   reposicoesPendentes: Reposicao[]
   aniversarios: Aniversario[]
   alunos: { id: string; nome: string }[]
-  cobrancasPendentes: CobrancaPendente[]
+  todosAlunos: AlunoCobranca[]
   mesRef: string
 }
 
@@ -80,29 +80,51 @@ export function DashboardHome({
   lucro,
   margem,
   custoTotal,
-  cobrancasPagas,
-  cobrancasTotal,
   totalAlunos,
   aulasHoje,
   reposicoesPendentes,
   aniversarios,
   alunos,
-  cobrancasPendentes: cobrancasPendentesInit,
+  todosAlunos: todosAlunosInit,
   mesRef,
 }: Props) {
-  const [cobrancas, setCobrancas] = useState<CobrancaPendente[]>(cobrancasPendentesInit)
+  const [alunosCobranca, setAlunosCobranca] = useState<AlunoCobranca[]>(todosAlunosInit)
 
-  async function handleMarcarPago(id: string) {
-    setCobrancas(prev => prev.filter(c => c.id !== id))
-    await marcarCobrancaPagoAction(id)
+  // Derived counts (live from state)
+  const pagosCount   = alunosCobranca.filter(a => a.status === 'pago').length
+  const naoPagosCount = alunosCobranca.filter(a => a.status !== 'pago').length
+  const recebPct     = totalAlunos > 0 ? Math.round((pagosCount / totalAlunos) * 100) : 0
+
+  // Sorted view: pendente → enviado → pago
+  const sortedAlunos = [...alunosCobranca].sort((a, b) => {
+    const order: Record<CobrancaStatus, number> = { pendente: 0, enviado: 1, pago: 2 }
+    return order[a.status] - order[b.status]
+  })
+
+  async function handleMarcarPago(alunoId: string) {
+    const aluno = alunosCobranca.find(a => a.alunoId === alunoId)
+    if (!aluno) return
+    // Optimistic
+    setAlunosCobranca(prev => prev.map(a => a.alunoId === alunoId ? { ...a, status: 'pago' } : a))
+    const res = await upsertCobrancaPagoAction(alunoId, mesRef, aluno.valor)
+    if (res.id) {
+      setAlunosCobranca(prev => prev.map(a => a.alunoId === alunoId ? { ...a, cobrancaId: res.id! } : a))
+    }
   }
 
-  function buildWhatsApp(c: CobrancaPendente): string {
-    const raw = (c.whatsapp ?? '').replace(/\D/g, '')
+  async function handleDesfazer(alunoId: string) {
+    const aluno = alunosCobranca.find(a => a.alunoId === alunoId)
+    if (!aluno?.cobrancaId) return
+    setAlunosCobranca(prev => prev.map(a => a.alunoId === alunoId ? { ...a, status: 'pendente' } : a))
+    await desfazerPagoAction(aluno.cobrancaId)
+  }
+
+  function buildWhatsApp(a: AlunoCobranca): string {
+    const raw = (a.whatsapp ?? '').replace(/\D/g, '')
     if (!raw) return '#'
     const phone = raw.length === 11 ? `55${raw}` : raw
-    const firstName = c.alunoNome.split(' ')[0]
-    const msg = `Olá ${firstName}! Passando para lembrar que a mensalidade de ${formatCurrency(c.valor)} referente a ${mesNome} ainda está pendente. Obrigado! 😊`
+    const firstName = a.alunoNome.split(' ')[0]
+    const msg = `Olá ${firstName}! Passando para lembrar que a mensalidade de ${formatCurrency(a.valor)} referente a ${mesNome} ainda está pendente. Obrigado! 😊`
     return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
   }
 
@@ -112,11 +134,6 @@ export function DashboardHome({
 
   // margin color
   const margemColor = margem >= 50 ? '#00E676' : margem >= 30 ? '#FFAB00' : '#FF5252'
-
-  // recebimentos color
-  const recebPct = cobrancasTotal > 0
-    ? Math.round((cobrancasPagas / cobrancasTotal) * 100)
-    : 0
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
@@ -183,19 +200,16 @@ export function DashboardHome({
         <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
           <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Recebimentos</p>
           <p className="text-lg font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
-            {cobrancasPagas}<span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>/{cobrancasTotal > 0 ? cobrancasTotal : totalAlunos}</span>
+            {pagosCount}<span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>/{totalAlunos}</span>
           </p>
           <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-input)' }}>
             <div
               className="h-full rounded-full transition-all"
-              style={{
-                width: `${cobrancasTotal > 0 ? recebPct : 0}%`,
-                background: 'var(--green-primary)',
-              }}
+              style={{ width: `${recebPct}%`, background: 'var(--green-primary)' }}
             />
           </div>
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-            {cobrancasTotal > 0 ? `${recebPct}% pagos` : 'Sem cobranças'}
+            {totalAlunos > 0 ? `${recebPct}% pagos` : 'Sem alunos'}
           </p>
         </div>
 
@@ -239,7 +253,7 @@ export function DashboardHome({
             >
               {aulasHoje.length} aula{aulasHoje.length !== 1 ? 's' : ''}
             </Link>
-            {cobrancas.length > 0 && (
+            {naoPagosCount > 0 && (
               <>
                 {reposicoesPendentes.length === 0 ? ' e ' : ', '}
                 <Link
@@ -247,7 +261,7 @@ export function DashboardHome({
                   className="font-semibold"
                   style={{ color: '#FFAB00', textDecoration: 'underline', textUnderlineOffset: 3 }}
                 >
-                  {cobrancas.length} cobrança{cobrancas.length !== 1 ? 's' : ''} pendente{cobrancas.length !== 1 ? 's' : ''}
+                  {naoPagosCount} pagamento{naoPagosCount !== 1 ? 's' : ''} pendente{naoPagosCount !== 1 ? 's' : ''}
                 </Link>
               </>
             )}
@@ -266,104 +280,129 @@ export function DashboardHome({
             .
           </p>
         )}
-        {cobrancas.length > 0 && (
+        {naoPagosCount > 0 && (
           <div className="mt-2.5 flex items-center gap-2 px-3 py-2 rounded-xl"
             style={{ background: 'rgba(255,171,0,0.08)', border: '1px solid rgba(255,171,0,0.2)' }}>
             <span className="text-sm">⚠️</span>
             <p className="text-xs" style={{ color: '#FFAB00' }}>
-              {cobrancas.length} aluno{cobrancas.length !== 1 ? 's' : ''} com pagamento em aberto este mês
+              {naoPagosCount} aluno{naoPagosCount !== 1 ? 's' : ''} com pagamento em aberto este mês
             </p>
           </div>
         )}
       </div>
 
-      {/* ── Cobranças pendentes ───────────────────────────────────────────── */}
+      {/* ── Pagamentos do mês ────────────────────────────────────────────── */}
       <div
         className="rounded-2xl p-4 mb-5"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
       >
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            💰 Cobranças pendentes
+            💰 Pagamentos do mês
           </p>
-          {cobrancas.length > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ background: 'rgba(255,171,0,0.15)', color: '#FFAB00' }}>
-              {cobrancas.length}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {naoPagosCount > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: 'rgba(255,171,0,0.15)', color: '#FFAB00' }}>
+                {naoPagosCount} pendente{naoPagosCount !== 1 ? 's' : ''}
+              </span>
+            )}
+            {naoPagosCount === 0 && totalAlunos > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: 'rgba(0,230,118,0.12)', color: 'var(--green-primary)' }}>
+                Todos em dia ✅
+              </span>
+            )}
+          </div>
         </div>
 
-        {cobrancasPendentesInit.length === 0 && cobrancas.length === 0 ? (
-          // No cobrancas generated at all
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Nenhuma cobrança gerada este mês
-            </p>
-            <Link
-              href="/dashboard/financeiro?tab=cobranca"
-              className="px-4 py-2 rounded-xl text-xs font-semibold"
-              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}
-            >
-              Gerar cobranças
-            </Link>
-          </div>
-        ) : cobrancas.length === 0 ? (
-          <p className="text-sm font-medium" style={{ color: 'var(--green-primary)' }}>
-            Todos em dia! ✅
-          </p>
+        {totalAlunos === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum aluno ativo.</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {cobrancas.map(c => {
-              const whatsappUrl = buildWhatsApp(c)
+            {sortedAlunos.map(a => {
+              const isPago   = a.status === 'pago'
+              const whatsUrl = buildWhatsApp(a)
+              const avatarBg = isPago
+                ? 'rgba(0,230,118,0.12)'
+                : a.status === 'enviado'
+                  ? 'rgba(64,196,255,0.12)'
+                  : 'rgba(255,171,0,0.12)'
+              const avatarColor = isPago ? 'var(--green-primary)'
+                : a.status === 'enviado' ? '#40C4FF' : '#FFAB00'
+
               return (
                 <div
-                  key={c.id}
+                  key={a.alunoId}
                   className="flex items-center gap-3 p-3 rounded-xl"
-                  style={{ background: 'var(--bg-input)' }}
+                  style={{ background: 'var(--bg-input)', opacity: isPago ? 0.75 : 1 }}
                 >
+                  {/* Avatar */}
                   <div
                     className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{ background: 'rgba(255,171,0,0.12)', color: '#FFAB00' }}
+                    style={{ background: avatarBg, color: avatarColor }}
                   >
-                    {c.alunoNome.slice(0, 2).toUpperCase()}
+                    {a.alunoNome.slice(0, 2).toUpperCase()}
                   </div>
+
+                  {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-                      {c.alunoNome}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                        {a.alunoNome}
+                      </p>
+                      {/* Status badge */}
+                      <span className="text-[10px] px-1.5 py-px rounded font-medium shrink-0"
+                        style={
+                          isPago
+                            ? { background: 'rgba(0,230,118,0.12)', color: 'var(--green-primary)' }
+                            : a.status === 'enviado'
+                              ? { background: 'rgba(64,196,255,0.12)', color: '#40C4FF' }
+                              : { background: 'rgba(255,171,0,0.12)', color: '#FFAB00' }
+                        }>
+                        {isPago ? 'Pago ✅' : a.status === 'enviado' ? 'Enviado' : 'Pendente'}
+                      </span>
+                    </div>
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {formatCurrency(c.valor)}
-                      {c.diasDesdeEnvio !== null && c.diasDesdeEnvio > 0
-                        ? ` · há ${c.diasDesdeEnvio} dia${c.diasDesdeEnvio !== 1 ? 's' : ''}`
-                        : c.diasDesdeEnvio === 0 ? ' · hoje' : ''}
-                      {c.status === 'enviado' && (
-                        <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium"
-                          style={{ background: 'rgba(64,196,255,0.12)', color: '#40C4FF' }}>
-                          Enviada
-                        </span>
-                      )}
+                      {formatCurrency(a.valor)}
+                      {!isPago && a.diasDesdeEnvio !== null && a.diasDesdeEnvio > 0
+                        ? ` · há ${a.diasDesdeEnvio}d`
+                        : ''}
                     </p>
                   </div>
+
+                  {/* Actions */}
                   <div className="flex gap-1.5 shrink-0">
-                    {whatsappUrl !== '#' && (
-                      <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold"
-                        style={{ background: 'rgba(0,230,118,0.12)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}
+                    {isPago ? (
+                      <button
+                        onClick={() => handleDesfazer(a.alunoId)}
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium"
+                        style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
                       >
-                        Cobrar
-                      </a>
+                        Desfazer
+                      </button>
+                    ) : (
+                      <>
+                        {whatsUrl !== '#' && (
+                          <a
+                            href={whatsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold"
+                            style={{ background: 'rgba(0,230,118,0.10)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}
+                          >
+                            Cobrar
+                          </a>
+                        )}
+                        <button
+                          onClick={() => handleMarcarPago(a.alunoId)}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold"
+                          style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
+                        >
+                          Pago ✓
+                        </button>
+                      </>
                     )}
-                    <button
-                      onClick={() => handleMarcarPago(c.id)}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold"
-                      style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
-                    >
-                      Pago ✓
-                    </button>
                   </div>
                 </div>
               )
