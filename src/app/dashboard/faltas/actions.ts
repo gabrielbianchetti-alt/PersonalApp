@@ -149,7 +149,14 @@ export async function resolveFaltaAction(
     .eq('id', id)
     .eq('professor_id', user.id)
 
-  if (error) { console.error('resolveFalta:', error); return { error: 'Erro ao resolver falta.' } }
+  if (error) {
+    console.error('resolveFalta — código:', error.code)
+    console.error('resolveFalta — mensagem:', error.message)
+    console.error('resolveFalta — detalhes:', error.details)
+    console.error('resolveFalta — hint:', error.hint)
+    console.error('resolveFalta — updates enviados:', JSON.stringify(updates))
+    return { error: `[${error.code}] ${error.message}${error.hint ? ' — ' + error.hint : ''}` }
+  }
   return {}
 }
 
