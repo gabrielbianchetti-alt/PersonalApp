@@ -1,9 +1,12 @@
+export type ModoTema = 'escuro' | 'claro' | 'auto'
+
 export interface ProfessorPerfil {
   id: string
   professor_id: string
   nome: string
   foto_url: string | null
   cor_tema: string
+  modo_tema: ModoTema
   codigo_indicacao: string
   created_at: string
   updated_at: string

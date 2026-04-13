@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { applyTheme } from '@/lib/color'
-import { saveNomeAction, saveFotoUrlAction, saveCorTemaAction } from './actions'
+import { applyTheme, applyModo } from '@/lib/color'
+import { saveNomeAction, saveFotoUrlAction, saveCorTemaAction, saveModoTemaAction } from './actions'
 import { COR_PRESETS } from './types'
-import type { ProfessorPerfil } from './types'
+import type { ModoTema, ProfessorPerfil } from './types'
 
 // ─── section wrapper ─────────────────────────────────────────────────────────
 
@@ -64,6 +64,9 @@ export function Configuracoes({ perfil, email }: Props) {
   const [customCor, setCustomCor] = useState(
     COR_PRESETS.some(p => p.value === perfil.cor_tema) ? '' : (perfil.cor_tema || '')
   )
+  const [modoTema, setModoTema] = useState<ModoTema>(perfil.modo_tema || 'escuro')
+  const [modoLoading, setModoLoading] = useState(false)
+  const [modoDone, setModoDone] = useState(false)
 
   // ── indicação ───────────────────────────────────────────────────────────────
   const [copied, setCopied] = useState(false)
@@ -147,6 +150,18 @@ export function Configuracoes({ perfil, email }: Props) {
       setCorSalva(corPreview)
       setCorDone(true)
       setTimeout(() => setCorDone(false), 3000)
+    }
+  }
+
+  async function handleSaveModo(novo: ModoTema) {
+    setModoTema(novo)
+    applyModo(novo) // apply immediately, no flash
+    setModoLoading(true)
+    const res = await saveModoTemaAction(novo)
+    setModoLoading(false)
+    if (!res.error) {
+      setModoDone(true)
+      setTimeout(() => setModoDone(false), 2000)
     }
   }
 
@@ -332,6 +347,46 @@ export function Configuracoes({ perfil, email }: Props) {
         )}
 
         <SaveBtn loading={corLoading} done={corDone} onClick={handleSaveCor} label="Salvar cor" />
+
+        {/* ── Modo de exibição ────────────────────────────────────────────── */}
+        <div className="mt-6 pt-5" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+            Modo de exibição
+          </p>
+          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+            O tema é aplicado em todo o sistema imediatamente.
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { value: 'escuro' as ModoTema,  label: 'Escuro',      icon: '🌙' },
+              { value: 'claro'  as ModoTema,  label: 'Claro',       icon: '☀️' },
+              { value: 'auto'   as ModoTema,  label: 'Automático',  icon: '💻' },
+            ] as { value: ModoTema; label: string; icon: string }[]).map(opt => {
+              const active = modoTema === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => handleSaveModo(opt.value)}
+                  disabled={modoLoading}
+                  className="flex flex-col items-center gap-1.5 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                  style={active
+                    ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1.5px solid var(--green-primary)' }
+                    : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1.5px solid var(--border-subtle)' }
+                  }
+                >
+                  <span className="text-lg leading-none">{opt.icon}</span>
+                  {opt.label}
+                  {active && modoDone && <span className="text-[10px]">✓ Salvo</span>}
+                </button>
+              )
+            })}
+          </div>
+          {modoTema === 'auto' && (
+            <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+              Segue a preferência do seu sistema operacional (claro/escuro).
+            </p>
+          )}
+        </div>
       </Section>
 
       {/* ── Indicação ───────────────────────────────────────────────────────── */}

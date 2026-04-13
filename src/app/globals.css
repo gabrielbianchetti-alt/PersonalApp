@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* ── Dark mode (default) ──────────────────────────────────────────────────── */
 :root {
   --green-primary: #00E676;
   --green-hover: #00C853;
@@ -15,12 +16,45 @@
   --text-muted: #555555;
 }
 
-* {
-  box-sizing: border-box;
-}
-
 html {
   color-scheme: dark;
+}
+
+/* ── Light mode ───────────────────────────────────────────────────────────── */
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg-base: #F5F5F5;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-input: #FFFFFF;
+  --border-subtle: #E5E7EB;
+  --border-focus: rgba(0, 230, 118, 0.5);
+  --text-primary: #1A1A2E;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+}
+
+/* ── Auto mode (follows OS preference) ───────────────────────────────────── */
+html[data-theme="auto"] {
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"] {
+    --bg-base: #F5F5F5;
+    --bg-surface: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --bg-input: #FFFFFF;
+    --border-subtle: #E5E7EB;
+    --border-focus: rgba(0, 230, 118, 0.5);
+    --text-primary: #1A1A2E;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
+  }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
@@ -42,7 +76,7 @@ body {
   border-radius: 99px;
 }
 
-/* Autofill dark fix */
+/* Autofill — dark mode */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
@@ -50,4 +84,23 @@ input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--text-primary) !important;
   caret-color: var(--text-primary);
   transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Autofill — light mode */
+html[data-theme="light"] input:-webkit-autofill,
+html[data-theme="light"] input:-webkit-autofill:hover,
+html[data-theme="light"] input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  -webkit-text-fill-color: #1A1A2E !important;
+  caret-color: #1A1A2E;
+}
+
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"] input:-webkit-autofill,
+  html[data-theme="auto"] input:-webkit-autofill:hover,
+  html[data-theme="auto"] input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+    -webkit-text-fill-color: #1A1A2E !important;
+    caret-color: #1A1A2E;
+  }
 }

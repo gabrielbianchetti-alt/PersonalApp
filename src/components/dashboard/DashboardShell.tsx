@@ -2,24 +2,28 @@
 
 import { useState, useEffect } from 'react'
 import { Sidebar } from './Sidebar'
-import { applyTheme } from '@/lib/color'
+import { applyTheme, applyModo } from '@/lib/color'
+import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 
 interface Props {
   children: React.ReactNode
   fotoUrl: string | null
   professorNome: string
   corTema: string
+  modoTema?: ModoTema
   isAdmin?: boolean
 }
 
-export function DashboardShell({ children, fotoUrl, professorNome, corTema, isAdmin }: Props) {
+export function DashboardShell({ children, fotoUrl, professorNome, corTema, modoTema = 'escuro', isAdmin }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Re-apply theme on client after hydration (handles non-default colors;
-  // the <style> tag in layout.tsx already covers SSR so there's no flash)
+  // Re-apply theme on client after hydration.
+  // The <style> tag in layout.tsx already covers SSR (no flash).
+  // This useEffect keeps things correct after client navigation.
   useEffect(() => {
     if (corTema && corTema !== '#00E676') applyTheme(corTema)
-  }, [corTema])
+    applyModo(modoTema)
+  }, [corTema, modoTema])
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-base)' }}>

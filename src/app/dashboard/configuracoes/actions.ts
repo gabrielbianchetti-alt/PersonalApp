@@ -1,8 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
-import type { ProfessorPerfil } from './types'
+import type { ModoTema, ProfessorPerfil } from './types'
 
 // ─── get or create ────────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ export async function getOrCreatePerfilAction(): Promise<{
       professor_id: user.id,
       nome: (user.user_metadata?.full_name as string | undefined) ?? '',
       cor_tema: '#00E676',
+      modo_tema: 'escuro',
       codigo_indicacao: codigo,
     })
     .select()
@@ -102,6 +104,34 @@ export async function saveCorTemaAction(cor: string): Promise<{ error?: string }
     .eq('professor_id', user.id)
 
   if (error) { console.error('saveCorTema:', error); return { error: 'Erro ao salvar cor.' } }
+
+  revalidatePath('/dashboard', 'layout')
+  return {}
+}
+
+// ─── save modo tema ───────────────────────────────────────────────────────────
+
+export async function saveModoTemaAction(modo: ModoTema): Promise<{ error?: string }> {
+  if (!['escuro', 'claro', 'auto'].includes(modo)) return { error: 'Modo inválido.' }
+
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { error } = await supabase
+    .from('professor_perfil')
+    .update({ modo_tema: modo })
+    .eq('professor_id', user.id)
+
+  if (error) { console.error('saveModoTema:', error); return { error: 'Erro ao salvar modo.' } }
+
+  // Persist in cookie so the root layout can apply the theme server-side (no flash)
+  const cookieStore = await cookies()
+  cookieStore.set('ph-modo', modo, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+    sameSite: 'lax',
+  })
 
   revalidatePath('/dashboard', 'layout')
   return {}

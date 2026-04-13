@@ -1,6 +1,8 @@
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { themeStyle } from '@/lib/color'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
+import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 
 const ADMIN_EMAIL = 'gabrielbianchetti@hotmail.com'
 
@@ -12,12 +14,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: perfil } = user
     ? await supabase
         .from('professor_perfil')
-        .select('foto_url, nome, cor_tema')
+        .select('foto_url, nome, cor_tema, modo_tema')
         .eq('professor_id', user.id)
         .maybeSingle()
     : { data: null }
 
-  const corTema: string = (perfil?.cor_tema as string | null) ?? '#00E676'
+  const corTema: string  = (perfil?.cor_tema  as string | null) ?? '#00E676'
+  const modoTema: ModoTema = ((perfil?.modo_tema as string | null) ?? 'escuro') as ModoTema
   const fotoUrl: string | null = (perfil?.foto_url as string | null) ?? null
   const professorNome: string =
     (perfil?.nome as string | null) ??
@@ -26,8 +29,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const isAdmin = user?.email === ADMIN_EMAIL
 
-  // Only inject if different from the default (avoids empty style tag)
-  const injectStyle = corTema !== '#00E676' ? themeStyle(corTema) : null
+  // Sync cookie so the root layout (and other pages) always use the DB value
+  const cookieStore = await cookies()
+  const cookieModo = cookieStore.get('ph-modo')?.value
+  if (cookieModo !== modoTema) {
+    cookieStore.set('ph-modo', modoTema, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' })
+  }
+
+  // Inject a <style> tag with accent + optional light-mode vars to avoid SSR flash
+  const injectStyle = themeStyle(corTema, modoTema)
 
   return (
     <>
@@ -39,6 +49,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         fotoUrl={fotoUrl}
         professorNome={professorNome}
         corTema={corTema}
+        modoTema={modoTema}
         isAdmin={isAdmin}
       >
         {children}

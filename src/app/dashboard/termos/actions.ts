@@ -13,32 +13,44 @@ import {
 export type { ModeloTipo, ModeloTermo, TermoEnviado } from './types'
 
 // ─── seed defaults ────────────────────────────────────────────────────────────
+// Uses upsert with onConflict so concurrent calls are safe and idempotent.
+// The unique constraint (professor_id, tipo) must exist — see SQL migration.
 
 export async function seedModelosIfNeeded(professorId: string): Promise<void> {
   const supabase = await createClient()
 
+  // Check each tipo individually to avoid inserting a tipo that already exists
   const { data: existing } = await supabase
     .from('modelos_termo')
-    .select('id')
+    .select('tipo')
     .eq('professor_id', professorId)
-    .limit(1)
 
-  if (existing && existing.length > 0) return
+  const existingTipos = new Set((existing ?? []).map((r: { tipo: string }) => r.tipo))
 
-  await supabase.from('modelos_termo').insert([
-    {
+  const toInsert = []
+  if (!existingTipos.has('formal')) {
+    toInsert.push({
       professor_id: professorId,
       nome: 'Formal',
       conteudo: MODELO_FORMAL_CONTEUDO,
       tipo: 'formal',
-    },
-    {
+    })
+  }
+  if (!existingTipos.has('descontraido')) {
+    toInsert.push({
       professor_id: professorId,
       nome: 'Descontraído',
       conteudo: MODELO_DESCONTRAIDO_CONTEUDO,
       tipo: 'descontraido',
-    },
-  ])
+    })
+  }
+
+  if (toInsert.length === 0) return
+
+  // ignoreDuplicates: true protects against race conditions (two parallel SSR calls)
+  await supabase
+    .from('modelos_termo')
+    .upsert(toInsert, { onConflict: 'professor_id,tipo', ignoreDuplicates: true })
 }
 
 // ─── modelos ──────────────────────────────────────────────────────────────────
