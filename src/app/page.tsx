@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { LandingPage } from './LandingPage'
+import LandingPage from './LandingPage'
 
 export const metadata: Metadata = {
   title: 'PersonalHub — Gestão para Personal Trainers',
