@@ -28,8 +28,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const isAdmin = user?.email === ADMIN_EMAIL
 
-  // Inject a <style> tag with accent + optional light-mode vars to avoid SSR flash
-  const injectStyle = themeStyle(corTema, modoTema)
+  // Inject a <style> tag with accent-color overrides only.
+  // Dark/light switching is handled purely by globals.css via data-theme attribute.
+  const injectStyle = themeStyle(corTema)
 
   return (
     <>

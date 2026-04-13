@@ -20,8 +20,8 @@ html {
   color-scheme: dark;
 }
 
-/* ── Light mode ───────────────────────────────────────────────────────────── */
-html[data-theme="light"] {
+/* ── Light mode — matches data-theme="claro" set by applyModo() / root layout ── */
+html[data-theme="claro"] {
   color-scheme: light;
   --bg-base: #F5F5F5;
   --bg-surface: #FFFFFF;
@@ -34,7 +34,7 @@ html[data-theme="light"] {
   --text-muted: #9CA3AF;
 }
 
-/* ── Auto mode (follows OS preference) ───────────────────────────────────── */
+/* ── Auto mode — follows OS preference, matches data-theme="auto" ─────────── */
 html[data-theme="auto"] {
   color-scheme: light dark;
 }
@@ -86,15 +86,16 @@ input:-webkit-autofill:focus {
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* Autofill — light mode */
-html[data-theme="light"] input:-webkit-autofill,
-html[data-theme="light"] input:-webkit-autofill:hover,
-html[data-theme="light"] input:-webkit-autofill:focus {
+/* Autofill — light mode (claro) */
+html[data-theme="claro"] input:-webkit-autofill,
+html[data-theme="claro"] input:-webkit-autofill:hover,
+html[data-theme="claro"] input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
   -webkit-text-fill-color: #1A1A2E !important;
   caret-color: #1A1A2E;
 }
 
+/* Autofill — auto mode when system is light */
 @media (prefers-color-scheme: light) {
   html[data-theme="auto"] input:-webkit-autofill,
   html[data-theme="auto"] input:-webkit-autofill:hover,
