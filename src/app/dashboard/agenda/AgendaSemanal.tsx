@@ -54,6 +54,10 @@ const TIPO_LABEL: Record<EventoTipo, string> = {
 }
 const OUTRO_CORES = ['#FFAB00','#CE93D8','#FF5252','#40C4FF','#9E9E9E']
 
+const COMPACT_HOUR_PX = 40
+const COMPACT_MIN_PX  = COMPACT_HOUR_PX / 60
+const COMPACT_GRID_H  = Math.ceil((GRID_END - GRID_START) * COMPACT_MIN_PX)
+
 // ─── types ────────────────────────────────────────────────────────────────────
 
 interface AlunoAgenda {
@@ -862,6 +866,17 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   const [dropTarget, setDropTarget]     = useState<DropTarget | null>(null)
   const [moveSaving, setMoveSaving]     = useState(false)
   const [overlayXY, setOverlayXY]       = useState<{ x: number; y: number } | null>(null)
+  const [mobileView, setMobileView]     = useState<'dia' | 'semana'>('dia')
+
+  useEffect(() => {
+    const stored = localStorage.getItem('agenda-mobile-view')
+    if (stored === 'dia' || stored === 'semana') setMobileView(stored)
+  }, [])
+
+  function changeMobileView(v: 'dia' | 'semana') {
+    setMobileView(v)
+    localStorage.setItem('agenda-mobile-view', v)
+  }
 
   // Manual DnD refs
   const grabOffsetRef   = useRef({ x: 0, y: 0 })
@@ -1297,6 +1312,199 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
     )
   }
 
+  // ── Mobile week view ──────────────────────────────────────────────────────
+
+  function renderMobileWeekView() {
+    const cToPx = (min: number) => min * COMPACT_MIN_PX
+
+    function handleCompactClick(e: React.MouseEvent<HTMLDivElement>, dayIdx: number) {
+      if ((e.target as HTMLElement).closest('[data-block]')) return
+      const rect    = e.currentTarget.getBoundingClientRect()
+      const raw     = GRID_START + (e.clientY - rect.top) / COMPACT_MIN_PX
+      const snapped = Math.round(raw / 30) * 30
+      const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
+      if (snapped < cfg.start || snapped >= cfg.end) return
+      setModal({ type: 'add', dayIdx, date: weekDays[dayIdx], timeMin: snapped })
+    }
+
+    const cHourLabels = Array.from({ length: 17 }, (_, i) => ({
+      label: `${i + 6}`,
+      top: cToPx((i + 6) * 60 - GRID_START),
+    }))
+
+    return (
+      <div style={{ minWidth: 576 }}>
+
+        {/* Sticky day headers */}
+        <div className="flex sticky top-0 z-10 shrink-0"
+          style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ width: 32, flexShrink: 0 }} />
+          {weekDays.map((day, i) => {
+            const isTodayDay = toDateStr(day) === todayStr
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center py-1.5 border-l"
+                style={{ borderColor: 'var(--border-subtle)', minWidth: 78, textAlign: 'center' }}>
+                <span className="text-[10px] font-medium"
+                  style={{ color: isTodayDay ? 'var(--green-primary)' : 'var(--text-muted)' }}>
+                  {WEEK_LABELS[i]}
+                </span>
+                <span style={{
+                  fontSize: 13, fontWeight: 700, lineHeight: 1,
+                  color: isTodayDay ? '#000' : 'var(--text-primary)',
+                  background: isTodayDay ? 'var(--green-primary)' : 'transparent',
+                  borderRadius: '50%', width: 22, height: 22,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '2px auto 0',
+                }}>
+                  {day.getDate()}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Grid body */}
+        <div className="flex" style={{ height: COMPACT_GRID_H }}>
+
+          {/* Hour labels */}
+          <div className="relative shrink-0" style={{ width: 32, height: COMPACT_GRID_H }}>
+            {cHourLabels.map(({ label, top }) => (
+              <div key={label} className="absolute right-1 -translate-y-2"
+                style={{ top, fontSize: 9, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* Day columns */}
+          {weekDays.map((_, dayIdx) => {
+            const dayKey  = WEEK_KEYS[dayIdx]
+            const cfg     = DAY_CFG[dayKey]
+            const dateStr = toDateStr(weekDays[dayIdx])
+            const day     = weekDays[dayIdx]
+
+            type BlockItem = {
+              id: string; startMin: number; endMin: number
+              isAluno: boolean; aluno?: AlunoAgenda; evento?: EventoAgendaRow
+            }
+            const allBlocks: BlockItem[] = []
+
+            for (const a of alunos) {
+              const h = a.horarios.find(x => x.dia === dayKey)
+              if (!h) continue
+              const startMin    = timeToMin(h.horario)
+              const isCancelled = eventos.some(ev =>
+                ev.tipo === 'bloqueado' && ev.data_especifica === dateStr &&
+                timeToMin(ev.horario_inicio) === startMin
+              )
+              if (isCancelled) continue
+              allBlocks.push({ id: `a-${a.id}`, startMin, endMin: startMin + a.duracao, isAluno: true, aluno: a })
+            }
+            for (const ev of eventos) {
+              if (ev.dia_semana !== dayKey && ev.data_especifica !== dateStr) continue
+              const startMin = timeToMin(ev.horario_inicio)
+              allBlocks.push({ id: `e-${ev.id}`, startMin, endMin: startMin + ev.duracao, isAluno: false, evento: ev })
+            }
+
+            const layout       = computeLayout(allBlocks)
+            const closedTop    = cToPx(cfg.start - GRID_START)
+            const closedBottom = cToPx(GRID_END - cfg.end)
+            const isToday      = toDateStr(weekDays[dayIdx]) === todayStr
+
+            return (
+              <div key={dayIdx}
+                className="relative flex-1 border-l cursor-crosshair"
+                style={{ height: COMPACT_GRID_H, borderColor: 'var(--border-subtle)', minWidth: 78 }}
+                onClick={(e) => handleCompactClick(e, dayIdx)}>
+
+                {/* Hour lines */}
+                {cHourLabels.map(({ top }, i) => (
+                  <div key={i} className="absolute left-0 right-0 pointer-events-none"
+                    style={{ top, borderTop: '1px solid var(--border-subtle)', opacity: 0.4 }} />
+                ))}
+                {cHourLabels.map(({ top }, i) => (
+                  <div key={`h-${i}`} className="absolute left-0 right-0 pointer-events-none"
+                    style={{ top: top + cToPx(30), borderTop: '1px dashed var(--border-subtle)', opacity: 0.18 }} />
+                ))}
+
+                {/* Today tint */}
+                {isToday && (
+                  <div className="absolute inset-0 pointer-events-none"
+                    style={{ background: 'rgba(0,230,118,0.03)', zIndex: 0 }} />
+                )}
+
+                {/* Closed areas */}
+                {closedTop > 0 && (
+                  <div className="absolute left-0 right-0 top-0 pointer-events-none"
+                    style={{ height: closedTop, background: 'rgba(0,0,0,0.22)', zIndex: 1 }} />
+                )}
+                {closedBottom > 0 && (
+                  <div className="absolute left-0 right-0 bottom-0 pointer-events-none"
+                    style={{ height: closedBottom, background: 'rgba(0,0,0,0.22)', zIndex: 1 }} />
+                )}
+
+                {/* Blocks */}
+                {allBlocks.map((b) => {
+                  const pos    = layout[b.id]
+                  const top    = cToPx(b.startMin - GRID_START)
+                  const height = Math.max(cToPx(b.endMin - b.startMin), 16)
+                  const left   = pos.left + 0.5
+                  const width  = pos.width - 1
+
+                  if (b.isAluno && b.aluno) {
+                    const a     = b.aluno
+                    const color = TIPO_COLOR.aula
+                    return (
+                      <div key={b.id} data-block="true"
+                        style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2, touchAction: 'manipulation' }}
+                        onClick={(e) => { e.stopPropagation(); setModal({ type: 'aluno-card', aluno: a, dayIdx, date: day }) }}>
+                        <div className="w-full h-full rounded overflow-hidden"
+                          style={{ background: color + '20', borderLeft: `2px solid ${color}`, padding: '1px 3px', cursor: 'pointer' }}>
+                          <p style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.2, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            {a.nome.split(' ')[0]}
+                          </p>
+                          {height > 22 && (
+                            <p style={{ fontSize: 8, color: color + 'aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                              {a.horarios.find(x => x.dia === dayKey)?.horario ?? ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  if (!b.isAluno && b.evento) {
+                    const ev        = b.evento
+                    const color     = ev.tipo === 'aula_extra' ? TIPO_COLOR.aula_extra : (ev.cor ?? TIPO_COLOR[ev.tipo])
+                    const alunoNome = alunos.find(a => a.id === ev.aluno_id)?.nome
+                    return (
+                      <div key={b.id} data-block="true"
+                        style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2, touchAction: 'manipulation' }}
+                        onClick={(e) => { e.stopPropagation(); setModal({ type: 'evento-card', evento: ev, alunoNome }) }}>
+                        <div className="w-full h-full rounded overflow-hidden"
+                          style={{ background: color + '20', borderLeft: `2px solid ${color}`, padding: '1px 3px', cursor: 'pointer' }}>
+                          <p style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.2, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            {ev.aluno_id && alunoNome ? alunoNome.split(' ')[0] : ev.titulo}
+                          </p>
+                          {height > 22 && (
+                            <p style={{ fontSize: 8, color: color + 'aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                              {ev.horario_inicio}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
+                })}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   const weekLabel = `${formatDay(weekDays[0])} – ${formatDay(weekDays[6])}`
 
   // ── render ─────────────────────────────────────────────────────────────────
@@ -1336,28 +1544,45 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
           </div>
         </div>
 
-        {/* Mobile day tabs */}
-        <div className="md:hidden flex overflow-x-auto shrink-0"
-          style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-          {weekDays.map((day, i) => {
-            const isTodayDay = toDateStr(day) === todayStr
-            const isActive   = mobileDayIdx === i
-            return (
-              <button key={i} onClick={() => setMobileDayIdx(i)}
-                className="flex-shrink-0 flex flex-col items-center px-4 py-2.5 text-xs font-semibold cursor-pointer"
-                style={{ color: isActive ? 'var(--green-primary)' : 'var(--text-secondary)', borderBottom: isActive ? '2px solid var(--green-primary)' : '2px solid transparent', background: 'transparent' }}>
-                <span>{WEEK_LABELS[i]}</span>
-                <span className="mt-0.5" style={{
-                  background: isTodayDay ? 'var(--green-primary)' : 'transparent',
-                  color: isTodayDay ? '#000' : 'inherit',
-                  borderRadius: '50%', width: 22, height: 22,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: isTodayDay ? 700 : 500,
-                }}>{day.getDate()}</span>
-              </button>
-            )
-          })}
+        {/* Mobile view toggle (Dia / Semana) */}
+        <div className="md:hidden flex items-center gap-1 px-3 py-2 shrink-0"
+          style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+          {(['dia', 'semana'] as const).map(v => (
+            <button key={v} onClick={() => changeMobileView(v)}
+              className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+              style={mobileView === v
+                ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.3)' }
+                : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent' }
+              }>
+              {v === 'dia' ? 'Dia' : 'Semana'}
+            </button>
+          ))}
         </div>
+
+        {/* Mobile day tabs — only in Dia mode */}
+        {mobileView === 'dia' && (
+          <div className="md:hidden flex overflow-x-auto shrink-0"
+            style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            {weekDays.map((day, i) => {
+              const isTodayDay = toDateStr(day) === todayStr
+              const isActive   = mobileDayIdx === i
+              return (
+                <button key={i} onClick={() => setMobileDayIdx(i)}
+                  className="flex-shrink-0 flex flex-col items-center px-4 py-2.5 text-xs font-semibold cursor-pointer"
+                  style={{ color: isActive ? 'var(--green-primary)' : 'var(--text-secondary)', borderBottom: isActive ? '2px solid var(--green-primary)' : '2px solid transparent', background: 'transparent' }}>
+                  <span>{WEEK_LABELS[i]}</span>
+                  <span className="mt-0.5" style={{
+                    background: isTodayDay ? 'var(--green-primary)' : 'transparent',
+                    color: isTodayDay ? '#000' : 'inherit',
+                    borderRadius: '50%', width: 22, height: 22,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: isTodayDay ? 700 : 500,
+                  }}>{day.getDate()}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {/* Grid */}
         <div className="flex-1 overflow-hidden relative">
@@ -1410,16 +1635,25 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
               </div>
             </div>
 
-            {/* Mobile */}
-            <div className="md:hidden flex" style={{ height: gridHeight }}>
-              <div className="relative shrink-0" style={{ width: 44, height: gridHeight }}>
-                {hourLabels.map(({ label, top }) => (
-                  <div key={label} className="absolute right-1.5 text-[10px] -translate-y-2"
-                    style={{ top, color: 'var(--text-muted)' }}>{label}</div>
-                ))}
+            {/* Mobile — Dia view */}
+            {mobileView === 'dia' && (
+              <div className="md:hidden flex" style={{ height: gridHeight }}>
+                <div className="relative shrink-0" style={{ width: 44, height: gridHeight }}>
+                  {hourLabels.map(({ label, top }) => (
+                    <div key={label} className="absolute right-1.5 text-[10px] -translate-y-2"
+                      style={{ top, color: 'var(--text-muted)' }}>{label}</div>
+                  ))}
+                </div>
+                {renderDayColumn(mobileDayIdx)}
               </div>
-              {renderDayColumn(mobileDayIdx)}
-            </div>
+            )}
+
+            {/* Mobile — Semana view */}
+            {mobileView === 'semana' && (
+              <div className="md:hidden">
+                {renderMobileWeekView()}
+              </div>
+            )}
           </div>
         </div>
 
