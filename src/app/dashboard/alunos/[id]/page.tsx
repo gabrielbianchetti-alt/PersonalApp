@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DIAS_LABEL, formatCurrency, formatDate } from '@/types/aluno'
 import { DeleteAlunoButton } from './DeleteAlunoButton'
+import { EditAlunoButton } from './EditAlunoButton'
 
 export const metadata: Metadata = { title: 'Perfil do Aluno — PersonalHub' }
 
@@ -49,17 +50,20 @@ export default async function AlunoPerfilPage({
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">
 
-      {/* Back */}
-      <Link
-        href="/dashboard/alunos"
-        className="inline-flex items-center gap-1.5 text-sm mb-5"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-        Alunos
-      </Link>
+      {/* Back + Edit row */}
+      <div className="flex items-center justify-between mb-5">
+        <Link
+          href="/dashboard/alunos"
+          className="inline-flex items-center gap-1.5 text-sm"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Alunos
+        </Link>
+        <EditAlunoButton aluno={aluno} />
+      </div>
 
       {/* Header card */}
       <div className="rounded-2xl p-5 mb-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
