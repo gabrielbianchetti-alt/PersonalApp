@@ -183,3 +183,63 @@ export async function encerrarSuspensaoAction(
   }
   return {}
 }
+
+// ─── excluir suspensão individual ────────────────────────────────────────────
+
+export async function excluirSuspensaoAction(
+  suspensaoId: string,
+  alunoId: string,
+  isAtiva: boolean
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { error } = await supabase
+    .from('suspensoes')
+    .delete()
+    .eq('id', suspensaoId)
+    .eq('professor_id', user.id)
+
+  if (error) {
+    console.error('excluirSuspensao:', error)
+    return { error: `Erro ao excluir suspensão: ${error.message}` }
+  }
+
+  // Se estava ativa, reativar o aluno
+  if (isAtiva) {
+    const { error: alunoError } = await supabase
+      .from('alunos')
+      .update({ status: 'ativo' })
+      .eq('id', alunoId)
+      .eq('professor_id', user.id)
+
+    if (alunoError) {
+      console.error('reativarAlunoAposExclusao:', alunoError)
+      // Não retorna erro — a suspensão já foi deletada
+    }
+  }
+
+  return {}
+}
+
+// ─── limpar histórico (apaga todas as encerradas) ─────────────────────────────
+
+export async function limparHistoricoAction(): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { error } = await supabase
+    .from('suspensoes')
+    .delete()
+    .eq('professor_id', user.id)
+    .eq('status', 'encerrada')
+
+  if (error) {
+    console.error('limparHistorico:', error)
+    return { error: `Erro ao limpar histórico: ${error.message}` }
+  }
+
+  return {}
+}

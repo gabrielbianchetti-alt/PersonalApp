@@ -6,6 +6,8 @@ import {
   criarSuspensaoAction,
   reativarAlunoAction,
   checkConflitosAction,
+  excluirSuspensaoAction,
+  limparHistoricoAction,
 } from './actions'
 import type { SuspensaoRow, SuspensaoTipo, AcaoHorario, Conflitante } from './types'
 import { DIAS_LABEL } from '@/types/aluno'
@@ -483,14 +485,180 @@ function ReativarModal({
   )
 }
 
+// ─── ExcluirSuspensaoModal ────────────────────────────────────────────────────
+
+function ExcluirSuspensaoModal({
+  suspensao,
+  onClose,
+  onExcluido,
+}: {
+  suspensao: SuspensaoRow
+  onClose: () => void
+  onExcluido: (id: string) => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+  const nome = suspensao.aluno_nome ?? 'aluno'
+
+  async function handleConfirmar() {
+    setLoading(true)
+    const res = await excluirSuspensaoAction(suspensao.id, suspensao.aluno_id, suspensao.status === 'ativa')
+    setLoading(false)
+    if (res.error) { setError(res.error); return }
+    onExcluido(suspensao.id)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-xl p-6 flex flex-col gap-4"
+        style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,82,82,0.25)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,82,82,0.1)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5252" strokeWidth="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </div>
+        </div>
+
+        <div className="text-center">
+          <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+            Excluir suspensão de {nome}?
+          </h2>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+            Esta ação não pode ser desfeita.
+            {suspensao.status === 'ativa' && (
+              <><br /><span style={{ color: '#00E676' }}>O aluno será reativado automaticamente.</span></>
+            )}
+          </p>
+        </div>
+
+        {error && <p className="text-xs text-center" style={{ color: '#FF5252' }}>{error}</p>}
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+            style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirmar}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-lg text-sm font-bold"
+            style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.3)', opacity: loading ? 0.6 : 1 }}
+          >
+            {loading ? 'Excluindo…' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── LimparHistoricoModal ─────────────────────────────────────────────────────
+
+function LimparHistoricoModal({
+  total,
+  onClose,
+  onLimpo,
+}: {
+  total: number
+  onClose: () => void
+  onLimpo: () => void
+}) {
+  const [step,    setStep]    = useState<1 | 2>(1)
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  async function handleConfirmar() {
+    setLoading(true)
+    const res = await limparHistoricoAction()
+    setLoading(false)
+    if (res.error) { setError(res.error); return }
+    onLimpo()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-xl p-6 flex flex-col gap-4"
+        style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,82,82,0.25)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {step === 1 ? (
+          <>
+            <div className="text-center">
+              <p className="text-2xl mb-3">🗑️</p>
+              <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                Limpar histórico de suspensões?
+              </h2>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Isso vai apagar <strong style={{ color: 'var(--text-primary)' }}>{total} registro{total !== 1 ? 's' : ''}</strong> de suspensões encerradas.
+                Suspensões ativas não serão afetadas.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={onClose} className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                Cancelar
+              </button>
+              <button onClick={() => setStep(2)} className="flex-1 py-2.5 rounded-lg text-sm font-bold"
+                style={{ background: 'rgba(255,82,82,0.12)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.25)' }}>
+                Continuar
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-center">
+              <p className="text-2xl mb-3">⚠️</p>
+              <h2 className="text-base font-bold mb-1" style={{ color: '#FF5252' }}>
+                Tem certeza?
+              </h2>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Esta ação é <strong>irreversível</strong>. Todo o histórico de suspensões encerradas será apagado permanentemente.
+              </p>
+            </div>
+
+            {error && <p className="text-xs text-center" style={{ color: '#FF5252' }}>{error}</p>}
+
+            <div className="flex gap-2">
+              <button onClick={() => setStep(1)} className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                Voltar
+              </button>
+              <button
+                onClick={handleConfirmar}
+                disabled={loading}
+                className="flex-1 py-2.5 rounded-lg text-sm font-bold"
+                style={{ background: '#FF5252', color: '#fff', opacity: loading ? 0.6 : 1 }}
+              >
+                {loading ? 'Limpando…' : 'Sim, limpar tudo'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── SuspensaoCard ────────────────────────────────────────────────────────────
 
 function SuspensaoCard({
   suspensao,
   onReativar,
+  onExcluir,
 }: {
   suspensao: SuspensaoRow
   onReativar: (s: SuspensaoRow) => void
+  onExcluir:  (s: SuspensaoRow) => void
 }) {
   const ti   = tipoLabel(suspensao.tipo)
   const acao = acaoLabel(suspensao.acao_horario)
@@ -549,15 +717,39 @@ function SuspensaoCard({
       )}
 
       {/* Actions */}
-      {suspensao.status === 'ativa' && (
+      <div className="flex gap-2">
+        {suspensao.status === 'ativa' && (
+          <button
+            onClick={() => onReativar(suspensao)}
+            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors"
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}
+          >
+            ▶ Reativar Aluno
+          </button>
+        )}
         <button
-          onClick={() => onReativar(suspensao)}
-          className="w-full py-2 rounded-lg text-sm font-semibold transition-colors"
-          style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}
+          onClick={() => onExcluir(suspensao)}
+          title="Excluir suspensão"
+          className="flex items-center justify-center rounded-lg transition-colors"
+          style={{
+            width: suspensao.status === 'ativa' ? 36 : '100%',
+            padding: suspensao.status === 'ativa' ? '0' : '8px',
+            background: 'rgba(255,82,82,0.07)',
+            border: '1px solid rgba(255,82,82,0.18)',
+            color: '#FF5252',
+            gap: suspensao.status !== 'ativa' ? 6 : 0,
+          }}
         >
-          ▶ Reativar Aluno
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+          {suspensao.status !== 'ativa' && (
+            <span className="text-xs font-medium">Excluir</span>
+          )}
         </button>
-      )}
+      </div>
     </div>
   )
 }
@@ -570,13 +762,18 @@ interface Props {
   suspensoesIniciais: SuspensaoRow[]
 }
 
-type Tab    = 'ativos' | 'historico'
-type Modal  = { type: 'nova' } | { type: 'reativar'; suspensao: SuspensaoRow }
+type Tab   = 'ativos' | 'historico'
+type Modal =
+  | { type: 'nova' }
+  | { type: 'reativar';  suspensao: SuspensaoRow }
+  | { type: 'excluir';   suspensao: SuspensaoRow }
+  | { type: 'limpar' }
 
 export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }: Props) {
   const [suspensoes, setSuspensoes] = useState<SuspensaoRow[]>(suspensoesIniciais)
   const [tab,    setTab]    = useState<Tab>('ativos')
   const [modal,  setModal]  = useState<Modal | null>(null)
+  const [toast,  setToast]  = useState<string | null>(null)
 
   const ativas    = suspensoes.filter(s => s.status === 'ativa')
   const historico = suspensoes.filter(s => s.status === 'encerrada')
@@ -585,8 +782,12 @@ export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }:
   const totalSuspensao = ativas.filter(s => s.tipo === 'suspensao').length
   const totalAtestado  = ativas.filter(s => s.tipo === 'atestado').length
 
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3500)
+  }
+
   function handleSaved(s: SuspensaoRow) {
-    // Enrich with aluno info from alunosAtivos
     const aluno = alunosAtivos.find(a => a.id === s.aluno_id)
     const enriched: SuspensaoRow = {
       ...s,
@@ -601,8 +802,19 @@ export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }:
     setSuspensoes(prev => prev.map(s =>
       s.id === suspensaoId ? { ...s, status: 'encerrada' } : s
     ))
-    // Close modal after a short delay to show success state
     setTimeout(() => setModal(null), 2200)
+  }
+
+  function handleExcluido(suspensaoId: string) {
+    setSuspensoes(prev => prev.filter(s => s.id !== suspensaoId))
+    setModal(null)
+    showToast('Suspensão excluída')
+  }
+
+  function handleHistoricoLimpo() {
+    setSuspensoes(prev => prev.filter(s => s.status !== 'encerrada'))
+    setModal(null)
+    showToast('Histórico limpo')
   }
 
   const canNovaSuspensao = alunosAtivos.length > 0
@@ -681,6 +893,7 @@ export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }:
                   key={s.id}
                   suspensao={s}
                   onReativar={s => setModal({ type: 'reativar', suspensao: s })}
+                  onExcluir={s => setModal({ type: 'excluir', suspensao: s })}
                 />
               ))
             )}
@@ -690,6 +903,22 @@ export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }:
         {/* ── TAB: HISTÓRICO ── */}
         {tab === 'historico' && (
           <div className="flex flex-col gap-3">
+            {historico.length > 0 && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setModal({ type: 'limpar' })}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ background: 'rgba(255,82,82,0.07)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.18)' }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                  Limpar histórico
+                </button>
+              </div>
+            )}
             {historico.length === 0 ? (
               <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
                 <p className="text-sm">Nenhuma suspensão encerrada</p>
@@ -700,6 +929,7 @@ export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }:
                   key={s.id}
                   suspensao={s}
                   onReativar={s => setModal({ type: 'reativar', suspensao: s })}
+                  onExcluir={s => setModal({ type: 'excluir', suspensao: s })}
                 />
               ))
             )}
@@ -722,6 +952,41 @@ export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }:
           onClose={() => setModal(null)}
           onReativado={handleReativado}
         />
+      )}
+      {modal?.type === 'excluir' && (
+        <ExcluirSuspensaoModal
+          suspensao={modal.suspensao}
+          onClose={() => setModal(null)}
+          onExcluido={handleExcluido}
+        />
+      )}
+      {modal?.type === 'limpar' && (
+        <LimparHistoricoModal
+          total={historico.length}
+          onClose={() => setModal(null)}
+          onLimpo={handleHistoricoLimpo}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className="fixed bottom-6 right-6 z-[200] flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold shadow-2xl"
+          style={{
+            background: '#0f172a',
+            border: '1px solid #00E676',
+            color: '#fff',
+            animation: 'fadeInUp 0.25s ease',
+          }}
+        >
+          <span
+            className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'rgba(0,230,118,0.15)', color: '#00E676', fontSize: 12, fontWeight: 700 }}
+          >
+            ✓
+          </span>
+          {toast}
+        </div>
       )}
     </>
   )
