@@ -5,6 +5,7 @@ import {
   createFaltaAction,
   resolveFaltaAction,
   deleteFaltaAction,
+  desfazerFaltaAction,
   savePreferenciasAction,
   getFaltasAction,
   type FaltaRow,
@@ -411,6 +412,84 @@ function PreferenciasModal({
   )
 }
 
+// ─── DesfazerModal ───────────────────────────────────────────────────────────
+
+function DesfazerModal({
+  falta,
+  prazoDias,
+  onClose,
+  onSaved,
+}: {
+  falta: FaltaRow
+  prazoDias: number
+  onClose: () => void
+  onSaved: (id: string, updates: Partial<FaltaRow>) => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const isVencida = falta.status === 'vencida'
+
+  const desc = isVencida
+    ? `A falta voltará para Pendente com novo prazo de ${prazoDias} dias a partir da data original.`
+    : falta.status === 'credito'
+    ? `O crédito de ${falta.credito_valor != null ? Number(falta.credito_valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'} será removido e a falta voltará para Pendente.`
+    : `A reposição registrada será desfeita e a falta voltará para Pendente.`
+
+  async function handleConfirm() {
+    setSaving(true)
+    const res = await desfazerFaltaAction(falta.id, falta.data_falta, prazoDias)
+    setSaving(false)
+    if (res.error) { setError(res.error); return }
+
+    const dataObj = new Date(falta.data_falta + 'T12:00:00')
+    dataObj.setDate(dataObj.getDate() + prazoDias)
+    const prazo_vencimento = dataObj.toISOString().slice(0, 10)
+
+    onSaved(falta.id, {
+      status: 'pendente',
+      data_reposicao: null,
+      credito_valor: null,
+      mes_validade: null,
+      prazo_vencimento,
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl p-6 flex flex-col gap-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }} onClick={e => e.stopPropagation()}>
+        <div>
+          <h2 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+            {isVencida ? 'Reabrir Falta' : 'Desfazer Resolução'}
+          </h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {falta.aluno_nome} · {fmtDate(falta.data_falta)}
+          </p>
+        </div>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{desc}</p>
+        {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+        <div className="flex gap-2 mt-1">
+          <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={saving}
+            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-opacity"
+            style={isVencida
+              ? { background: 'rgba(255,171,0,0.15)', color: '#FFAB00', border: '1px solid rgba(255,171,0,0.3)', opacity: saving ? 0.6 : 1 }
+              : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', opacity: saving ? 0.6 : 1 }
+            }
+          >
+            {saving ? 'Processando…' : isVencida ? 'Reabrir' : 'Desfazer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── FaltaCard ────────────────────────────────────────────────────────────────
 
 function FaltaCard({
@@ -418,11 +497,13 @@ function FaltaCard({
   alertaDias,
   onResolve,
   onDelete,
+  onDesfazer,
 }: {
   falta: FaltaRow
   alertaDias: number
   onResolve: (f: FaltaRow) => void
   onDelete: (id: string) => void
+  onDesfazer?: (f: FaltaRow) => void
 }) {
   const [confirmDel, setConfirmDel] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -504,6 +585,30 @@ function FaltaCard({
           )}
         </div>
       )}
+
+      {(falta.status === 'credito' || falta.status === 'reposta') && onDesfazer && (
+        <div className="flex gap-2 mt-1">
+          <button
+            onClick={() => onDesfazer(falta)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
+          >
+            Desfazer
+          </button>
+        </div>
+      )}
+
+      {falta.status === 'vencida' && onDesfazer && (
+        <div className="flex gap-2 mt-1">
+          <button
+            onClick={() => onDesfazer(falta)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ background: 'rgba(255,171,0,0.12)', color: '#FFAB00', border: '1px solid rgba(255,171,0,0.3)' }}
+          >
+            Reabrir
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -519,6 +624,7 @@ interface Props {
 type Modal =
   | { type: 'nova' }
   | { type: 'resolver'; falta: FaltaRow }
+  | { type: 'desfazer'; falta: FaltaRow }
   | { type: 'prefs' }
 
 type Tab = 'pendentes' | 'historico'
@@ -530,6 +636,12 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
   const [tab, setTab] = useState<Tab>('pendentes')
   const [filterAluno, setFilterAluno] = useState('')
   const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
 
   // Stats
   const pendentes = faltas.filter(f => f.status === 'pendente')
@@ -564,6 +676,19 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
   function handleFaltaResolved(id: string, updates: Partial<FaltaRow>) {
     setFaltas(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f))
     setModal(null)
+  }
+
+  function handleFaltaDesfeita(id: string, updates: Partial<FaltaRow>) {
+    const falta = faltas.find(f => f.id === id)
+    setFaltas(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f))
+    setModal(null)
+    if (falta?.status === 'vencida') {
+      showToast('Falta reaberta — prazo recalculado.')
+    } else if (falta?.status === 'credito') {
+      showToast('Crédito desfeito — falta voltou para Pendente.')
+    } else {
+      showToast('Reposição desfeita — falta voltou para Pendente.')
+    }
   }
 
   function handleFaltaDeleted(id: string) {
@@ -738,6 +863,7 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
                   alertaDias={prefs.alerta_dias}
                   onResolve={f => setModal({ type: 'resolver', falta: f })}
                   onDelete={handleFaltaDeleted}
+                  onDesfazer={f => setModal({ type: 'desfazer', falta: f })}
                 />
               ))
             )}
@@ -767,6 +893,24 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
           onClose={() => setModal(null)}
           onSaved={handlePrefsSaved}
         />
+      )}
+      {modal?.type === 'desfazer' && (
+        <DesfazerModal
+          falta={modal.falta}
+          prazoDias={prefs.prazo_dias}
+          onClose={() => setModal(null)}
+          onSaved={handleFaltaDesfeita}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg z-50"
+          style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', animation: 'fadeInUp 0.2s ease' }}
+        >
+          {toast}
+        </div>
       )}
     </>
   )

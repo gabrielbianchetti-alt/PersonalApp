@@ -160,6 +160,37 @@ export async function resolveFaltaAction(
   return {}
 }
 
+export async function desfazerFaltaAction(
+  id: string,
+  data_falta: string,
+  prazoDias: number,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  // Recalculate prazo_vencimento from original data_falta
+  const dataObj = new Date(data_falta + 'T12:00:00')
+  dataObj.setDate(dataObj.getDate() + prazoDias)
+  const prazo_vencimento = dataObj.toISOString().slice(0, 10)
+
+  const { error } = await supabase
+    .from('faltas')
+    .update({
+      status: 'pendente',
+      data_reposicao: null,
+      credito_valor: null,
+      mes_validade: null,
+      prazo_vencimento,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('professor_id', user.id)
+
+  if (error) { console.error('desfazerFalta:', error); return { error: 'Erro ao desfazer resolução.' } }
+  return {}
+}
+
 export async function deleteFaltaAction(id: string): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
