@@ -879,17 +879,33 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   }
 
   // Manual DnD refs
-  const grabOffsetRef   = useRef({ x: 0, y: 0 })
-  const dragDataRef     = useRef<DragData | null>(null)
-  const isDraggingRef   = useRef(false)   // true once pointer moves > threshold
-  const pointerStartRef = useRef({ x: 0, y: 0 })
-  // 7 column refs — one per week day (index matches WEEK_KEYS)
-  const colRefs = useRef<(HTMLDivElement | null)[]>(Array(7).fill(null))
+  const grabOffsetRef       = useRef({ x: 0, y: 0 })
+  const dragDataRef         = useRef<DragData | null>(null)
+  const isDraggingRef       = useRef(false)   // true once pointer moves > threshold
+  const pointerStartRef     = useRef({ x: 0, y: 0 })
+  const isMobileWeekDragRef = useRef(false)   // true when drag is in compact week view
+  const longPressTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 7 column refs — desktop/dia view (index matches WEEK_KEYS)
+  const colRefs        = useRef<(HTMLDivElement | null)[]>(Array(7).fill(null))
+  // 7 column refs — compact mobile week view
+  const compactColRefs = useRef<(HTMLDivElement | null)[]>(Array(7).fill(null))
+  // scroll container ref for scroll helper
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
 
   // Helper: find which column a clientX falls in and return {dayIdx, rect}
   function findColumn(clientX: number) {
     for (let i = 0; i < colRefs.current.length; i++) {
       const el = colRefs.current[i]
+      if (!el) continue
+      const rect = el.getBoundingClientRect()
+      if (clientX >= rect.left && clientX <= rect.right) return { dayIdx: i, rect }
+    }
+    return null
+  }
+
+  function findCompactColumn(clientX: number) {
+    for (let i = 0; i < compactColRefs.current.length; i++) {
+      const el = compactColRefs.current[i]
       if (!el) continue
       const rect = el.getBoundingClientRect()
       if (clientX >= rect.left && clientX <= rect.right) return { dayIdx: i, rect }
@@ -920,10 +936,11 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
       // Compute drop target
       const data = dragDataRef.current
       if (!data) return
-      const col = findColumn(e.clientX)
+      const activePx = isMobileWeekDragRef.current ? COMPACT_MIN_PX : MIN_PX
+      const col = isMobileWeekDragRef.current ? findCompactColumn(e.clientX) : findColumn(e.clientX)
       if (!col) { setDropTarget(null); return }
       const yInCol  = (e.clientY - grabOffsetRef.current.y) - col.rect.top
-      const rawMin  = GRID_START + yInCol / MIN_PX
+      const rawMin  = GRID_START + yInCol / activePx
       const snapped = Math.round(rawMin / 30) * 30
       const cfg     = DAY_CFG[WEEK_KEYS[col.dayIdx]]
       const clamped = Math.max(cfg.start, Math.min(cfg.end - data.duracao, snapped))
@@ -943,11 +960,12 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
       if (!wasDragging || !data) return
 
-      const col = findColumn(e.clientX)
+      const activePx  = isMobileWeekDragRef.current ? COMPACT_MIN_PX : MIN_PX
+      const col = isMobileWeekDragRef.current ? findCompactColumn(e.clientX) : findColumn(e.clientX)
       if (!col) return
 
       const yInCol   = (e.clientY - grabOffsetRef.current.y) - col.rect.top
-      const rawMin   = GRID_START + yInCol / MIN_PX
+      const rawMin   = GRID_START + yInCol / activePx
       const snapped  = Math.round(rawMin / 30) * 30
       const newDayKey = WEEK_KEYS[col.dayIdx]
       const cfg       = DAY_CFG[newDayKey]
@@ -1018,20 +1036,84 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   const updateEvento = (ev: EventoAgendaRow) => setEventos(p => p.map(e => e.id === ev.id ? ev : e))
   const removeEvento = (id: string)          => setEventos(p => p.filter(e => e.id !== id))
 
+  // ── scroll helpers ────────────────────────────────────────────────────────────
+
+  function scrollToMinOffset(totalMin: number) {
+    if (!scrollContainerRef.current) return
+    const minFromStart = totalMin - GRID_START
+    const px = mobileView === 'semana' ? minFromStart * COMPACT_MIN_PX : minFromStart * MIN_PX
+    scrollContainerRef.current.scrollTo({ top: Math.max(0, px), behavior: 'smooth' })
+  }
+
+  function scrollToHour(hour: number) { scrollToMinOffset(hour * 60) }
+
+  function scrollToNow() {
+    const n = new Date()
+    scrollToMinOffset(n.getHours() * 60 + n.getMinutes())
+  }
+
   // ── DnD handlers ─────────────────────────────────────────────────────────────
+
+  function handleTouchLongPress(
+    blockId: string,
+    data: DragData,
+    grabOffset: { x: number; y: number },
+    startXY: { x: number; y: number },
+    isCompact: boolean,
+  ) {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+
+    function onMove(ev: PointerEvent) {
+      const dx = ev.clientX - startXY.x
+      const dy = ev.clientY - startXY.y
+      if (Math.abs(dx) + Math.abs(dy) > 10) cancel()
+    }
+    function onUp() { cancel() }
+    function cancel() {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+
+    longPressTimerRef.current = setTimeout(() => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      grabOffsetRef.current       = grabOffset
+      pointerStartRef.current     = startXY
+      isDraggingRef.current       = true
+      dragDataRef.current         = data
+      isMobileWeekDragRef.current = isCompact
+      setActiveBlock({ ...data, id: blockId })
+      setOverlayXY({ x: startXY.x - grabOffset.x, y: startXY.y - grabOffset.y })
+      setModal(null)
+    }, 500)
+
+    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointerup', onUp)
+  }
 
   function handleBlockPointerDown(
     e: React.PointerEvent<HTMLDivElement>,
     blockId: string,
     data: DragData,
+    isCompact = false,
   ) {
     // Don't start drag if a modal is open
     if (modal) return
     const rect = e.currentTarget.getBoundingClientRect()
-    grabOffsetRef.current   = { x: e.clientX - rect.left, y: e.clientY - rect.top }
-    pointerStartRef.current = { x: e.clientX, y: e.clientY }
-    isDraggingRef.current   = false
-    dragDataRef.current     = data
+    const grabOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+
+    if (e.pointerType === 'touch') {
+      handleTouchLongPress(blockId, data, grabOffset, { x: e.clientX, y: e.clientY }, isCompact)
+      return
+    }
+
+    // Mouse / stylus: immediate drag
+    grabOffsetRef.current       = grabOffset
+    pointerStartRef.current     = { x: e.clientX, y: e.clientY }
+    isDraggingRef.current       = false
+    dragDataRef.current         = data
+    isMobileWeekDragRef.current = isCompact
     setActiveBlock({ ...data, id: blockId })
     // Ghost starts at the block's current position
     setOverlayXY({ x: rect.left, y: rect.top })
@@ -1292,7 +1374,9 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
   function renderDragOverlay() {
     if (!activeBlock) return null
     const color  = activeBlock.blockType === 'aluno' ? TIPO_COLOR.aula : (activeBlock.evento?.cor ?? TIPO_COLOR[activeBlock.evento?.tipo ?? 'outro'])
-    const height = Math.max(toPx(activeBlock.duracao), 24)
+    const height = isMobileWeekDragRef.current
+      ? Math.max(activeBlock.duracao * COMPACT_MIN_PX, 16)
+      : Math.max(toPx(activeBlock.duracao), 24)
     const label  = activeBlock.blockType === 'aluno' ? activeBlock.aluno!.nome.split(' ')[0] : activeBlock.evento!.titulo
     const sub    = activeBlock.blockType === 'aluno' ? activeBlock.aluno!.local : TIPO_LABEL[activeBlock.evento!.tipo]
     return (
@@ -1413,6 +1497,7 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
             return (
               <div key={dayIdx}
+                ref={(el) => { compactColRefs.current[dayIdx] = el }}
                 className="relative flex-1 border-l cursor-crosshair"
                 style={{ height: COMPACT_GRID_H, borderColor: 'var(--border-subtle)', minWidth: 78 }}
                 onClick={(e) => handleCompactClick(e, dayIdx)}>
@@ -1443,6 +1528,17 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
                     style={{ height: closedBottom, background: 'rgba(0,0,0,0.22)', zIndex: 1 }} />
                 )}
 
+                {/* Drop target highlight (compact week drag) */}
+                {dropTarget?.dayIdx === dayIdx && (
+                  <div className="absolute left-px right-px pointer-events-none rounded z-10"
+                    style={{
+                      top:    cToPx(dropTarget.timeMin - GRID_START),
+                      height: Math.max(cToPx(dropTarget.duracao), 12),
+                      background: dropTarget.valid ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)',
+                      border: `1.5px dashed ${dropTarget.valid ? '#00E676' : '#FF5252'}`,
+                    }} />
+                )}
+
                 {/* Blocks */}
                 {allBlocks.map((b) => {
                   const pos    = layout[b.id]
@@ -1452,14 +1548,27 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
                   const width  = pos.width - 1
 
                   if (b.isAluno && b.aluno) {
-                    const a     = b.aluno
-                    const color = TIPO_COLOR.aula
+                    const a        = b.aluno
+                    const color    = TIPO_COLOR.aula
+                    const dragData: DragData = {
+                      blockType: 'aluno', aluno: a,
+                      dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
+                    }
                     return (
                       <div key={b.id} data-block="true"
-                        style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2, touchAction: 'manipulation' }}
-                        onClick={(e) => { e.stopPropagation(); setModal({ type: 'aluno-card', aluno: a, dayIdx, date: day }) }}>
+                        style={{
+                          position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2,
+                          touchAction: 'none', userSelect: 'none',
+                          opacity: activeBlock?.id === b.id && isDraggingRef.current ? 0 : 1,
+                        }}
+                        onPointerDown={(e) => handleBlockPointerDown(e, b.id, dragData, true)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (isDraggingRef.current) return
+                          setModal({ type: 'aluno-card', aluno: a, dayIdx, date: day })
+                        }}>
                         <div className="w-full h-full rounded overflow-hidden"
-                          style={{ background: color + '20', borderLeft: `2px solid ${color}`, padding: '1px 3px', cursor: 'pointer' }}>
+                          style={{ background: color + '20', borderLeft: `2px solid ${color}`, padding: '1px 3px', cursor: 'grab' }}>
                           <p style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.2, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                             {a.nome.split(' ')[0]}
                           </p>
@@ -1477,12 +1586,25 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
                     const ev        = b.evento
                     const color     = ev.tipo === 'aula_extra' ? TIPO_COLOR.aula_extra : (ev.cor ?? TIPO_COLOR[ev.tipo])
                     const alunoNome = alunos.find(a => a.id === ev.aluno_id)?.nome
+                    const dragData: DragData = {
+                      blockType: 'evento', evento: ev,
+                      dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
+                    }
                     return (
                       <div key={b.id} data-block="true"
-                        style={{ position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2, touchAction: 'manipulation' }}
-                        onClick={(e) => { e.stopPropagation(); setModal({ type: 'evento-card', evento: ev, alunoNome }) }}>
+                        style={{
+                          position: 'absolute', top, height, left: `${left}%`, width: `${width}%`, zIndex: 2,
+                          touchAction: 'none', userSelect: 'none',
+                          opacity: activeBlock?.id === b.id && isDraggingRef.current ? 0 : 1,
+                        }}
+                        onPointerDown={(e) => handleBlockPointerDown(e, b.id, dragData, true)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (isDraggingRef.current) return
+                          setModal({ type: 'evento-card', evento: ev, alunoNome })
+                        }}>
                         <div className="w-full h-full rounded overflow-hidden"
-                          style={{ background: color + '20', borderLeft: `2px solid ${color}`, padding: '1px 3px', cursor: 'pointer' }}>
+                          style={{ background: color + '20', borderLeft: `2px solid ${color}`, padding: '1px 3px', cursor: 'grab' }}>
                           <p style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.2, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                             {ev.aluno_id && alunoNome ? alunoNome.split(' ')[0] : ev.titulo}
                           </p>
@@ -1595,7 +1717,7 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
               </svg>
             </div>
           )}
-          <div className="overflow-auto h-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div ref={scrollContainerRef} className="overflow-auto h-full" style={{ WebkitOverflowScrolling: 'touch' }}>
 
             {/* Desktop */}
             <div className="hidden md:flex flex-col" style={{ minWidth: 900 }}>
@@ -1655,6 +1777,39 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
               </div>
             )}
           </div>
+
+          {/* Mobile scroll helper bar — right side, overlays the grid */}
+          <div className="md:hidden absolute right-0 top-0 bottom-0 z-30 flex flex-col items-center justify-between py-3 pointer-events-auto"
+            style={{ width: 26, background: 'rgba(12,12,18,0.72)', backdropFilter: 'blur(6px)' }}>
+            {[6,8,10,12,14,16,18,20,22].map(h => {
+              const nowHour   = new Date().getHours()
+              const isCurrent = nowHour >= h && nowHour < h + 2
+              return (
+                <button key={h}
+                  onClick={() => scrollToHour(h)}
+                  style={{
+                    fontSize: 9, fontWeight: 700, lineHeight: 1,
+                    color: isCurrent ? 'var(--green-primary)' : 'rgba(255,255,255,0.45)',
+                    background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0',
+                    textShadow: isCurrent ? '0 0 8px #00E676' : 'none',
+                  }}>
+                  {h}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Agora floating button (mobile only) */}
+          <button className="md:hidden absolute z-30 cursor-pointer"
+            style={{
+              right: 34, bottom: 12, fontSize: 10, fontWeight: 700, lineHeight: 1,
+              background: 'var(--green-primary)', color: '#000',
+              border: 'none', borderRadius: 10, padding: '5px 8px',
+              boxShadow: '0 2px 10px rgba(0,230,118,0.4)',
+            }}
+            onClick={scrollToNow}>
+            Agora
+          </button>
         </div>
 
         {/* Mobile available btn */}
