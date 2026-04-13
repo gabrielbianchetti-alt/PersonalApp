@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { formatCurrency, formatDate } from '@/types/aluno'
-import { saveMetaAction } from './actions'
+import { marcarCobrancaPagoAction } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +32,16 @@ interface Aniversario {
   diasRestantes: number
 }
 
+interface CobrancaPendente {
+  id: string
+  alunoId: string
+  alunoNome: string
+  whatsapp: string | null
+  valor: number
+  status: 'pendente' | 'enviado'
+  diasDesdeEnvio: number | null
+}
+
 interface Props {
   professorNome: string
   faturamento: number
@@ -45,8 +55,7 @@ interface Props {
   reposicoesPendentes: Reposicao[]
   aniversarios: Aniversario[]
   alunos: { id: string; nome: string }[]
-  metaMensal: number | null
-  mediaValorAluno: number
+  cobrancasPendentes: CobrancaPendente[]
   mesRef: string
 }
 
@@ -61,86 +70,6 @@ function getGreeting(): string {
 
 function getFirstName(fullName: string): string {
   return fullName.split(' ')[0]
-}
-
-// ─── MetaModal ────────────────────────────────────────────────────────────────
-
-function MetaModal({
-  current,
-  onClose,
-  onSave,
-}: {
-  current: number | null
-  onClose: () => void
-  onSave: (v: number) => void
-}) {
-  const [value, setValue] = useState(current ? String(current) : '')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  async function handleSave() {
-    const v = parseFloat(value.replace(',', '.'))
-    if (isNaN(v) || v <= 0) { setError('Informe um valor válido.'); return }
-    setLoading(true)
-    const res = await saveMetaAction(v)
-    setLoading(false)
-    if (res.error) { setError(res.error); return }
-    onSave(v)
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.7)' }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl p-5"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <h3 className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-          Meta Mensal
-        </h3>
-        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-          Defina o faturamento que quer atingir este mês.
-        </p>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="Ex: 5000"
-          value={value}
-          onChange={e => { setValue(e.target.value); setError('') }}
-          className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
-          style={{
-            background: 'var(--bg-input)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
-          autoFocus
-        />
-        {error && <p className="text-xs mt-1.5" style={{ color: '#FF5252' }}>{error}</p>}
-        <div className="flex gap-2 mt-4">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
-            style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
-            style={{ background: 'var(--green-primary)', color: '#000' }}
-          >
-            {loading ? 'Salvando…' : 'Salvar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 // ─── component ───────────────────────────────────────────────────────────────
@@ -158,20 +87,24 @@ export function DashboardHome({
   reposicoesPendentes,
   aniversarios,
   alunos,
-  metaMensal: metaMensalInit,
-  mediaValorAluno,
+  cobrancasPendentes: cobrancasPendentesInit,
   mesRef,
 }: Props) {
-  const [metaMensal, setMetaMensal] = useState<number | null>(metaMensalInit)
-  const [showMetaModal, setShowMetaModal] = useState(false)
+  const [cobrancas, setCobrancas] = useState<CobrancaPendente[]>(cobrancasPendentesInit)
 
-  const metaProgress = metaMensal && metaMensal > 0
-    ? Math.min(Math.round((faturamento / metaMensal) * 100), 100)
-    : 0
+  async function handleMarcarPago(id: string) {
+    setCobrancas(prev => prev.filter(c => c.id !== id))
+    await marcarCobrancaPagoAction(id)
+  }
 
-  const alunosParaMeta = metaMensal && mediaValorAluno > 0
-    ? Math.max(0, Math.ceil((metaMensal - faturamento) / mediaValorAluno))
-    : 0
+  function buildWhatsApp(c: CobrancaPendente): string {
+    const raw = (c.whatsapp ?? '').replace(/\D/g, '')
+    if (!raw) return '#'
+    const phone = raw.length === 11 ? `55${raw}` : raw
+    const firstName = c.alunoNome.split(' ')[0]
+    const msg = `Olá ${firstName}! Passando para lembrar que a mensalidade de ${formatCurrency(c.valor)} referente a ${mesNome} ainda está pendente. Obrigado! 😊`
+    return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
+  }
 
   const [mesAno] = mesRef.split('-').map(Number)
   const mesNome = new Date(mesAno, (Number(mesRef.split('-')[1]) - 1), 1)
@@ -284,68 +217,158 @@ export function DashboardHome({
         </div>
       </div>
 
-      {/* ── Meta financeira ──────────────────────────────────────────────── */}
+      {/* ── Resumo rápido do dia ─────────────────────────────────────────── */}
+      <div
+        className="rounded-2xl p-4 mb-5"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+      >
+        <p className="text-sm font-semibold mb-2.5" style={{ color: 'var(--text-primary)' }}>
+          ⚡ Resumo do dia
+        </p>
+        {aulasHoje.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Nenhuma aula hoje. Aproveite o descanso! 😎
+          </p>
+        ) : (
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            Hoje você tem{' '}
+            <Link
+              href="/dashboard/agenda"
+              className="font-semibold"
+              style={{ color: 'var(--green-primary)', textDecoration: 'underline', textUnderlineOffset: 3 }}
+            >
+              {aulasHoje.length} aula{aulasHoje.length !== 1 ? 's' : ''}
+            </Link>
+            {cobrancas.length > 0 && (
+              <>
+                {reposicoesPendentes.length === 0 ? ' e ' : ', '}
+                <Link
+                  href="/dashboard/financeiro?tab=cobranca"
+                  className="font-semibold"
+                  style={{ color: '#FFAB00', textDecoration: 'underline', textUnderlineOffset: 3 }}
+                >
+                  {cobrancas.length} cobrança{cobrancas.length !== 1 ? 's' : ''} pendente{cobrancas.length !== 1 ? 's' : ''}
+                </Link>
+              </>
+            )}
+            {reposicoesPendentes.length > 0 && (
+              <>
+                {' e '}
+                <Link
+                  href="/dashboard/agenda?tab=faltas"
+                  className="font-semibold"
+                  style={{ color: 'var(--text-secondary)', textDecoration: 'underline', textUnderlineOffset: 3 }}
+                >
+                  {reposicoesPendentes.length} reposição{reposicoesPendentes.length !== 1 ? 'ões' : ''} pendente{reposicoesPendentes.length !== 1 ? 's' : ''}
+                </Link>
+              </>
+            )}
+            .
+          </p>
+        )}
+        {cobrancas.length > 0 && (
+          <div className="mt-2.5 flex items-center gap-2 px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(255,171,0,0.08)', border: '1px solid rgba(255,171,0,0.2)' }}>
+            <span className="text-sm">⚠️</span>
+            <p className="text-xs" style={{ color: '#FFAB00' }}>
+              {cobrancas.length} aluno{cobrancas.length !== 1 ? 's' : ''} com pagamento em aberto este mês
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Cobranças pendentes ───────────────────────────────────────────── */}
       <div
         className="rounded-2xl p-4 mb-5"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
       >
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            🎯 Meta do mês
+            💰 Cobranças pendentes
           </p>
-          <button
-            onClick={() => setShowMetaModal(true)}
-            className="text-xs px-2.5 py-1 rounded-lg"
-            style={{ background: 'var(--bg-input)', color: 'var(--green-primary)' }}
-          >
-            {metaMensal ? 'Editar' : 'Definir meta'}
-          </button>
+          {cobrancas.length > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: 'rgba(255,171,0,0.15)', color: '#FFAB00' }}>
+              {cobrancas.length}
+            </span>
+          )}
         </div>
 
-        {metaMensal ? (
-          <>
-            <div className="flex items-end justify-between mb-2">
-              <div>
-                <span className="text-xl font-bold" style={{ color: 'var(--green-primary)' }}>
-                  {formatCurrency(faturamento)}
-                </span>
-                <span className="text-sm ml-1" style={{ color: 'var(--text-muted)' }}>
-                  / {formatCurrency(metaMensal)}
-                </span>
-              </div>
-              <span className="text-sm font-bold" style={{ color: metaProgress >= 100 ? 'var(--green-primary)' : 'var(--text-muted)' }}>
-                {metaProgress}%
-              </span>
-            </div>
-            <div className="h-2 rounded-full overflow-hidden mb-2" style={{ background: 'var(--bg-input)' }}>
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${metaProgress}%`,
-                  background: metaProgress >= 100 ? 'var(--green-primary)' : '#FFAB00',
-                }}
-              />
-            </div>
-            {metaProgress < 100 && mediaValorAluno > 0 && (
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Faltam {formatCurrency(metaMensal - faturamento)} •{' '}
-                {alunosParaMeta === 1
-                  ? '+1 aluno novo para bater a meta'
-                  : alunosParaMeta > 1
-                    ? `+${alunosParaMeta} alunos novos para bater a meta`
-                    : 'Meta quase atingida!'}
-              </p>
-            )}
-            {metaProgress >= 100 && (
-              <p className="text-xs font-semibold" style={{ color: 'var(--green-primary)' }}>
-                🎉 Meta atingida! Parabéns!
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Defina uma meta para acompanhar seu progresso financeiro.
+        {cobrancasPendentesInit.length === 0 && cobrancas.length === 0 ? (
+          // No cobrancas generated at all
+          <div className="flex flex-col items-center gap-3 py-4 text-center">
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Nenhuma cobrança gerada este mês
+            </p>
+            <Link
+              href="/dashboard/financeiro?tab=cobranca"
+              className="px-4 py-2 rounded-xl text-xs font-semibold"
+              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}
+            >
+              Gerar cobranças
+            </Link>
+          </div>
+        ) : cobrancas.length === 0 ? (
+          <p className="text-sm font-medium" style={{ color: 'var(--green-primary)' }}>
+            Todos em dia! ✅
           </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {cobrancas.map(c => {
+              const whatsappUrl = buildWhatsApp(c)
+              return (
+                <div
+                  key={c.id}
+                  className="flex items-center gap-3 p-3 rounded-xl"
+                  style={{ background: 'var(--bg-input)' }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{ background: 'rgba(255,171,0,0.12)', color: '#FFAB00' }}
+                  >
+                    {c.alunoNome.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                      {c.alunoNome}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {formatCurrency(c.valor)}
+                      {c.diasDesdeEnvio !== null && c.diasDesdeEnvio > 0
+                        ? ` · há ${c.diasDesdeEnvio} dia${c.diasDesdeEnvio !== 1 ? 's' : ''}`
+                        : c.diasDesdeEnvio === 0 ? ' · hoje' : ''}
+                      {c.status === 'enviado' && (
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                          style={{ background: 'rgba(64,196,255,0.12)', color: '#40C4FF' }}>
+                          Enviada
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    {whatsappUrl !== '#' && (
+                      <a
+                        href={whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold"
+                        style={{ background: 'rgba(0,230,118,0.12)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}
+                      >
+                        Cobrar
+                      </a>
+                    )}
+                    <button
+                      onClick={() => handleMarcarPago(c.id)}
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold"
+                      style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
+                    >
+                      Pago ✓
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 
@@ -550,14 +573,6 @@ export function DashboardHome({
         </div>
       )}
 
-      {/* ── Meta modal ────────────────────────────────────────────────────── */}
-      {showMetaModal && (
-        <MetaModal
-          current={metaMensal}
-          onClose={() => setShowMetaModal(false)}
-          onSave={v => { setMetaMensal(v); setShowMetaModal(false) }}
-        />
-      )}
     </div>
   )
 }

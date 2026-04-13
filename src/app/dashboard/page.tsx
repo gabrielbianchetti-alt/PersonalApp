@@ -58,7 +58,7 @@ export default async function DashboardPage() {
       .eq('mes_referencia', mesRef),
     supabase
       .from('cobrancas')
-      .select('id, aluno_id, status, valor')
+      .select('id, aluno_id, status, valor, created_at')
       .eq('professor_id', user.id)
       .eq('mes_referencia', mesRef),
     supabase
@@ -165,11 +165,31 @@ export default async function DashboardPage() {
     }
   })
 
-  // ── meta ──────────────────────────────────────────────────────────────────
-  const metaMensal = metaRow?.meta_mensal ? Number(metaRow.meta_mensal) : null
-
-  // ── valor médio por aluno (para calcular quantos alunos faltam) ───────────
-  const mediaValorAluno = alunos.length > 0 ? faturamento / alunos.length : 0
+  // ── cobranças pendentes (não pagas) com info do aluno ────────────────────
+  const todayMs = new Date(todayStr + 'T00:00:00').getTime()
+  const cobrancasPendentes = (cobrancas ?? [])
+    .filter(c => c.status !== 'pago')
+    .map(c => {
+      const aluno = alunoMap[c.aluno_id]
+      const createdDate = c.created_at ? new Date(c.created_at) : null
+      const diasDesdeEnvio = createdDate
+        ? Math.floor((todayMs - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+        : null
+      return {
+        id: c.id,
+        alunoId: c.aluno_id,
+        alunoNome: aluno?.nome ?? 'Aluno',
+        whatsapp: aluno?.whatsapp ?? null,
+        valor: Number(c.valor),
+        status: c.status as 'pendente' | 'enviado',
+        diasDesdeEnvio,
+      }
+    })
+    .sort((a, b) => {
+      if (a.status === 'enviado' && b.status !== 'enviado') return -1
+      if (a.status !== 'enviado' && b.status === 'enviado') return 1
+      return (b.diasDesdeEnvio ?? 0) - (a.diasDesdeEnvio ?? 0)
+    })
 
   return (
     <DashboardHome
@@ -185,8 +205,7 @@ export default async function DashboardPage() {
       reposicoesPendentes={reposicoesPendentes}
       aniversarios={aniversarios}
       alunos={alunos.map(a => ({ id: a.id, nome: a.nome }))}
-      metaMensal={metaMensal}
-      mediaValorAluno={mediaValorAluno}
+      cobrancasPendentes={cobrancasPendentes}
       mesRef={mesRef}
     />
   )
