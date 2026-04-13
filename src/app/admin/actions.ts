@@ -17,7 +17,12 @@ export async function toggleBlockAction(
   currentlyBlocked: boolean,
 ): Promise<{ error?: string }> {
   await guardAdmin()
-  const admin = createAdminClient()
+  let admin
+  try {
+    admin = createAdminClient()
+  } catch {
+    return { error: 'SUPABASE_SERVICE_ROLE_KEY não configurada neste ambiente.' }
+  }
 
   const { error } = await admin.auth.admin.updateUserById(targetId, {
     ban_duration: currentlyBlocked ? 'none' : '876600h', // 'none' = unban; very long = ban

@@ -5,11 +5,22 @@ import type { ProfessorRow, AdminStats } from './AdminDashboard'
 
 export const metadata: Metadata = { title: 'Admin — PersonalHub' }
 
-// Revalidate every 60 s so numbers stay fresh without full SSR on every hit
-export const revalidate = 60
-
 export default async function AdminPage() {
-  const admin = createAdminClient()
+  let admin
+  try {
+    admin = createAdminClient()
+  } catch {
+    return (
+      <div className="p-8">
+        <p style={{ color: '#FF5252' }}>
+          Configuração incompleta: SUPABASE_SERVICE_ROLE_KEY não encontrada.
+        </p>
+        <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
+          Adicione essa variável de ambiente no painel do Vercel e faça um novo deploy.
+        </p>
+      </div>
+    )
+  }
 
   // ── 1. Fetch all auth users (up to 1000) ───────────────────────────────────
   const { data: { users }, error: usersError } = await admin.auth.admin.listUsers({ perPage: 1000 })
@@ -20,7 +31,7 @@ export default async function AdminPage() {
           Erro ao buscar usuários: {usersError.message}
         </p>
         <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
-          Verifique se SUPABASE_SERVICE_ROLE_KEY está configurada no .env.local
+          Verifique se SUPABASE_SERVICE_ROLE_KEY está configurada no Vercel.
         </p>
       </div>
     )

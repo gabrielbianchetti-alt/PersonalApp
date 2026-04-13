@@ -24,7 +24,13 @@ export async function getOrCreateAssinaturaAction(): Promise<{
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { data: null, error: 'Sessão expirada.' }
 
-  const admin = createAdminClient()
+  let admin
+  try {
+    admin = createAdminClient()
+  } catch {
+    // SUPABASE_SERVICE_ROLE_KEY not set on this environment — skip subscription check
+    return { data: null, error: 'Configuração do servidor incompleta (SUPABASE_SERVICE_ROLE_KEY).' }
+  }
 
   // Try to fetch existing record
   const { data: existing } = await admin
