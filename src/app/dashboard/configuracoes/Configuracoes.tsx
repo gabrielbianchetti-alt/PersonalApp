@@ -6,6 +6,7 @@ import { applyTheme, applyModo } from '@/lib/color'
 import { saveNomeAction, saveFotoUrlAction, saveCorTemaAction, saveModoTemaAction } from './actions'
 import { COR_PRESETS } from './types'
 import type { ModoTema, ProfessorPerfil } from './types'
+import type { AssinaturaData } from './assinatura-actions'
 
 // ─── section wrapper ─────────────────────────────────────────────────────────
 
@@ -40,12 +41,139 @@ function SaveBtn({ loading, done, onClick, label = 'Salvar alterações' }: {
 
 // ─── main component ───────────────────────────────────────────────────────────
 
+// ─── assinatura section ───────────────────────────────────────────────────────
+
+function daysUntil(iso: string | null): number {
+  if (!iso) return 0
+  const diff = new Date(iso).getTime() - Date.now()
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+}
+
+function AssinaturaSection({ assinatura }: { assinatura: AssinaturaData }) {
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [portalError, setPortalError] = useState('')
+
+  async function handlePortal() {
+    setPortalLoading(true)
+    setPortalError('')
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error ?? 'Erro ao abrir portal.')
+      window.location.href = data.url
+    } catch (e) {
+      setPortalError(e instanceof Error ? e.message : 'Erro ao conectar.')
+      setPortalLoading(false)
+    }
+  }
+
+  const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
+    trial:         { label: 'Teste grátis',   color: 'var(--green-primary)', bg: 'var(--green-muted)' },
+    trial_expired: { label: 'Teste expirado', color: '#FF5252', bg: 'rgba(255,82,82,0.1)' },
+    active:        { label: 'Ativo',           color: 'var(--green-primary)', bg: 'var(--green-muted)' },
+    past_due:      { label: 'Pagamento pendente', color: '#FFAB00', bg: 'rgba(255,171,0,0.1)' },
+    canceled:      { label: 'Cancelado',       color: '#FFAB00', bg: 'rgba(255,171,0,0.1)' },
+    expired:       { label: 'Expirado',        color: '#FF5252', bg: 'rgba(255,82,82,0.1)' },
+  }
+
+  const st = statusLabels[assinatura.status] ?? statusLabels.expired
+  const isActive   = assinatura.status === 'active' || assinatura.status === 'past_due'
+  const isTrial    = assinatura.status === 'trial'
+  const hasBilling = isActive && assinatura.periodo_fim
+  const trialDays  = isTrial ? daysUntil(assinatura.trial_fim) : 0
+
+  return (
+    <>
+      {/* Status row */}
+      <div className="flex items-center gap-3 mb-5">
+        <span
+          className="text-xs font-bold px-3 py-1.5 rounded-full"
+          style={{ background: st.bg, color: st.color }}
+        >
+          {st.label}
+        </span>
+        {isTrial && trialDays > 0 && (
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            {trialDays} dia{trialDays !== 1 ? 's' : ''} restante{trialDays !== 1 ? 's' : ''}
+          </span>
+        )}
+        {hasBilling && (
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Próxima cobrança: {new Date(assinatura.periodo_fim!).toLocaleDateString('pt-BR')}
+          </span>
+        )}
+        {assinatura.plano && (
+          <span className="text-xs px-2 py-1 rounded-lg" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+            Plano {assinatura.plano === 'mensal' ? 'Mensal' : 'Anual'}
+          </span>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {(isTrial || assinatura.status === 'trial_expired' || assinatura.status === 'expired') && (
+          <a
+            href="/assinar"
+            className="flex-1 h-11 rounded-xl text-sm font-bold flex items-center justify-center"
+            style={{ background: 'var(--green-primary)', color: '#000', textDecoration: 'none' }}
+          >
+            {assinatura.status === 'trial' ? '🚀 Assinar agora' : 'Reativar assinatura'}
+          </a>
+        )}
+
+        {isActive && assinatura.stripe_customer_id && (
+          <>
+            <button
+              onClick={handlePortal}
+              disabled={portalLoading}
+              className="flex-1 h-11 rounded-xl text-sm font-semibold"
+              style={{
+                background: 'var(--bg-input)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-subtle)',
+                opacity: portalLoading ? 0.7 : 1,
+                fontFamily: 'inherit',
+                cursor: portalLoading ? 'wait' : 'pointer',
+              }}
+            >
+              {portalLoading ? 'Abrindo portal...' : '⚙️ Gerenciar assinatura'}
+            </button>
+          </>
+        )}
+
+        {assinatura.status === 'canceled' && (
+          <a
+            href="/assinar"
+            className="flex-1 h-11 rounded-xl text-sm font-bold flex items-center justify-center"
+            style={{ background: 'var(--green-primary)', color: '#000', textDecoration: 'none' }}
+          >
+            Reativar assinatura
+          </a>
+        )}
+      </div>
+
+      {portalError && (
+        <p className="text-xs mt-3" style={{ color: '#FF5252' }}>{portalError}</p>
+      )}
+
+      {isActive && (
+        <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
+          Para cancelar sua assinatura, clique em &quot;Gerenciar assinatura&quot; e selecione a opção de cancelamento no portal do Stripe.
+        </p>
+      )}
+    </>
+  )
+}
+
+// ─── main props ───────────────────────────────────────────────────────────────
+
 interface Props {
   perfil: ProfessorPerfil
   email: string
+  assinatura: AssinaturaData | null
 }
 
-export function Configuracoes({ perfil, email }: Props) {
+export function Configuracoes({ perfil, email, assinatura }: Props) {
   // ── perfil ──────────────────────────────────────────────────────────────────
   const [nome, setNome] = useState(perfil.nome)
   const [fotoUrl, setFotoUrl] = useState<string | null>(perfil.foto_url)
@@ -388,6 +516,13 @@ export function Configuracoes({ perfil, email }: Props) {
           )}
         </div>
       </Section>
+
+      {/* ── Assinatura ──────────────────────────────────────────────────────── */}
+      {assinatura && (
+        <Section title="Assinatura" icon="💳">
+          <AssinaturaSection assinatura={assinatura} />
+        </Section>
+      )}
 
       {/* ── Indicação ───────────────────────────────────────────────────────── */}
       <Section title="Indique o PersonalHub" icon="🔗">

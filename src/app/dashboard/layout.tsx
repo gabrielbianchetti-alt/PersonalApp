@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { themeStyle } from '@/lib/color'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
+import { TrialBanner } from '@/components/dashboard/TrialBanner'
+import { getOrCreateAssinaturaAction } from '@/app/dashboard/configuracoes/assinatura-actions'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 
 const ADMIN_EMAIL = 'gabrielbianchetti@hotmail.com'
@@ -9,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Fetch professor profile for theme + avatar (single lightweight query)
+  // Fetch professor profile for theme + avatar
   const { data: perfil } = user
     ? await supabase
         .from('professor_perfil')
@@ -18,7 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         .maybeSingle()
     : { data: null }
 
-  const corTema: string  = (perfil?.cor_tema  as string | null) ?? '#00E676'
+  const corTema: string   = (perfil?.cor_tema  as string | null) ?? '#00E676'
   const modoTema: ModoTema = ((perfil?.modo_tema as string | null) ?? 'escuro') as ModoTema
   const fotoUrl: string | null = (perfil?.foto_url as string | null) ?? null
   const professorNome: string =
@@ -28,8 +30,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const isAdmin = user?.email === ADMIN_EMAIL
 
-  // Inject a <style> tag with accent-color overrides only.
-  // Dark/light switching is handled purely by globals.css via data-theme attribute.
+  // Get (or create) assinatura — auto-starts 7-day trial on first login
+  const { data: assinatura } = user ? await getOrCreateAssinaturaAction() : { data: null }
+
   const injectStyle = themeStyle(corTema)
 
   return (
@@ -45,6 +48,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         modoTema={modoTema}
         isAdmin={isAdmin}
       >
+        {assinatura && <TrialBanner assinatura={assinatura} isAdmin={isAdmin} />}
         {children}
       </DashboardShell>
     </>
