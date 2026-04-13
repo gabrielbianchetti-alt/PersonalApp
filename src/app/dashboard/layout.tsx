@@ -31,7 +31,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const isAdmin = user?.email === ADMIN_EMAIL
 
   // Get (or create) assinatura — auto-starts 7-day trial on first login
-  const { data: assinatura } = user ? await getOrCreateAssinaturaAction() : { data: null }
+  let assinatura = null
+  if (user) {
+    try {
+      const result = await getOrCreateAssinaturaAction()
+      assinatura = result.data ?? null
+    } catch {
+      // Non-fatal: dashboard still loads, banner just won't show
+    }
+  }
 
   const injectStyle = themeStyle(corTema)
 
@@ -48,7 +56,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         modoTema={modoTema}
         isAdmin={isAdmin}
       >
-        {assinatura && <TrialBanner assinatura={assinatura} isAdmin={isAdmin} />}
+        {assinatura && !isAdmin && <TrialBanner assinatura={assinatura} isAdmin={isAdmin} />}
         {children}
       </DashboardShell>
     </>

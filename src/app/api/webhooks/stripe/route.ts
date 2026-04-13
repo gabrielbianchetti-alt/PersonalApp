@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { stripe } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /** In Stripe v22+ (dahlia), current_period lives on SubscriptionItem, not Subscription */
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET!
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         if (!professorId) break
 
         const subscriptionId = session.subscription as string
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+        const subscription = await getStripe().subscriptions.retrieve(subscriptionId, {
           expand: ['items'],
         })
 
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         const subscriptionId = getInvoiceSubscriptionId(invoice)
         if (!subscriptionId) break
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+        const subscription = await getStripe().subscriptions.retrieve(subscriptionId, {
           expand: ['items'],
         })
         const customerId = typeof subscription.customer === 'string'
