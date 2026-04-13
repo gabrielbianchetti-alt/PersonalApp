@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import {
   registrarEnvioAction,
   saveModeloAction,
+  deleteModeloAction,
   getHistoricoAction,
 } from './actions'
 import type { ModeloTermo, TermoEnviado, ModeloTipo } from './types'
@@ -288,6 +289,81 @@ function NewModeloModal({
   )
 }
 
+// ─── ConfirmDeleteModeloModal ─────────────────────────────────────────────────
+
+function ConfirmDeleteModeloModal({
+  modelo,
+  onClose,
+  onDeleted,
+}: {
+  modelo: ModeloTermo
+  onClose: () => void
+  onDeleted: (id: string) => void
+}) {
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError]       = useState('')
+
+  async function handleDelete() {
+    setDeleting(true)
+    const res = await deleteModeloAction(modelo.id)
+    setDeleting(false)
+    if (res.error) { setError(res.error); return }
+    onDeleted(modelo.id)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.7)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl flex flex-col gap-4 p-6"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'rgba(255,82,82,0.12)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5252" strokeWidth="2">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Excluir modelo?
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+              O modelo <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{modelo.nome}</span> será excluído permanentemente.
+            </p>
+          </div>
+        </div>
+
+        {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium cursor-pointer"
+            style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+            style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.3)' }}
+          >
+            {deleting ? 'Excluindo…' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── EnviarTermoModal ─────────────────────────────────────────────────────────
 
 function EnviarTermoModal({
@@ -541,6 +617,7 @@ type Modal =
   | { type: 'enviar'; aluno: AlunoTermo }
   | { type: 'editModelo'; modelo: ModeloTermo }
   | { type: 'newModelo' }
+  | { type: 'confirmDeleteModelo'; modelo: ModeloTermo }
 
 export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alunoIdInicial }: Props) {
   const [tab, setTab] = useState<Tab>(alunoIdInicial ? 'enviar' : 'enviar')
@@ -594,6 +671,11 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
 
   function handleModeloCreated(m: ModeloTermo) {
     setModelos(prev => [...prev, m])
+    setModal(null)
+  }
+
+  function handleModeloDeleted(id: string) {
+    setModelos(prev => prev.filter(m => m.id !== id))
     setModal(null)
   }
 
@@ -772,17 +854,48 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
                       </span>
                       <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{modelo.nome}</span>
                     </div>
-                    <button
-                      onClick={() => setModal({ type: 'editModelo', modelo })}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                      style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                      Editar
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setModal({ type: 'editModelo', modelo })}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                        style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        Editar
+                      </button>
+
+                      {modelo.tipo === 'personalizado' ? (
+                        <button
+                          onClick={() => setModal({ type: 'confirmDeleteModelo', modelo })}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
+                          style={{ background: 'rgba(255,82,82,0.1)', color: '#FF5252' }}
+                          title="Excluir modelo"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/>
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </button>
+                      ) : (
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center opacity-30 cursor-not-allowed"
+                          style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}
+                          title="Modelo padrão não pode ser excluído"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/>
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <p className="text-xs font-mono" style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>{preview}</p>
                 </div>
@@ -827,6 +940,13 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
           templateConteudo={modelos.find(m => m.tipo === 'formal')?.conteudo ?? ''}
           onClose={() => setModal(null)}
           onCreated={handleModeloCreated}
+        />
+      )}
+      {modal?.type === 'confirmDeleteModelo' && (
+        <ConfirmDeleteModeloModal
+          modelo={modal.modelo}
+          onClose={() => setModal(null)}
+          onDeleted={handleModeloDeleted}
         />
       )}
     </>

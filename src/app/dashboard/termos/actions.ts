@@ -107,6 +107,24 @@ export async function saveModeloAction(
   return { data: row as ModeloTermo }
 }
 
+export async function deleteModeloAction(
+  modeloId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { error } = await supabase
+    .from('modelos_termo')
+    .delete()
+    .eq('id', modeloId)
+    .eq('professor_id', user.id)
+    .in('tipo', ['personalizado']) // safety: never delete formal/descontraido via this action
+
+  if (error) { console.error('deleteModelo:', error); return { error: 'Erro ao excluir modelo.' } }
+  return {}
+}
+
 // ─── envios ───────────────────────────────────────────────────────────────────
 
 export async function getHistoricoAction(): Promise<{ data?: TermoEnviado[]; error?: string }> {
