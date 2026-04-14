@@ -34,6 +34,7 @@ export interface AlunoFormData {
   modelo_cobranca: 'por_aula' | 'mensalidade'
   valor: string
   forma_pagamento: 'pix' | 'cartao'
+  dia_cobranca: string   // 1-28, dia do mês para cobrar
 
   // Etapa 3
   objetivos: string[]
@@ -57,6 +58,7 @@ export function initialFormData(): AlunoFormData {
     modelo_cobranca: 'por_aula',
     valor: '',
     forma_pagamento: 'pix',
+    dia_cobranca: '1',
     objetivos: [],
     restricoes: '',
     observacoes: '',

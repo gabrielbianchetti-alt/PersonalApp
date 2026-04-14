@@ -21,6 +21,7 @@ export interface AlunoRow {
   modelo_cobranca: 'por_aula' | 'mensalidade' | null
   valor: number | null
   forma_pagamento: 'pix' | 'cartao' | null
+  dia_cobranca: number | null
   objetivos: string[] | null
   restricoes: string | null
   observacoes: string | null
@@ -51,6 +52,7 @@ function alunoToFormData(aluno: AlunoRow): AlunoFormData {
     modelo_cobranca: aluno.modelo_cobranca ?? 'por_aula',
     valor: aluno.valor != null ? String(aluno.valor) : '',
     forma_pagamento: aluno.forma_pagamento ?? 'pix',
+    dia_cobranca: aluno.dia_cobranca ? String(aluno.dia_cobranca) : '1',
     objetivos: aluno.objetivos ?? [],
     restricoes: aluno.restricoes ?? '',
     observacoes: aluno.observacoes ?? '',

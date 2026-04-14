@@ -48,7 +48,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase
       .from('alunos')
-      .select('id, nome, horarios, duracao, local, modelo_cobranca, valor, data_nascimento, whatsapp, status')
+      .select('id, nome, horarios, duracao, local, modelo_cobranca, valor, data_nascimento, whatsapp, status, dia_cobranca')
       .eq('professor_id', user.id)
       .eq('status', 'ativo'),
     supabase
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
   const alunos = (alunosRaw ?? []) as {
     id: string; nome: string; horarios: { dia: string; horario: string }[] | null
     duracao: number | null; local: string | null; modelo_cobranca: string; valor: number
-    data_nascimento: string | null; whatsapp: string | null; status: string
+    data_nascimento: string | null; whatsapp: string | null; status: string; dia_cobranca: number | null
   }[]
 
   // ── faturamento bruto ─────────────────────────────────────────────────────
@@ -176,6 +176,7 @@ export default async function DashboardPage() {
       alunoNome:     a.nome,
       whatsapp:      a.whatsapp ?? null,
       valor:         Number(a.valor),
+      dia_cobranca:  a.dia_cobranca ?? 1,
       cobrancaId:    c?.id ?? null,
       status:        ((c?.status) ?? 'pendente') as 'pendente' | 'enviado' | 'pago',
       diasDesdeEnvio,

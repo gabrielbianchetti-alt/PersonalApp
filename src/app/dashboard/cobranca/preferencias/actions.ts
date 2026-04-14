@@ -14,10 +14,11 @@ export async function savePreferenciasAction(
 
   const payload = {
     professor_id: user.id,
-    chave_pix:        (formData.get('chave_pix') as string)?.trim() || null,
-    favorecido_pix:   (formData.get('favorecido_pix') as string)?.trim() || null,
-    link_cartao:      (formData.get('link_cartao') as string)?.trim() || null,
-    modelo_mensagem:  (formData.get('modelo_mensagem') as string)?.trim() || null,
+    chave_pix:              (formData.get('chave_pix') as string)?.trim() || null,
+    favorecido_pix:         (formData.get('favorecido_pix') as string)?.trim() || null,
+    link_cartao:            (formData.get('link_cartao') as string)?.trim() || null,
+    modelo_mensagem:        (formData.get('modelo_mensagem') as string)?.trim() || null,
+    tipo_data_cobranca:     (formData.get('tipo_data_cobranca') as string) || 'dia_1',
   }
 
   const { error } = await supabase

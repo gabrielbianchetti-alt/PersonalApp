@@ -25,6 +25,7 @@ interface AlunoCobranca {
   modelo_cobranca: string
   valor: number
   forma_pagamento: string
+  dia_cobranca: number
 }
 
 interface CobrancaRow {
@@ -41,6 +42,7 @@ interface Preferencias {
   favorecido_pix: string | null
   link_cartao: string | null
   modelo_mensagem: string | null
+  tipo_data_cobranca?: string | null
 }
 
 interface AlunoFin {

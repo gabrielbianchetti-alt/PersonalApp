@@ -39,6 +39,7 @@ interface AlunoCobranca {
   alunoNome: string
   whatsapp: string | null
   valor: number
+  dia_cobranca: number
   cobrancaId: string | null
   status: CobrancaStatus
   diasDesdeEnvio: number | null
@@ -283,10 +284,14 @@ export function DashboardHome({
               {pendingAlunos.map(a => {
                 const whatsUrl = buildWhatsApp(a)
                 const isEnviado = a.status === 'enviado'
+                const today = new Date()
+                const dueDiff = (a.dia_cobranca || 1) - today.getDate()
+                const isOverdue = dueDiff < 0
+                const isDueToday = dueDiff === 0
                 return (
                   <div key={a.alunoId}
                     className="flex items-center gap-2 p-2.5 rounded-xl"
-                    style={{ background: 'var(--bg-input)' }}>
+                    style={{ background: 'var(--bg-input)', border: isOverdue ? '1px solid rgba(255,82,82,0.25)' : 'none' }}>
                     {/* Avatar */}
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                       style={{ background: isEnviado ? 'rgba(64,196,255,0.12)' : 'rgba(255,171,0,0.12)',
@@ -303,6 +308,12 @@ export function DashboardHome({
                         {isEnviado && a.diasDesdeEnvio !== null && a.diasDesdeEnvio > 0
                           ? ` · há ${a.diasDesdeEnvio}d`
                           : isEnviado ? ' · enviado' : ''}
+                        {isOverdue
+                          ? <span style={{ color: '#FF5252', fontWeight: 600 }}> · atrasado {Math.abs(dueDiff)}d</span>
+                          : isDueToday
+                          ? <span style={{ color: '#FFAB00', fontWeight: 600 }}> · vence hoje</span>
+                          : <span style={{ color: 'var(--text-muted)' }}> · vence dia {a.dia_cobranca || 1}</span>
+                        }
                       </p>
                     </div>
                     {/* Actions */}

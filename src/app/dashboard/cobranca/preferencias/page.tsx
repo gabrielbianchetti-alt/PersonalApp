@@ -60,6 +60,7 @@ export default function PreferenciasPage() {
     favorecido_pix: string | null
     link_cartao: string | null
     modelo_mensagem: string | null
+    tipo_data_cobranca: string | null
   } | null>(null)
 
   const [state, formAction, isPending] = useActionState(savePreferenciasAction, null)
@@ -73,7 +74,7 @@ export default function PreferenciasPage() {
         .select('*')
         .eq('professor_id', user.id)
         .maybeSingle()
-      setPrefs(data ?? { chave_pix: null, favorecido_pix: null, link_cartao: null, modelo_mensagem: null })
+      setPrefs(data ?? { chave_pix: null, favorecido_pix: null, link_cartao: null, modelo_mensagem: null, tipo_data_cobranca: null })
     })
   }, [])
 
@@ -149,6 +150,50 @@ export default function PreferenciasPage() {
             placeholder="https://..."
             hint="Link do Mercado Pago, PagSeguro, etc."
           />
+        </div>
+
+        {/* Data de cobrança */}
+        <div className="rounded-2xl p-5 flex flex-col gap-4"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Data de cobrança</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Como o vencimento de cada aluno é determinado
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {[
+              { value: 'dia_1', label: 'Cobrar no dia 1', desc: 'Todos os alunos vencem no dia 1 de cada mês' },
+              { value: 'personalizado', label: 'Data personalizada por aluno', desc: 'Cada aluno tem seu próprio dia de vencimento' },
+            ].map(opt => {
+              const isActive = (prefs.tipo_data_cobranca ?? 'dia_1') === opt.value
+              return (
+                <label
+                  key={opt.value}
+                  className="flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors"
+                  style={{
+                    background: isActive ? 'var(--green-muted)' : 'var(--bg-input)',
+                    border: `1px solid ${isActive ? 'rgba(0,230,118,0.25)' : 'var(--border-subtle)'}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="tipo_data_cobranca"
+                    value={opt.value}
+                    defaultChecked={isActive}
+                    className="mt-0.5 accent-[#00E676]"
+                    onChange={() => setPrefs(p => p ? { ...p, tipo_data_cobranca: opt.value } : p)}
+                  />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: isActive ? 'var(--green-primary)' : 'var(--text-primary)' }}>
+                      {opt.label}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{opt.desc}</p>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
         </div>
 
         {/* Template section */}

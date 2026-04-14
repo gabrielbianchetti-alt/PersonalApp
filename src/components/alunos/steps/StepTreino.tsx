@@ -307,6 +307,37 @@ export function StepTreino({ data, errors, onChange }: Props) {
           onChange={(v) => onChange('forma_pagamento', v)}
         />
       </div>
+
+      {/* Dia de cobrança */}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="dia_cobranca" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+          Dia de cobrança{' '}
+          <span style={{ color: 'var(--text-muted)' }}>(1–28)</span>
+        </label>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Dia do mês em que a cobrança deste aluno vence
+        </p>
+        <input
+          id="dia_cobranca"
+          type="number"
+          min="1"
+          max="28"
+          placeholder="1"
+          value={data.dia_cobranca}
+          onChange={(e) => {
+            const v = Math.min(28, Math.max(1, parseInt(e.target.value) || 1))
+            onChange('dia_cobranca', String(v))
+          }}
+          className="h-12 rounded-xl px-4 text-sm outline-none w-28"
+          style={{
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-subtle)',
+            color: 'var(--text-primary)',
+          }}
+          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,230,118,0.08)' }}
+          onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
+        />
+      </div>
     </div>
   )
 }

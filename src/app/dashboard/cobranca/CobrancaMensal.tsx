@@ -44,6 +44,7 @@ interface AlunoCobranca {
   modelo_cobranca: string
   valor: number
   forma_pagamento: string
+  dia_cobranca: number
 }
 
 interface CobrancaRow {
@@ -60,6 +61,7 @@ interface Preferencias {
   favorecido_pix: string | null
   link_cartao: string | null
   modelo_mensagem: string | null
+  tipo_data_cobranca?: string | null
 }
 
 interface Props {
@@ -137,6 +139,39 @@ function calcTotal(aluno: AlunoCobranca, year: number, month: number, credito = 
     ? Number(aluno.valor)
     : getAulasDates(year, month, aluno.horarios).length * Number(aluno.valor)
   return Math.max(0, gross - credito)
+}
+
+/**
+ * Returns the number of days until (positive) or past (negative) the aluno's
+ * billing day in the given month/year relative to today.
+ * Only meaningful when viewing the current calendar month.
+ */
+function getDueDiff(aluno: AlunoCobranca, year: number, month: number): number {
+  const today = new Date()
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month
+  if (!isCurrentMonth) return 999 // no urgency for other months
+  return (aluno.dia_cobranca || 1) - today.getDate()
+}
+
+function sortAlunos(
+  alunos: AlunoCobranca[],
+  cobrancas: Record<string, CobrancaRow>,
+  year: number,
+  month: number,
+  usePersonalizado: boolean
+): AlunoCobranca[] {
+  if (!usePersonalizado) return alunos
+  return [...alunos].sort((a, b) => {
+    const statusA = cobrancas[a.id]?.status ?? 'pendente'
+    const statusB = cobrancas[b.id]?.status ?? 'pendente'
+    // Paid always last
+    if (statusA === 'pago' && statusB !== 'pago') return 1
+    if (statusB === 'pago' && statusA !== 'pago') return -1
+    // Among unpaid: sort by diff (most overdue = most negative = first)
+    const diffA = getDueDiff(a, year, month)
+    const diffB = getDueDiff(b, year, month)
+    return diffA - diffB
+  })
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -274,7 +309,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
       // Initialize messages for newly selected
       const newMsgs: Record<string, string> = { ...messages }
       const newOrig: Record<string, string> = { ...originalMessages }
-      for (const aluno of alunos) {
+      for (const aluno of sortedAlunos) {
         if (!newMsgs[aluno.id]) {
           const credito = creditos[aluno.id] ?? 0
           const generated = buildMessage(aluno, year, month, preferencias, template, credito)
@@ -405,6 +440,9 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
 
   const mesRef = formatMesRef(year, month)
 
+  const usePersonalizado = preferencias?.tipo_data_cobranca === 'personalizado'
+  const sortedAlunos = sortAlunos(alunos, cobrancas, year, month, usePersonalizado)
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
@@ -520,7 +558,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
 
           {/* Aluno list */}
           <div className="flex flex-col gap-3">
-            {alunos.map((aluno) => {
+            {sortedAlunos.map((aluno) => {
               const isSelected   = selectedIds.has(aluno.id)
               const cobranca     = cobrancas[aluno.id]
               const isLoading    = loadingSet.has(aluno.id)
@@ -529,13 +567,18 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
               const credito      = creditos[aluno.id] ?? 0
               const total        = calcTotal(aluno, year, month, credito)
               const diasLabels   = aluno.horarios.map(h => DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
+              const status       = cobranca?.status ?? 'pendente'
+              const dueDiff      = usePersonalizado ? getDueDiff(aluno, year, month) : null
+              const isOverdue    = dueDiff !== null && dueDiff < 0 && status !== 'pago'
+              const isDueToday   = dueDiff !== null && dueDiff === 0 && status !== 'pago'
+              const isDueSoon    = dueDiff !== null && dueDiff > 0 && status !== 'pago'
 
               return (
                 <div key={aluno.id}
                   className="rounded-2xl overflow-hidden transition-all duration-150"
                   style={{
                     background: 'var(--bg-card)',
-                    border: `1px solid ${isSelected ? 'rgba(0,230,118,0.25)' : 'var(--border-subtle)'}`,
+                    border: `1px solid ${isOverdue ? 'rgba(255,82,82,0.35)' : isSelected ? 'rgba(0,230,118,0.25)' : 'var(--border-subtle)'}`,
                   }}
                 >
                   {/* Row header */}
@@ -553,11 +596,31 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                       {aluno.nome.slice(0, 2).toUpperCase()}
                     </div>
 
-                    {/* Name + days */}
+                    {/* Name + days + due badge */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-                        {aluno.nome}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                          {aluno.nome}
+                        </p>
+                        {isOverdue && (
+                          <span className="text-xs px-1.5 py-px rounded-full font-semibold shrink-0"
+                            style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252' }}>
+                            Atrasado {Math.abs(dueDiff!)}d
+                          </span>
+                        )}
+                        {isDueToday && (
+                          <span className="text-xs px-1.5 py-px rounded-full font-semibold shrink-0"
+                            style={{ background: 'rgba(255,171,0,0.15)', color: '#FFAB00' }}>
+                            Vence hoje
+                          </span>
+                        )}
+                        {isDueSoon && (
+                          <span className="text-xs px-1.5 py-px rounded-full font-semibold shrink-0"
+                            style={{ background: 'rgba(64,196,255,0.12)', color: '#40C4FF' }}>
+                            Vence em {dueDiff}d
+                          </span>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-1 mt-0.5">
                         {diasLabels.map(d => (
                           <span key={d} className="text-xs px-1.5 py-px rounded"

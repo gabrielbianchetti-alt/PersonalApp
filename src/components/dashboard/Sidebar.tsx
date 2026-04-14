@@ -79,12 +79,12 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
   return (
     <aside
       className={`
-        fixed top-0 left-0 z-30 h-full w-60 flex flex-col
+        fixed top-0 left-0 z-30 w-60 flex flex-col
         transition-transform duration-200 ease-in-out
         md:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}
-      style={{ background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)' }}
+      style={{ background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', height: '100dvh' }}
     >
       {/* Logo */}
       <div
@@ -102,8 +102,11 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         </span>
       </div>
 
+      {/* Scrollable content: nav + bottom section */}
+      <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
+
       {/* Nav */}
-      <nav className="flex-1 p-3 flex flex-col gap-0.5 overflow-y-auto">
+      <nav className="p-3 flex flex-col gap-0.5">
         <p className="text-xs font-medium px-3 py-2 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           Menu
         </p>
@@ -133,8 +136,11 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         })}
       </nav>
 
+      {/* Spacer so bottom section is pushed down naturally */}
+      <div className="flex-1" />
+
       {/* Bottom section: profile card + configurações + sair */}
-      <div className="p-3 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+      <div className="p-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
 
         {/* Profile card */}
         <Link
@@ -202,7 +208,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
 
         {/* Sair */}
         <button
-          onClick={handleLogout}
+          onClick={() => { onClose(); handleLogout() }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-100 cursor-pointer"
           style={{ color: 'var(--text-secondary)' }}
           onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = '#FF5252' }}
@@ -216,6 +222,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
           <span className="text-sm font-medium">Sair</span>
         </button>
       </div>
+      </div>{/* end scrollable content */}
     </aside>
   )
 }

@@ -62,7 +62,7 @@ export default async function FinanceiroPage({
   ] = await Promise.all([
     supabase
       .from('alunos')
-      .select('id, nome, whatsapp, horarios, modelo_cobranca, valor, forma_pagamento')
+      .select('id, nome, whatsapp, horarios, modelo_cobranca, valor, forma_pagamento, dia_cobranca')
       .eq('professor_id', user.id)
       .eq('status', 'ativo')
       .order('nome'),
