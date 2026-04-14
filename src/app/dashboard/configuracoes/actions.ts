@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { ModoTema, ProfessorPerfil } from './types'
 
 // ─── get or create ────────────────────────────────────────────────────────────
@@ -12,11 +13,21 @@ export async function getOrCreatePerfilAction(): Promise<{
   email?: string
   error?: string
 }> {
+  // Use user-scoped client only for auth verification
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
-  const { data: existing } = await supabase
+  // Use admin client to bypass RLS — safe because we scope all queries to user.id
+  let admin
+  try {
+    admin = createAdminClient()
+  } catch {
+    // Fallback to user-scoped client if service role key is not set
+    admin = supabase
+  }
+
+  const { data: existing } = await admin
     .from('professor_perfil')
     .select('*')
     .eq('professor_id', user.id)
@@ -29,7 +40,7 @@ export async function getOrCreatePerfilAction(): Promise<{
   crypto.getRandomValues(bytes)
   const codigo = 'PH' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase()
 
-  const { data: newRow, error: insertError } = await supabase
+  const { data: newRow, error: insertError } = await admin
     .from('professor_perfil')
     .insert({
       professor_id: user.id,
@@ -49,14 +60,24 @@ export async function getOrCreatePerfilAction(): Promise<{
   return { data: newRow as ProfessorPerfil, email: user.email }
 }
 
+// ─── helper: get auth user + admin db client ──────────────────────────────────
+
+async function getAuthAndAdmin() {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { user: null, supabase, admin: supabase }
+  let admin
+  try { admin = createAdminClient() } catch { admin = supabase }
+  return { user, supabase, admin }
+}
+
 // ─── save nome ────────────────────────────────────────────────────────────────
 
 export async function saveNomeAction(nome: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { error: 'Sessão expirada.' }
+  const { user, supabase, admin } = await getAuthAndAdmin()
+  if (!user) return { error: 'Sessão expirada.' }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('professor_perfil')
     .update({ nome: nome.trim() })
     .eq('professor_id', user.id)
@@ -73,11 +94,10 @@ export async function saveNomeAction(nome: string): Promise<{ error?: string }> 
 // ─── save foto URL ────────────────────────────────────────────────────────────
 
 export async function saveFotoUrlAction(url: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { error: 'Sessão expirada.' }
+  const { user, admin } = await getAuthAndAdmin()
+  if (!user) return { error: 'Sessão expirada.' }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('professor_perfil')
     .update({ foto_url: url })
     .eq('professor_id', user.id)
@@ -91,14 +111,12 @@ export async function saveFotoUrlAction(url: string): Promise<{ error?: string }
 // ─── save cor tema ────────────────────────────────────────────────────────────
 
 export async function saveCorTemaAction(cor: string): Promise<{ error?: string }> {
-  // Validate: must be a valid hex color
   if (!/^#[0-9A-Fa-f]{6}$/.test(cor)) return { error: 'Cor inválida.' }
 
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { error: 'Sessão expirada.' }
+  const { user, admin } = await getAuthAndAdmin()
+  if (!user) return { error: 'Sessão expirada.' }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('professor_perfil')
     .update({ cor_tema: cor })
     .eq('professor_id', user.id)
@@ -114,11 +132,10 @@ export async function saveCorTemaAction(cor: string): Promise<{ error?: string }
 export async function saveModoTemaAction(modo: ModoTema): Promise<{ error?: string }> {
   if (!['escuro', 'claro', 'auto'].includes(modo)) return { error: 'Modo inválido.' }
 
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { error: 'Sessão expirada.' }
+  const { user, admin } = await getAuthAndAdmin()
+  if (!user) return { error: 'Sessão expirada.' }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('professor_perfil')
     .update({ modo_tema: modo })
     .eq('professor_id', user.id)

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { themeStyle } from '@/lib/color'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
@@ -11,9 +12,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Use admin client to bypass RLS — scoped to user.id so it's safe
+  let db = supabase as Awaited<ReturnType<typeof createClient>>
+  try { db = createAdminClient() as unknown as typeof db } catch { /* fallback to user-scoped client */ }
+
   // Fetch professor profile for theme + avatar
   const { data: perfil } = user
-    ? await supabase
+    ? await db
         .from('professor_perfil')
         .select('foto_url, nome, cor_tema, modo_tema')
         .eq('professor_id', user.id)
