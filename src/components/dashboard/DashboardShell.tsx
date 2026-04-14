@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { Sidebar } from './Sidebar'
 import { applyTheme, applyModo } from '@/lib/color'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
@@ -17,6 +18,12 @@ interface Props {
 
 export function DashboardShell({ children, fotoUrl, professorNome, corTema, modoTema = 'escuro', isAdmin }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const pathname = usePathname()
+
+  // Auto-close sidebar on route change (handles mobile navigation correctly)
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
 
   // Re-apply theme on client after hydration.
   // The <style> tag in layout.tsx + the data-theme on <html> (via cookie in root layout)

@@ -28,8 +28,8 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  // Generate auto notifications (fire-and-forget, non-blocking)
-  gerarNotificacoesAutomaticasAction().catch(console.error)
+  // Generate auto notifications (non-blocking, errors are swallowed intentionally)
+  void gerarNotificacoesAutomaticasAction()
 
   const professorNome: string =
     (user.user_metadata?.full_name as string | undefined) ?? 'Professor'

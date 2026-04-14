@@ -134,7 +134,6 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
             <Link
               key={item.href}
               href={item.href}
-              onClick={onClose}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-100"
               style={
                 isActive
@@ -163,7 +162,6 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         {/* Profile card */}
         <Link
           href="/dashboard/configuracoes"
-          onClick={onClose}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
           style={{ color: 'var(--text-secondary)' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)' }}
@@ -191,7 +189,6 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         {isAdmin && (
           <Link
             href="/admin"
-            onClick={onClose}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
             style={{ color: '#A78BFA' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(167,139,250,0.1)' }}
@@ -207,7 +204,6 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         {/* Configurações */}
         <Link
           href="/dashboard/configuracoes"
-          onClick={onClose}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
           style={
             isConfiguracoes
