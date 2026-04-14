@@ -192,6 +192,7 @@ export async function getCustosForMesAction(
     .from('custos').select('*')
     .eq('professor_id', user.id)
     .eq('mes_referencia', mesRef)
+    .or('ativo.is.null,ativo.eq.true')          // exclude soft-deleted roots (ativo=false)
     .order('created_at', { ascending: false })
 
   if (error) { console.error('getCustos:', error); return { error: 'Erro ao buscar custos.' } }

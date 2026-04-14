@@ -56,7 +56,8 @@ export default async function DashboardPage() {
       .from('custos')
       .select('valor')
       .eq('professor_id', user.id)
-      .eq('mes_referencia', mesRef),
+      .eq('mes_referencia', mesRef)
+      .or('ativo.is.null,ativo.eq.true'),
     supabase
       .from('cobrancas')
       .select('id, aluno_id, status, valor, created_at')

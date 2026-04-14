@@ -40,6 +40,7 @@ export default async function FinanceiroPage({
       .select('*')
       .eq('professor_id', user.id)
       .eq('mes_referencia', mesAtual)
+      .or('ativo.is.null,ativo.eq.true')
       .order('created_at', { ascending: false }),
     supabase
       .from('cobrancas')
