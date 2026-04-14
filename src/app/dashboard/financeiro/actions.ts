@@ -268,6 +268,16 @@ export async function ensureFixosForMesAction(
   const eligibleRoots = roots.filter(r => r.mes_referencia <= mesRef)
   if (!eligibleRoots.length) return { inserted: 0 }
 
+  // ── Step 2b: deduplicate eligibleRoots themselves by nome+categoria ──────────
+  // Guards against the case where old records all have origem_id=NULL (pre-migration)
+  // and multiple copies of the same fixo appear as "roots".
+  const rootsByKey = new Map<string, typeof eligibleRoots[0]>()
+  for (const r of eligibleRoots) {
+    const key = `${r.nome}|${r.categoria}`
+    if (!rootsByKey.has(key)) rootsByKey.set(key, r)  // keep the earliest (first seen)
+  }
+  const uniqueRoots = Array.from(rootsByKey.values())
+
   // ── Step 3: dedup against what already exists in the target month ────────────
   const { data: existingInMonth } = await supabase
     .from('custos')
@@ -277,7 +287,7 @@ export async function ensureFixosForMesAction(
     .eq('tipo', 'fixo')
 
   const existingKeys = new Set(existingInMonth?.map(e => `${e.nome}|${e.categoria}`) ?? [])
-  const toInsert = eligibleRoots.filter(r => !existingKeys.has(`${r.nome}|${r.categoria}`))
+  const toInsert = uniqueRoots.filter(r => !existingKeys.has(`${r.nome}|${r.categoria}`))
   if (!toInsert.length) return { inserted: 0 }
 
   // ── Step 4: insert copies ────────────────────────────────────────────────────
