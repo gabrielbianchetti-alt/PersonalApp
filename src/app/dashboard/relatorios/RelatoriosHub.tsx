@@ -37,6 +37,36 @@ function getMonthOptions(mesAtual: string) {
   return opts
 }
 
+// ── PDF text helpers ──────────────────────────────────────────────────────────
+
+/** Remove all accents, diacritics and non-ASCII chars (incl. emoji) so jsPDF
+ *  (which only ships WinAnsi-encoded fonts) renders text correctly. */
+function t(str: string): string {
+  return str
+    .replace(/[—–]/g, '-')          // em/en dash → hyphen
+    .replace(/['']/g, "'")           // smart apostrophes
+    .replace(/[""]/g, '"')           // smart quotes
+    .normalize('NFD')                // decompose accented chars
+    .replace(/[\u0300-\u036f]/g, '') // strip combining diacritical marks
+    .replace(/[^\x00-\x7F]/g, '')   // remove any remaining non-ASCII (emoji, etc.)
+}
+
+/** ASCII-safe BRL currency: "R$ 1.234,56" with no non-breaking spaces. */
+function brlPDF(val: number): string {
+  const sign   = val < 0 ? '-' : ''
+  const abs    = Math.abs(val)
+  const cents  = Math.round(abs * 100)
+  const intPart = Math.floor(cents / 100)
+  const decPart = cents % 100
+  const intStr  = intPart.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return `${sign}R$ ${intStr},${String(decPart).padStart(2, '0')}`
+}
+
+/** Apply t() to every cell in autoTable head/body/foot rows. */
+function tRows(rows: string[][]): string[][] {
+  return rows.map(row => row.map(t))
+}
+
 // ── PDF Generators ─────────────────────────────────────────────────────────────
 
 async function generateFinanceiroPDF(data: FinanceiroReportData): Promise<Blob> {
@@ -56,10 +86,10 @@ async function generateFinanceiroPDF(data: FinanceiroReportData): Promise<Blob> 
   doc.text('PersonalHub', 14, 11)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  doc.text('Relatório Financeiro', 14, 18)
+  doc.text('Relatorio Financeiro', 14, 18)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
-  doc.text(mesLabel(data.mesRef), W - 14, 11, { align: 'right' })
+  doc.text(t(mesLabel(data.mesRef)), W - 14, 11, { align: 'right' })
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.text(new Date().toLocaleDateString('pt-BR'), W - 14, 18, { align: 'right' })
@@ -69,7 +99,7 @@ async function generateFinanceiroPDF(data: FinanceiroReportData): Promise<Blob> 
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(100, 100, 100)
   doc.text(
-    `Professor: ${data.professorNome}   |   ${data.professorEmail}   |   Período: ${mesLabel(data.mesRef)}`,
+    t(`Professor: ${data.professorNome}   |   ${data.professorEmail}   |   Periodo: ${mesLabel(data.mesRef)}`),
     14, y,
   )
   y += 2
@@ -97,18 +127,18 @@ async function generateFinanceiroPDF(data: FinanceiroReportData): Promise<Blob> 
 
   autoTable(doc, {
     startY: y,
-    head: [['Aluno', 'Modelo', 'Valor Unit.', 'Total Mês', 'Status']],
+    head: tRows([['Aluno', 'Modelo', 'Valor Unit.', 'Total Mes', 'Status']]),
     body: data.alunos.length
-      ? data.alunos.map(a => [
+      ? tRows(data.alunos.map(a => [
           a.nome,
           modeloLabel[a.modelo_cobranca] ?? a.modelo_cobranca,
-          brl(a.valor),
-          brl(a.valorMensal),
-          statusLabel[a.status ?? 'pendente'] ?? '—',
-        ])
-      : [['Nenhum aluno ativo', '', '', '', '']],
+          brlPDF(a.valor),
+          brlPDF(a.valorMensal),
+          statusLabel[a.status ?? 'pendente'] ?? '-',
+        ]))
+      : tRows([['Nenhum aluno ativo', '', '', '', '']]),
     foot: data.alunos.length
-      ? [['', '', 'Faturamento Bruto', brl(data.faturamentoBruto), '']]
+      ? tRows([['', '', 'Faturamento Bruto', brlPDF(data.faturamentoBruto), '']])
       : undefined,
     styles:              { fontSize: 9, cellPadding: 2.5 },
     headStyles:          { fillColor: [30, 30, 30], textColor: [255, 255, 255], fontStyle: 'bold' },
@@ -124,27 +154,27 @@ async function generateFinanceiroPDF(data: FinanceiroReportData): Promise<Blob> 
 
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
 
-  // ── Section: SAÍDAS ──
-  sectionHeader('SAÍDAS', y, 24)
+  // ── Section: SAIDAS ──
+  sectionHeader('SAIDAS', y, 22)
   y += 6
 
   autoTable(doc, {
     startY: y,
-    head: [['Nome', 'Categoria', 'Tipo', 'Valor']],
+    head: tRows([['Nome', 'Categoria', 'Tipo', 'Valor']]),
     body: data.custos.length
-      ? data.custos.map(c => [
+      ? tRows(data.custos.map(c => [
           c.nome,
           c.categoria,
-          c.tipo === 'fixo' ? 'Fixo' : 'Variável',
-          brl(c.valor),
-        ])
-      : [['Nenhum custo registrado', '', '', '']],
+          c.tipo === 'fixo' ? 'Fixo' : 'Variavel',
+          brlPDF(c.valor),
+        ]))
+      : tRows([['Nenhum custo registrado', '', '', '']]),
     foot: data.custos.length
-      ? [
-          ['', 'Custos Fixos',    '', brl(data.totalFixos)],
-          ['', 'Custos Variáveis', '', brl(data.totalVariaveis)],
-          ['', 'TOTAL SAÍDAS',    '', brl(data.totalCustos)],
-        ]
+      ? tRows([
+          ['', 'Custos Fixos',    '', brlPDF(data.totalFixos)],
+          ['', 'Custos Variaveis', '', brlPDF(data.totalVariaveis)],
+          ['', 'TOTAL SAIDAS',    '', brlPDF(data.totalCustos)],
+        ])
       : undefined,
     styles:             { fontSize: 9, cellPadding: 2.5 },
     headStyles:         { fillColor: [30, 30, 30], textColor: [255, 255, 255], fontStyle: 'bold' },
@@ -164,10 +194,10 @@ async function generateFinanceiroPDF(data: FinanceiroReportData): Promise<Blob> 
   y += 8
 
   const summaryItems = [
-    { label: 'Faturamento Bruto', value: brl(data.faturamentoBruto), color: [0, 0, 0] as [number, number, number] },
-    { label: 'Total de Custos',   value: brl(data.totalCustos),       color: [0, 0, 0] as [number, number, number] },
-    { label: 'Lucro Líquido',     value: brl(data.lucroLiquido),      color: data.lucroLiquido >= 0 ? [0, 150, 60] as [number, number, number] : [200, 0, 0] as [number, number, number] },
-    { label: 'Margem de Lucro',   value: `${data.margemLucro}%`,      color: data.margemLucro >= 0 ? [0, 150, 60] as [number, number, number] : [200, 0, 0] as [number, number, number] },
+    { label: 'Faturamento Bruto', value: brlPDF(data.faturamentoBruto), color: [0, 0, 0] as [number, number, number] },
+    { label: 'Total de Custos',   value: brlPDF(data.totalCustos),       color: [0, 0, 0] as [number, number, number] },
+    { label: 'Lucro Liquido',     value: brlPDF(data.lucroLiquido),      color: data.lucroLiquido >= 0 ? [0, 150, 60] as [number, number, number] : [200, 0, 0] as [number, number, number] },
+    { label: 'Margem de Lucro',   value: `${data.margemLucro}%`,         color: data.margemLucro >= 0 ? [0, 150, 60] as [number, number, number] : [200, 0, 0] as [number, number, number] },
   ]
 
   const boxW = (W - 28 - 9) / 2
@@ -184,7 +214,7 @@ async function generateFinanceiroPDF(data: FinanceiroReportData): Promise<Blob> 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(100, 100, 100)
-    doc.text(summaryItems[i].label, bx + 4, by + 6)
+    doc.text(t(summaryItems[i].label), bx + 4, by + 6)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
@@ -202,7 +232,7 @@ async function generateFinanceiroPDF(data: FinanceiroReportData): Promise<Blob> 
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(160, 160, 160)
     doc.text(
-      `Gerado pelo PersonalHub em ${new Date().toLocaleString('pt-BR')}   |   Página ${p} de ${pageCount}`,
+      `Gerado pelo PersonalHub em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}   |   Pagina ${p} de ${pageCount}`,
       W / 2, fY, { align: 'center' },
     )
     doc.setDrawColor(200, 200, 200)
@@ -229,10 +259,10 @@ async function generateProdutividadePDF(data: ProdutividadeReportData): Promise<
   doc.text('PersonalHub', 14, 11)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  doc.text('Relatório de Produtividade', 14, 18)
+  doc.text('Relatorio de Produtividade', 14, 18)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
-  doc.text(mesLabel(data.mesRef), W - 14, 11, { align: 'right' })
+  doc.text(t(mesLabel(data.mesRef)), W - 14, 11, { align: 'right' })
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.text(new Date().toLocaleDateString('pt-BR'), W - 14, 18, { align: 'right' })
@@ -253,15 +283,15 @@ async function generateProdutividadePDF(data: ProdutividadeReportData): Promise<
     doc.setLineWidth(0.2)
   }
 
-  // ── Visão Geral — metric boxes ──
-  sectionHeader('VISÃO GERAL', y, 36)
+  // ── Visao Geral — metric boxes ──
+  sectionHeader('VISAO GERAL', y, 34)
   y += 8
 
   const metrics = [
-    { label: 'Alunos Ativos',    value: String(data.totalAlunosAtivos) },
-    { label: 'Aulas no Mês',     value: String(data.totalAulasNoMes) },
-    { label: 'Horas Trabalhadas',value: `${data.horasTrabalhadas}h` },
-    { label: 'Média Aulas/Dia',  value: String(data.mediaAulasPorDia) },
+    { label: 'Alunos Ativos',   value: String(data.totalAlunosAtivos) },
+    { label: 'Aulas no Mes',    value: String(data.totalAulasNoMes) },
+    { label: 'Horas Trabalhadas', value: `${data.horasTrabalhadas}h` },
+    { label: 'Media Aulas/Dia', value: String(data.mediaAulasPorDia) },
   ]
 
   const mBoxW = (W - 28 - 9) / 4
@@ -277,7 +307,7 @@ async function generateProdutividadePDF(data: ProdutividadeReportData): Promise<
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(80, 80, 80)
-    doc.text(metrics[i].label, bx + mBoxW / 2, y + 15.5, { align: 'center' })
+    doc.text(t(metrics[i].label), bx + mBoxW / 2, y + 15.5, { align: 'center' })
   }
   y += 26
 
@@ -287,15 +317,15 @@ async function generateProdutividadePDF(data: ProdutividadeReportData): Promise<
 
   autoTable(doc, {
     startY: y,
-    head: [['Métrica', 'Quantidade']],
-    body: [
-      ['Total de Faltas no Mês', String(data.totalFaltas)],
+    head: tRows([['Metrica', 'Quantidade']]),
+    body: tRows([
+      ['Total de Faltas no Mes', String(data.totalFaltas)],
       ['Por culpa do Aluno',     String(data.faltasCulpaAluno)],
       ['Por culpa do Professor', String(data.faltasCulpaProfessor)],
-      ['Taxa de Presença',       data.totalAulasNoMes > 0
+      ['Taxa de Presenca',       data.totalAulasNoMes > 0
         ? `${Math.round(((data.totalAulasNoMes - data.totalFaltas) / data.totalAulasNoMes) * 100)}%`
-        : '—'],
-    ],
+        : '-'],
+    ]),
     styles:             { fontSize: 9, cellPadding: 2.5 },
     headStyles:         { fillColor: [30, 30, 30], textColor: [255, 255, 255] },
     alternateRowStyles: { fillColor: [245, 248, 252] },
@@ -308,8 +338,8 @@ async function generateProdutividadePDF(data: ProdutividadeReportData): Promise<
   if (data.faltasPorAluno.length > 0) {
     autoTable(doc, {
       startY: y,
-      head: [['Aluno', 'Faltas']],
-      body: data.faltasPorAluno.map(f => [f.nome, String(f.total)]),
+      head: tRows([['Aluno', 'Faltas']]),
+      body: tRows(data.faltasPorAluno.map(f => [f.nome, String(f.total)])),
       styles:             { fontSize: 8, cellPadding: 2 },
       headStyles:         { fillColor: [60, 60, 60], textColor: [255, 255, 255] },
       alternateRowStyles: { fillColor: [248, 248, 248] },
@@ -321,18 +351,18 @@ async function generateProdutividadePDF(data: ProdutividadeReportData): Promise<
     y += 4
   }
 
-  // ── Reposições ──
-  sectionHeader('REPOSIÇÕES', y, 34)
+  // ── Reposicoes ──
+  sectionHeader('REPOSICOES', y, 32)
   y += 6
 
   autoTable(doc, {
     startY: y,
-    head: [['Status', 'Quantidade']],
-    body: [
-      ['Realizadas no Mês', String(data.reposicoesRealizadas)],
+    head: tRows([['Status', 'Quantidade']]),
+    body: tRows([
+      ['Realizadas no Mes', String(data.reposicoesRealizadas)],
       ['Pendentes',         String(data.reposicoesPendentes)],
       ['Vencidas',          String(data.reposicoesVencidas)],
-    ],
+    ]),
     styles:             { fontSize: 9, cellPadding: 2.5 },
     headStyles:         { fillColor: [30, 30, 30], textColor: [255, 255, 255] },
     alternateRowStyles: { fillColor: [245, 248, 252] },
@@ -342,7 +372,7 @@ async function generateProdutividadePDF(data: ProdutividadeReportData): Promise<
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
 
   // ── Destaques ──
-  sectionHeader('DESTAQUES DO MÊS', y, 50)
+  sectionHeader('DESTAQUES DO MES', y, 48)
   y += 8
 
   const destaquesData = [
@@ -358,11 +388,11 @@ async function generateProdutividadePDF(data: ProdutividadeReportData): Promise<
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(100, 100, 100)
-    doc.text(destaquesData[i][0], bx + 4, y + 6)
+    doc.text(t(destaquesData[i][0]), bx + 4, y + 6)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
     doc.setTextColor(20, 20, 20)
-    doc.text(destaquesData[i][1], bx + 4, y + 13)
+    doc.text(t(destaquesData[i][1]), bx + 4, y + 13)
   }
 
   // ── Footer ──
@@ -374,7 +404,7 @@ async function generateProdutividadePDF(data: ProdutividadeReportData): Promise<
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(160, 160, 160)
     doc.text(
-      `Gerado pelo PersonalHub em ${new Date().toLocaleString('pt-BR')}   |   Página ${p} de ${pageCount}`,
+      `Gerado pelo PersonalHub em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}   |   Pagina ${p} de ${pageCount}`,
       W / 2, fY, { align: 'center' },
     )
     doc.setDrawColor(200, 200, 200)
@@ -401,10 +431,10 @@ async function generatePrevisaoPDF(data: PrevisaoReportData): Promise<Blob> {
   doc.text('PersonalHub', 14, 11)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  doc.text('Previsão Financeira', 14, 18)
+  doc.text('Previsao Financeira', 14, 18)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
-  doc.text('Próximos 3 Meses', W - 14, 11, { align: 'right' })
+  doc.text('Proximos 3 Meses', W - 14, 11, { align: 'right' })
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.text(new Date().toLocaleDateString('pt-BR'), W - 14, 18, { align: 'right' })
@@ -425,19 +455,19 @@ async function generatePrevisaoPDF(data: PrevisaoReportData): Promise<Blob> {
     doc.setLineWidth(0.2)
   }
 
-  // ── Previsão por Mês ──
-  sectionHeader('PREVISÃO POR MÊS', y, 48)
+  // ── Previsao por Mes ──
+  sectionHeader('PREVISAO POR MES', y, 44)
   y += 6
 
   autoTable(doc, {
     startY: y,
-    head: [['Mês', 'Faturamento Previsto', 'Custos Fixos', 'Lucro Previsto']],
-    body: data.meses.map((m, i) => [
+    head: tRows([['Mes', 'Faturamento Previsto', 'Custos Fixos', 'Lucro Previsto']]),
+    body: tRows(data.meses.map((m, i) => [
       i === 0 ? `${m.label} (atual)` : m.label,
-      brl(m.faturamentoPrevisto),
-      brl(m.custosPrevisto),
-      brl(m.lucroPrevisto),
-    ]),
+      brlPDF(m.faturamentoPrevisto),
+      brlPDF(m.custosPrevisto),
+      brlPDF(m.lucroPrevisto),
+    ])),
     styles:             { fontSize: 9, cellPadding: 3 },
     headStyles:         { fillColor: [30, 30, 30], textColor: [255, 255, 255] },
     alternateRowStyles: { fillColor: [248, 245, 255] },
@@ -450,14 +480,14 @@ async function generatePrevisaoPDF(data: PrevisaoReportData): Promise<Blob> {
   })
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
 
-  // ── Cenários ──
-  sectionHeader(`CENÁRIOS — ${data.meses[1]?.label ?? 'Próximo Mês'}`, y, 60)
+  // ── Cenarios ──
+  sectionHeader(t(`CENARIOS - ${data.meses[1]?.label ?? 'Proximo Mes'}`), y, 60)
   y += 8
 
   const scenarios = [
-    { label: '😟 Pessimista', sublabel: 'Perda de 2 alunos', value: data.pessimista, color: [200, 50, 50] as [number, number, number], bg: [255, 240, 240] as [number, number, number], border: [230, 180, 180] as [number, number, number] },
-    { label: '📊 Atual',      sublabel: 'Mantém carteira',   value: data.atual,      color: [80, 80, 80]  as [number, number, number], bg: [245, 245, 245] as [number, number, number], border: [200, 200, 200] as [number, number, number] },
-    { label: '🚀 Otimista',   sublabel: 'Ganho de 2 alunos', value: data.otimista,   color: [0, 150, 60]  as [number, number, number], bg: [235, 252, 242] as [number, number, number], border: [160, 220, 185] as [number, number, number] },
+    { label: 'Pessimista', sublabel: 'Perda de 2 alunos', value: data.pessimista, color: [200, 50, 50] as [number, number, number], bg: [255, 240, 240] as [number, number, number], border: [230, 180, 180] as [number, number, number] },
+    { label: 'Atual',      sublabel: 'Mantem carteira',   value: data.atual,      color: [80, 80, 80]  as [number, number, number], bg: [245, 245, 245] as [number, number, number], border: [200, 200, 200] as [number, number, number] },
+    { label: 'Otimista',   sublabel: 'Ganho de 2 alunos', value: data.otimista,   color: [0, 150, 60]  as [number, number, number], bg: [235, 252, 242] as [number, number, number], border: [160, 220, 185] as [number, number, number] },
   ]
 
   const sBoxW = (W - 28 - 6) / 3
@@ -481,7 +511,7 @@ async function generatePrevisaoPDF(data: PrevisaoReportData): Promise<Blob> {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
     doc.setTextColor(sc.color[0], sc.color[1], sc.color[2])
-    doc.text(brl(sc.value), bx + sBoxW / 2, y + 21, { align: 'center' })
+    doc.text(brlPDF(sc.value), bx + sBoxW / 2, y + 21, { align: 'center' })
   }
   y += 34
 
@@ -491,15 +521,15 @@ async function generatePrevisaoPDF(data: PrevisaoReportData): Promise<Blob> {
 
   autoTable(doc, {
     startY: y,
-    head: [['Indicador', 'Valor']],
-    body: [
-      ['Ticket Médio por Aluno', brl(data.ticketMedio)],
+    head: tRows([['Indicador', 'Valor']]),
+    body: tRows([
+      ['Ticket Medio por Aluno', brlPDF(data.ticketMedio)],
       ...(data.metaLucro > 0 ? [
-        ['Meta de Lucro Mensal', brl(data.metaLucro)],
-        ['Alunos necessários para atingir a meta',
-          data.alunosNecessarios > 0 ? `+${data.alunosNecessarios} alunos` : 'Meta já atingida 🎯'],
+        ['Meta de Lucro Mensal', brlPDF(data.metaLucro)],
+        ['Alunos necessarios para atingir a meta',
+          data.alunosNecessarios > 0 ? `+${data.alunosNecessarios} alunos` : 'Meta ja atingida!'],
       ] : []),
-    ],
+    ]),
     styles:             { fontSize: 9, cellPadding: 3 },
     headStyles:         { fillColor: [30, 30, 30], textColor: [255, 255, 255] },
     alternateRowStyles: { fillColor: [248, 245, 255] },
@@ -516,7 +546,7 @@ async function generatePrevisaoPDF(data: PrevisaoReportData): Promise<Blob> {
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(160, 160, 160)
     doc.text(
-      `Gerado pelo PersonalHub em ${new Date().toLocaleString('pt-BR')}   |   Página ${p} de ${pageCount}`,
+      `Gerado pelo PersonalHub em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}   |   Pagina ${p} de ${pageCount}`,
       W / 2, fY, { align: 'center' },
     )
     doc.setDrawColor(200, 200, 200)
