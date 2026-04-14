@@ -277,18 +277,20 @@ function CustoFormModal({
 // ─── main component ────────────────────────────────────────────────────────────
 
 export function Financeiro({ alunos, custosIniciais, mesInicial }: Props) {
-  const [mes,        setMes]        = useState(mesInicial)
-  const [custos,     setCustos]     = useState<CustoRow[]>(custosIniciais)
-  const [loading,    setLoading]    = useState(false)
-  const [modal,      setModal]      = useState<
+  const [mes,           setMes]           = useState(mesInicial)
+  const [custos,        setCustos]        = useState<CustoRow[]>(custosIniciais)
+  const [loading,       setLoading]       = useState(false)
+  const [modal,         setModal]         = useState<
     | { type: 'add-fixo' }
     | { type: 'add-variavel' }
     | { type: 'edit'; custo: CustoRow }
     | null
   >(null)
-  const [filterTipo, setFilterTipo] = useState<'todos'|'fixo'|'variavel'>('todos')
-  const [filterCat,  setFilterCat]  = useState<string>('')
-  const isFirstMount                = useRef(true)
+  const [deleteConfirm, setDeleteConfirm] = useState<CustoRow | null>(null)
+  const [deleting,      setDeleting]      = useState(false)
+  const [filterTipo,    setFilterTipo]    = useState<'todos'|'fixo'|'variavel'>('todos')
+  const [filterCat,     setFilterCat]     = useState<string>('')
+  const isFirstMount                      = useRef(true)
 
   const { year, month } = parseMes(mes)
 
@@ -327,10 +329,23 @@ export function Financeiro({ alunos, custosIniciais, mesInicial }: Props) {
     setCustos(prev => prev.map(c => c.id === row.id ? row : c))
     setModal(null)
   }
-  async function handleDelete(id: string) {
-    if (!confirm('Remover este custo?')) return
+
+  // Request delete: show confirmation modal (different copy for fixo vs variável)
+  function requestDelete(custo: CustoRow) {
+    setDeleteConfirm(custo)
+  }
+
+  // Execute confirmed delete
+  async function executeDelete() {
+    if (!deleteConfirm) return
+    setDeleting(true)
+    const id = deleteConfirm.id
+    setDeleteConfirm(null)
     await deleteCustoAction(id)
+    // Remove from local state. For fixos the server has already soft-deleted the root
+    // and cascade-deleted future copies — only this month's record stays in the DB.
     setCustos(prev => prev.filter(c => c.id !== id))
+    setDeleting(false)
   }
 
   // ── computed ─────────────────────────────────────────────────────────────────
@@ -619,7 +634,7 @@ export function Financeiro({ alunos, custosIniciais, mesInicial }: Props) {
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                           </svg>
                         </button>
-                        <button onClick={() => handleDelete(custo.id)}
+                        <button onClick={() => requestDelete(custo)}
                           className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors"
                           style={{ color: 'var(--text-muted)' }}
                           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,82,82,0.1)'; e.currentTarget.style.color = '#FF5252' }}
@@ -648,6 +663,70 @@ export function Financeiro({ alunos, custosIniciais, mesInicial }: Props) {
       )}
       {modal?.type === 'edit' && (
         <CustoFormModal custo={modal.custo} mes={mes} onClose={() => setModal(null)} onSaved={replaceCusto} />
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.7)' }}
+          onClick={() => setDeleteConfirm(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 pt-5 pb-4">
+              <p className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                {deleteConfirm.tipo === 'fixo' ? 'Excluir custo fixo?' : 'Excluir custo?'}
+              </p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                {deleteConfirm.nome}
+              </p>
+            </div>
+
+            {/* Warning message for fixos */}
+            {deleteConfirm.tipo === 'fixo' && (
+              <div className="mx-5 mb-4 px-4 py-3 rounded-xl"
+                style={{ background: 'rgba(255,82,82,0.08)', border: '1px solid rgba(255,82,82,0.2)' }}>
+                <p className="text-sm" style={{ color: '#FF5252' }}>
+                  Este é um custo fixo recorrente. Ao excluir:
+                </p>
+                <ul className="mt-1.5 space-y-0.5">
+                  <li className="text-xs flex gap-1.5" style={{ color: '#FF8A80' }}>
+                    <span>✗</span>
+                    <span>Não aparecerá mais em nenhum mês futuro</span>
+                  </li>
+                  <li className="text-xs flex gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                    <span>✓</span>
+                    <span>Meses anteriores mantêm o registro histórico</span>
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 px-5 pb-5">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeDelete}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+                style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.3)' }}
+              >
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

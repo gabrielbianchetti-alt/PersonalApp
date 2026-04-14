@@ -2,61 +2,9 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { FinanceiroHub } from './FinanceiroHub'
 import type { FinanceiroTab } from './FinanceiroHub'
-import type { CustoRow } from './actions'
+import { ensureFixosForMesAction, type CustoRow } from './actions'
 
 export const metadata: Metadata = { title: 'Financeiro — PersonalHub' }
-
-// Replicates custos fixos from the most recent month into mesRef if none exist yet.
-// NOTE: origem_id is intentionally NOT included in the SELECT — if the column does not
-// yet exist in the DB, Supabase returns data=null for the entire query, causing the
-// function to exit silently without replicating anything.
-async function seedFixosIfNeeded(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  professorId: string,
-  mesRef: string
-): Promise<void> {
-  // 1. Already seeded for this month?
-  const { data: existing } = await supabase
-    .from('custos').select('id')
-    .eq('professor_id', professorId).eq('mes_referencia', mesRef).eq('tipo', 'fixo').limit(1)
-  if (existing && existing.length > 0) return
-
-  // 2. Find most recent month that has fixos — select WITHOUT origem_id to avoid
-  //    silent failures when the column has not been migrated yet.
-  const { data: allFixos, error: fetchErr } = await supabase
-    .from('custos').select('id, nome, valor, categoria, mes_referencia')
-    .eq('professor_id', professorId).eq('tipo', 'fixo').neq('mes_referencia', mesRef)
-    .order('mes_referencia', { ascending: false })
-
-  if (fetchErr) { console.error('[seedFixos] fetch error:', fetchErr.message); return }
-  if (!allFixos || allFixos.length === 0) return
-
-  const recentMes   = allFixos[0].mes_referencia
-  const fixosToCopy = allFixos.filter((f) => f.mes_referencia === recentMes)
-  if (fixosToCopy.length === 0) return
-
-  // 3. Insert copies — try with origem_id first (requires migration), fall back without.
-  const withOrigin = fixosToCopy.map((f) => ({
-    professor_id: professorId,
-    nome: f.nome, valor: f.valor, tipo: 'fixo' as const, categoria: f.categoria,
-    mes_referencia: mesRef, data: null as null,
-    origem_id: f.id,
-  }))
-
-  const { error: insertErr } = await supabase.from('custos').insert(withOrigin)
-
-  if (insertErr) {
-    console.warn('[seedFixos] insert with origem_id failed, retrying without:', insertErr.message)
-    // Fallback: insert without origem_id (works even if column not yet created)
-    const withoutOrigin = fixosToCopy.map((f) => ({
-      professor_id: professorId,
-      nome: f.nome, valor: f.valor, tipo: 'fixo' as const, categoria: f.categoria,
-      mes_referencia: mesRef, data: null as null,
-    }))
-    const { error: fallbackErr } = await supabase.from('custos').insert(withoutOrigin)
-    if (fallbackErr) console.error('[seedFixos] fallback insert error:', fallbackErr.message)
-  }
-}
 
 export default async function FinanceiroPage({
   searchParams,
@@ -71,8 +19,8 @@ export default async function FinanceiroPage({
   const today   = new Date()
   const mesAtual = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
-  // Seed fixos for current month before parallel fetch
-  await seedFixosIfNeeded(supabase, user.id, mesAtual)
+  // Replicate active fixos into the current month before the parallel fetch
+  await ensureFixosForMesAction(mesAtual)
 
   const [
     { data: alunos },
