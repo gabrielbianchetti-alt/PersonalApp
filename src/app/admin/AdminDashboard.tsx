@@ -438,9 +438,22 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
             <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Admin</span>
           </div>
         </div>
-        <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'rgba(124,58,237,0.15)', color: '#A78BFA' }}>
-          Painel Administrativo
-        </span>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/notificacoes"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors"
+            style={{ background: 'rgba(124,58,237,0.12)', color: '#A78BFA', border: '1px solid rgba(124,58,237,0.2)' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            Notificações
+          </Link>
+          <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'rgba(124,58,237,0.15)', color: '#A78BFA' }}>
+            Painel Administrativo
+          </span>
+        </div>
       </div>
 
       <div className="p-4 md:p-6 max-w-6xl mx-auto">

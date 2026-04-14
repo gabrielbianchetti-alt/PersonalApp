@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardHome } from './DashboardHome'
+import { gerarNotificacoesAutomaticasAction } from './notificacoes/auto-notif'
 
 export const metadata: Metadata = { title: 'Dashboard — PersonalHub' }
 
@@ -26,6 +27,9 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  // Generate auto notifications (fire-and-forget, non-blocking)
+  gerarNotificacoesAutomaticasAction().catch(console.error)
 
   const professorNome: string =
     (user.user_metadata?.full_name as string | undefined) ?? 'Professor'

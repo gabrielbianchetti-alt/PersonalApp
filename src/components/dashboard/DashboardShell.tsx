@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Sidebar } from './Sidebar'
 import { applyTheme, applyModo } from '@/lib/color'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 interface Props {
   children: React.ReactNode
@@ -78,6 +79,9 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             PersonalHub
           </span>
+          <div className="ml-auto">
+            <NotificationBell variant="mobile" />
+          </div>
         </header>
 
         {/* Page content */}
