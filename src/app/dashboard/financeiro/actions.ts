@@ -13,8 +13,8 @@ export interface CustoRow {
   categoria: string
   data: string | null          // "YYYY-MM-DD" (variável only)
   mes_referencia: string       // "YYYY-MM"
-  ativo: boolean               // fixos only: true = active root, false = soft-deleted
-  origem_id: string | null     // null = root record; set on copies → points to root id
+  ativo: boolean               // fixos: true = active root, false = soft-deleted
+  origem_id: string | null     // null = root; non-null = copy pointing to root
   created_at: string
   updated_at: string
 }
@@ -28,6 +28,14 @@ type CreateInput = {
   mes_referencia: string
 }
 
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+/** Returns true if the PostgREST error is "column does not exist" (code 42703). */
+function isColumnMissing(err: { code?: string; message?: string } | null): boolean {
+  if (!err) return false
+  return err.code === '42703' || (err.message ?? '').includes('does not exist')
+}
+
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function createCustoAction(
@@ -37,16 +45,33 @@ export async function createCustoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
-  const { data: row, error } = await supabase
+  // Try inserting with ativo + origem_id (full schema).
+  // If either column doesn't exist yet, retry with only ativo, then bare.
+  const base = { professor_id: user.id, ...data }
+
+  let row, error
+
+  // Attempt 1: full schema (ativo + origem_id)
+  ;({ data: row, error } = await supabase
     .from('custos')
-    .insert({
-      professor_id: user.id,
-      ...data,
-      ativo: true,      // every new record starts as active
-      origem_id: null,  // every new record is a root (no parent)
-    })
-    .select()
-    .single()
+    .insert({ ...base, ativo: true, origem_id: null })
+    .select().single())
+
+  if (error && isColumnMissing(error)) {
+    // Attempt 2: ativo only (origem_id column missing)
+    ;({ data: row, error } = await supabase
+      .from('custos')
+      .insert({ ...base, ativo: true })
+      .select().single())
+  }
+
+  if (error && isColumnMissing(error)) {
+    // Attempt 3: bare insert (neither column migrated yet)
+    ;({ data: row, error } = await supabase
+      .from('custos')
+      .insert(base)
+      .select().single())
+  }
 
   if (error) { console.error('createCusto:', error); return { error: 'Erro ao salvar custo.' } }
   return { data: row as CustoRow }
@@ -79,64 +104,76 @@ export async function deleteCustoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
-  const { data: custo } = await supabase
+  // Fetch the record. Try with origem_id first; fall back if column doesn't exist.
+  let custo: { id: string; tipo: string; origem_id?: string | null; mes_referencia: string } | null = null
+
+  const { data: withOrigin, error: fetchErr1 } = await supabase
     .from('custos')
     .select('id, tipo, origem_id, mes_referencia')
-    .eq('id', id)
-    .eq('professor_id', user.id)
-    .single()
+    .eq('id', id).eq('professor_id', user.id).single()
+
+  if (!fetchErr1) {
+    custo = withOrigin
+  } else if (isColumnMissing(fetchErr1)) {
+    const { data: withoutOrigin } = await supabase
+      .from('custos')
+      .select('id, tipo, mes_referencia')
+      .eq('id', id).eq('professor_id', user.id).single()
+    custo = withoutOrigin ? { ...withoutOrigin, origem_id: null } : null
+  }
 
   if (!custo) return { error: 'Custo não encontrado.' }
 
   if (custo.tipo === 'fixo') {
-    // ── Soft-delete logic for fixos ──────────────────────────────────────────
-    //
-    // The root record is the canonical source of truth (origem_id = null).
-    // Copies reference the root via origem_id.
-    //
-    // When deleting a fixo (from any month):
-    //   1. Soft-delete the root (ativo = false) → stops future replication
-    //   2. Hard-delete copies in months STRICTLY AFTER the current record's month
-    //      → future months lose the copy; current and prior months keep their records
-    //
-    // This satisfies: "delete in May → gone from June+, but stays in April and May"
+    // ── Soft-delete logic ─────────────────────────────────────────────────────
+    // 1. Soft-delete the root (ativo = false) → stops future replication
+    // 2. Hard-delete copies in months AFTER the current record's month
+    //    → future months lose the copy; current + prior months keep history
 
-    const rootId = custo.origem_id ?? custo.id   // resolve to root id
+    const rootId = custo.origem_id ?? custo.id
 
-    // Step 1: soft-delete the root
+    // Step 1: soft-delete root (requires ativo column)
     const { error: softErr } = await supabase
       .from('custos')
       .update({ ativo: false, updated_at: new Date().toISOString() })
-      .eq('id', rootId)
-      .eq('professor_id', user.id)
+      .eq('id', rootId).eq('professor_id', user.id)
 
-    if (softErr) {
-      console.error('deleteCusto (soft-delete root):', softErr)
+    if (softErr && !isColumnMissing(softErr)) {
+      console.error('deleteCusto (soft-delete):', softErr)
       return { error: 'Erro ao remover custo.' }
     }
 
-    // Step 2: hard-delete copies in future months
+    // Step 2: cascade-delete future copies (requires origem_id column)
     const { error: cascadeErr } = await supabase
-      .from('custos')
-      .delete()
+      .from('custos').delete()
       .eq('professor_id', user.id)
       .eq('origem_id', rootId)
       .gt('mes_referencia', custo.mes_referencia)
 
-    if (cascadeErr) {
-      console.error('deleteCusto (cascade future copies):', cascadeErr)
+    if (cascadeErr && !isColumnMissing(cascadeErr)) {
+      console.error('deleteCusto (cascade):', cascadeErr)
       return { error: 'Erro ao remover cópias futuras.' }
+    }
+
+    // If origem_id column missing: fall back to deleting by nome+categoria in future months
+    if (cascadeErr && isColumnMissing(cascadeErr)) {
+      const { data: self } = await supabase
+        .from('custos').select('nome, categoria')
+        .eq('id', id).eq('professor_id', user.id).single()
+      if (self) {
+        await supabase.from('custos').delete()
+          .eq('professor_id', user.id).eq('tipo', 'fixo')
+          .eq('nome', self.nome).eq('categoria', self.categoria)
+          .gt('mes_referencia', custo.mes_referencia)
+      }
     }
 
     return {}
   }
 
-  // ── Variáveis: simple hard-delete ─────────────────────────────────────────
-  const { error } = await supabase
-    .from('custos')
-    .delete()
-    .eq('id', id)
-    .eq('professor_id', user.id)
+  // Variáveis: simple hard-delete
+  const { error } = await supabase.from('custos').delete()
+    .eq('id', id).eq('professor_id', user.id)
 
   if (error) { console.error('deleteCusto (variavel):', error); return { error: 'Erro ao remover custo.' } }
   return {}
@@ -152,8 +189,7 @@ export async function getCustosForMesAction(
   if (authError || !user) return { error: 'Sessão expirada.' }
 
   const { data, error } = await supabase
-    .from('custos')
-    .select('*')
+    .from('custos').select('*')
     .eq('professor_id', user.id)
     .eq('mes_referencia', mesRef)
     .order('created_at', { ascending: false })
@@ -164,13 +200,12 @@ export async function getCustosForMesAction(
 
 // ─── replicate active fixos into a target month ───────────────────────────────
 //
-// Called every time the user opens a month (on page load and on month navigation).
 // Algorithm:
-//   1. Find all active root fixos (ativo = true, origem_id IS NULL)
-//   2. Keep only roots created at or before mesRef (no back-filling)
-//   3. For each eligible root, check if a copy already exists in mesRef
-//      (deduplication by nome+categoria to handle old data without proper origem_id)
-//   4. Insert missing copies
+//   1. Find all active root fixos (ativo=true, origem_id IS NULL)
+//      → falls back if either column missing
+//   2. Keep only roots created at or before mesRef
+//   3. Dedup by nome+categoria against existing records for mesRef
+//   4. Insert missing copies (with origem_id if column exists, without if not)
 
 export async function ensureFixosForMesAction(
   mesRef: string
@@ -179,8 +214,15 @@ export async function ensureFixosForMesAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { inserted: 0, error: 'Sessão expirada.' }
 
-  // 1. All active root fixos for this professor
-  const { data: roots, error: rootsErr } = await supabase
+  // ── Step 1: fetch active root fixos ─────────────────────────────────────────
+  // Try full query (ativo=true AND origem_id IS NULL).
+  // If origem_id column is missing → fall back to ativo=true only.
+  // If ativo column is also missing → fall back to all fixos (old schema).
+
+  let roots: { id: string; nome: string; valor: number; categoria: string; mes_referencia: string }[] | null = null
+  let hasOriginIdCol = true
+
+  const { data: r1, error: e1 } = await supabase
     .from('custos')
     .select('id, nome, valor, categoria, mes_referencia')
     .eq('professor_id', user.id)
@@ -188,17 +230,45 @@ export async function ensureFixosForMesAction(
     .eq('ativo', true)
     .is('origem_id', null)
 
-  if (rootsErr) {
-    console.error('[ensureFixos] roots fetch error:', rootsErr.message)
-    return { inserted: 0, error: rootsErr.message }
+  if (!e1) {
+    roots = r1
+  } else if (isColumnMissing(e1)) {
+    hasOriginIdCol = false
+    // origem_id column missing — try without it
+    const { data: r2, error: e2 } = await supabase
+      .from('custos')
+      .select('id, nome, valor, categoria, mes_referencia')
+      .eq('professor_id', user.id)
+      .eq('tipo', 'fixo')
+      .eq('ativo', true)
+
+    if (!e2) {
+      roots = r2
+    } else if (isColumnMissing(e2)) {
+      // ativo column also missing — get all fixos (very old schema)
+      const { data: r3, error: e3 } = await supabase
+        .from('custos')
+        .select('id, nome, valor, categoria, mes_referencia')
+        .eq('professor_id', user.id)
+        .eq('tipo', 'fixo')
+      if (e3) { console.error('[ensureFixos] fetch error:', e3.message); return { inserted: 0, error: e3.message } }
+      roots = r3
+    } else {
+      console.error('[ensureFixos] fetch error:', e2.message)
+      return { inserted: 0, error: e2.message }
+    }
+  } else {
+    console.error('[ensureFixos] fetch error:', e1.message)
+    return { inserted: 0, error: e1.message }
   }
+
   if (!roots?.length) return { inserted: 0 }
 
-  // 2. Only replicate roots that were created on or before the target month
+  // ── Step 2: only replicate roots created at or before the target month ───────
   const eligibleRoots = roots.filter(r => r.mes_referencia <= mesRef)
   if (!eligibleRoots.length) return { inserted: 0 }
 
-  // 3. Get what already exists in the target month
+  // ── Step 3: dedup against what already exists in the target month ────────────
   const { data: existingInMonth } = await supabase
     .from('custos')
     .select('nome, categoria')
@@ -206,31 +276,47 @@ export async function ensureFixosForMesAction(
     .eq('mes_referencia', mesRef)
     .eq('tipo', 'fixo')
 
-  // Dedup key: nome|categoria — robust even for old records without origem_id
   const existingKeys = new Set(existingInMonth?.map(e => `${e.nome}|${e.categoria}`) ?? [])
-
-  // 4. Determine which roots need a copy
   const toInsert = eligibleRoots.filter(r => !existingKeys.has(`${r.nome}|${r.categoria}`))
   if (!toInsert.length) return { inserted: 0 }
 
-  const { error: insertErr } = await supabase.from('custos').insert(
-    toInsert.map(r => ({
-      professor_id:   user.id,
-      nome:           r.nome,
-      valor:          r.valor,
-      tipo:           'fixo' as const,
-      categoria:      r.categoria,
-      mes_referencia: mesRef,
-      data:           null,
-      ativo:          true,
-      origem_id:      r.id,   // copy → points to root
-    }))
-  )
+  // ── Step 4: insert copies ────────────────────────────────────────────────────
+  // Try with ativo + origem_id; fall back progressively if columns missing.
 
-  if (insertErr) {
-    console.error('[ensureFixos] insert error:', insertErr.message)
-    return { inserted: 0, error: insertErr.message }
+  const baseRows = toInsert.map(r => ({
+    professor_id:   user.id,
+    nome:           r.nome,
+    valor:          r.valor,
+    tipo:           'fixo' as const,
+    categoria:      r.categoria,
+    mes_referencia: mesRef,
+    data:           null as null,
+  }))
+
+  // Attempt 1: with ativo + origem_id
+  const { error: ie1 } = await supabase.from('custos').insert(
+    baseRows.map((r, i) => ({ ...r, ativo: true, origem_id: toInsert[i].id }))
+  )
+  if (!ie1) return { inserted: toInsert.length }
+
+  if (isColumnMissing(ie1)) {
+    // Attempt 2: with ativo only (origem_id missing)
+    const { error: ie2 } = await supabase.from('custos').insert(
+      baseRows.map(r => ({ ...r, ativo: true }))
+    )
+    if (!ie2) return { inserted: toInsert.length }
+
+    if (isColumnMissing(ie2)) {
+      // Attempt 3: bare rows (neither column exists)
+      const { error: ie3 } = await supabase.from('custos').insert(baseRows)
+      if (ie3) { console.error('[ensureFixos] bare insert error:', ie3.message); return { inserted: 0, error: ie3.message } }
+      return { inserted: toInsert.length }
+    }
+
+    console.error('[ensureFixos] insert error:', ie2.message)
+    return { inserted: 0, error: ie2.message }
   }
 
-  return { inserted: toInsert.length }
+  console.error('[ensureFixos] insert error:', ie1.message)
+  return { inserted: 0, error: ie1.message }
 }
