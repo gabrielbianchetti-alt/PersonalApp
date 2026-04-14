@@ -45,6 +45,7 @@ export default async function DashboardPage() {
     { data: faltasPendentes },
     { data: eventosHoje },
     { data: metaRow },
+    { data: creditos },
   ] = await Promise.all([
     supabase
       .from('alunos')
@@ -78,6 +79,13 @@ export default async function DashboardPage() {
       .select('meta_mensal')
       .eq('professor_id', user.id)
       .maybeSingle(),
+    // Credits to be subtracted from per-aula billing
+    supabase
+      .from('faltas')
+      .select('aluno_id, credito_valor')
+      .eq('professor_id', user.id)
+      .eq('status', 'credito')
+      .or(`mes_validade.is.null,mes_validade.eq.${mesRef}`),
   ])
 
   const alunos = (alunosRaw ?? []) as {
@@ -163,7 +171,18 @@ export default async function DashboardPage() {
     }
   })
 
+  // ── créditos por aluno para o mês atual ──────────────────────────────────
+  const creditosPorAluno: Record<string, number> = {}
+  for (const row of (creditos ?? [])) {
+    if (row.credito_valor) {
+      creditosPorAluno[row.aluno_id] = (creditosPorAluno[row.aluno_id] ?? 0) + Number(row.credito_valor)
+    }
+  }
+
   // ── todos alunos com status de cobrança do mês ───────────────────────────
+  // IMPORTANT: valor must be the monthly TOTAL, not the per-aula unit price.
+  // For 'por_aula': count exact weekday occurrences in the month × unit price − credits.
+  // For 'mensalidade': the fixed value − credits.
   const todayMs = new Date(todayStr + 'T00:00:00').getTime()
   const todosAlunos = alunos.map(a => {
     const c = (cobrancas ?? []).find(r => r.aluno_id === a.id)
@@ -171,11 +190,21 @@ export default async function DashboardPage() {
     const diasDesdeEnvio = createdDate
       ? Math.floor((todayMs - createdDate.getTime()) / (1000 * 60 * 60 * 24))
       : null
+
+    // Calculate the gross monthly total using the same weekdayCounts already computed above
+    const gross = a.modelo_cobranca === 'mensalidade'
+      ? Number(a.valor)
+      : ((a.horarios ?? []) as { dia: string; horario: string }[]).reduce(
+          (s, h) => s + (weekdayCounts[h.dia] ?? 0), 0
+        ) * Number(a.valor)
+    const credito = creditosPorAluno[a.id] ?? 0
+    const valorMensal = Math.max(0, gross - credito)
+
     return {
       alunoId:       a.id,
       alunoNome:     a.nome,
       whatsapp:      a.whatsapp ?? null,
-      valor:         Number(a.valor),
+      valor:         valorMensal,   // monthly total, not unit price
       dia_cobranca:  a.dia_cobranca ?? 1,
       cobrancaId:    c?.id ?? null,
       status:        ((c?.status) ?? 'pendente') as 'pendente' | 'enviado' | 'pago',
