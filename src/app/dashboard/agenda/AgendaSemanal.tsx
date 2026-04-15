@@ -48,8 +48,9 @@ const TIPO_COLOR: Record<EventoTipo, string> = {
   outro:      '#CE93D8',
   aula_extra: '#FFEB3B',
 }
-const FALTA_COLOR       = '#FF5252'  // vermelho — aluno faltou sem avisar
-const CANCELAMENTO_COLOR = '#FF9800' // laranja — cancelamento com antecedência
+const FALTA_COLOR        = '#FF5252'  // vermelho   — aluno faltou sem avisar
+const CANCELAMENTO_COLOR = '#FF9800'  // laranja    — cancelamento com antecedência (aluno avisou)
+const PROFESSOR_COLOR    = '#7C4DFF'  // roxo       — professor cancelou
 const TIPO_LABEL: Record<EventoTipo, string> = {
   aula:       'Aula',
   reposicao:  'Reposição',
@@ -565,14 +566,20 @@ function AddEventModal({
 
 // ─── AlunoCardModal ─────────────────────────────────────────────────────────────
 
-type AlunoModalStep =
-  | 'menu'
-  | 'obs'
-  | 'falta-culpa'
-  | 'falta-done'
-  | 'cancelamento-options'
-  | 'cancelamento-credito'
-  | 'cancelamento-done'
+type SelectedFaltaTipo = 'aluno-faltou' | 'cancelamento' | 'professor-cancelou'
+type AlunoModalStep    = 'menu' | 'obs' | 'options' | 'credito' | 'cobranca-confirm' | 'done'
+
+const FALTA_TIPO_CFG: Record<SelectedFaltaTipo, { label: string; emoji: string; color: string; bg: string; border: string }> = {
+  'aluno-faltou':       { label: 'Aluno faltou',                 emoji: '🔴', color: FALTA_COLOR,        bg: 'rgba(255,82,82,0.06)',   border: 'rgba(255,82,82,0.25)' },
+  'cancelamento':       { label: 'Cancelamento com antecedência', emoji: '🟠', color: CANCELAMENTO_COLOR, bg: 'rgba(255,152,0,0.06)',   border: 'rgba(255,152,0,0.25)' },
+  'professor-cancelou': { label: 'Professor cancelou',            emoji: '🟣', color: PROFESSOR_COLOR,    bg: 'rgba(124,77,255,0.06)', border: 'rgba(124,77,255,0.25)' },
+}
+
+function faltaCreateParams(t: SelectedFaltaTipo): { culpa: 'aluno' | 'professor'; tipo: 'falta' | 'cancelamento' } {
+  if (t === 'cancelamento')       return { culpa: 'aluno',     tipo: 'cancelamento' }
+  if (t === 'professor-cancelou') return { culpa: 'professor', tipo: 'falta' }
+  return { culpa: 'aluno', tipo: 'falta' }
+}
 
 function AlunoCardModal({
   aluno, dayIdx, date, eventos, prazoFaltaDias, faltasData, onClose, onReagendar, onFaltaRegistrada, onGoToFaltas,
@@ -586,91 +593,97 @@ function AlunoCardModal({
   onFaltaRegistrada: (f: FaltaRow) => void
   onGoToFaltas: () => void
 }) {
-  const [step,     setStep]    = useState<AlunoModalStep>('menu')
-  const [saving,   setSaving]  = useState(false)
-  const [obsMode,  setObsMode] = useState(false)
-  const [obs,      setObs]     = useState(aluno.observacoes ?? '')
+  const [step,        setStep]        = useState<AlunoModalStep>('menu')
+  const [faltaTipo,   setFaltaTipo]   = useState<SelectedFaltaTipo | null>(null)
+  const [saving,      setSaving]      = useState(false)
+  const [obs,         setObs]         = useState(aluno.observacoes ?? '')
   const [creditoValor, setCreditoValor] = useState('')
-  const [createdFalta, setCreatedFalta] = useState<FaltaRow | null>(null)
-  const [err,      setErr]     = useState('')
+  const [doneMsg,     setDoneMsg]     = useState('')
+  const [err,         setErr]         = useState('')
   const supabase = createClient()
 
-  const dateStr    = toDateStr(date)
-  const dayKey     = WEEK_KEYS[dayIdx]
+  const dateStr      = toDateStr(date)
+  const dayKey       = WEEK_KEYS[dayIdx]
   const alunoHorario = aluno.horarios.find(x => x.dia === dayKey)?.horario ?? '08:00'
 
   // Check if there's already a falta for this aluno on this date
   const existingFalta = faltasData.find(f => f.aluno_id === aluno.id && f.data_falta === dateStr)
+  const existingColor = existingFalta
+    ? (existingFalta.tipo === 'cancelamento' ? CANCELAMENTO_COLOR : existingFalta.culpa === 'professor' ? PROFESSOR_COLOR : FALTA_COLOR)
+    : null
+  const existingEmoji = existingFalta
+    ? (existingFalta.tipo === 'cancelamento' ? '🟠' : existingFalta.culpa === 'professor' ? '🟣' : '🔴')
+    : null
+  const existingLabel = existingFalta
+    ? (existingFalta.tipo === 'cancelamento' ? 'Cancelamento antecipado' : existingFalta.culpa === 'professor' ? 'Professor cancelou' : 'Aluno faltou')
+    : null
 
   const PLANO_LABEL: Record<string, string> = { por_aula: 'Por aula', mensalidade: 'Mensalidade' }
 
-  // ── step: falta-culpa → save falta ──────────────────────────────────────────
-  async function handleFaltaSubmit(culpa: 'aluno' | 'professor') {
-    setSaving(true); setErr('')
+  // ── create falta helper ──────────────────────────────────────────────────────
+  async function createFalta(t: SelectedFaltaTipo): Promise<FaltaRow | null> {
+    const params = faltaCreateParams(t)
     const res = await createFaltaAction({
       aluno_id: aluno.id,
       data_falta: dateStr,
-      culpa,
-      tipo: 'falta',
+      culpa: params.culpa,
+      tipo: params.tipo,
       horario_falta: alunoHorario,
       prazo_dias: prazoFaltaDias,
     })
-    setSaving(false)
-    if (res.error) { setErr(res.error); return }
-    setCreatedFalta(res.data!)
+    if (res.error) { setErr(res.error); return null }
     onFaltaRegistrada(res.data!)
-    setStep('falta-done')
+    return res.data!
   }
 
-  // ── step: cancelamento → ir para remarcações ─────────────────────────────────
-  async function handleCancelamentoRemarcacao() {
+  // ── handlers ────────────────────────────────────────────────────────────────
+  function handleSelectTipo(t: SelectedFaltaTipo) {
+    setFaltaTipo(t); setErr(''); setStep('options')
+  }
+
+  async function handleRemarcar() {
+    if (!faltaTipo) return
     setSaving(true); setErr('')
-    const res = await createFaltaAction({
-      aluno_id: aluno.id,
-      data_falta: dateStr,
-      culpa: 'aluno',
-      tipo: 'cancelamento',
-      horario_falta: alunoHorario,
-      prazo_dias: prazoFaltaDias,
-    })
+    const falta = await createFalta(faltaTipo)
     setSaving(false)
-    if (res.error) { setErr(res.error); return }
-    onFaltaRegistrada(res.data!)
-    onClose()
-    onGoToFaltas()
+    if (!falta) return
+    onClose(); onGoToFaltas()
   }
 
-  // ── step: cancelamento → gerar crédito ──────────────────────────────────────
-  async function handleCancelamentoCredito() {
+  function handleGerarcredito() { setStep('credito') }
+
+  async function handleConfirmCredito() {
+    if (!faltaTipo) return
     const val = parseFloat(creditoValor.replace(',', '.'))
     if (!val || val <= 0) { setErr('Informe um valor de crédito válido.'); return }
     setSaving(true); setErr('')
-
-    // Create falta first
-    const r1 = await createFaltaAction({
-      aluno_id: aluno.id,
-      data_falta: dateStr,
-      culpa: 'aluno',
-      tipo: 'cancelamento',
-      horario_falta: alunoHorario,
-      prazo_dias: prazoFaltaDias,
-    })
-    if (r1.error) { setSaving(false); setErr(r1.error); return }
-
-    // Resolve immediately as credit
-    const r2 = await resolveFaltaAction(r1.data!.id, { tipo: 'credito', credito_valor: val })
+    const falta = await createFalta(faltaTipo)
+    if (!falta) { setSaving(false); return }
+    const r2 = await resolveFaltaAction(falta.id, { tipo: 'credito', credito_valor: val })
     setSaving(false)
     if (r2.error) { setErr(r2.error); return }
+    onFaltaRegistrada({ ...falta, status: 'credito', credito_valor: val })
+    setDoneMsg('Crédito gerado! Será descontado na cobrança do próximo mês.')
+    setStep('done')
+  }
 
-    onFaltaRegistrada({ ...r1.data!, status: 'credito', credito_valor: val })
-    setCreatedFalta(r1.data!)
-    setStep('cancelamento-done')
+  async function handleManterCobranca() {
+    if (!faltaTipo) return
+    setSaving(true); setErr('')
+    const falta = await createFalta(faltaTipo)
+    if (!falta) { setSaving(false); return }
+    const r2 = await resolveFaltaAction(falta.id, { tipo: 'cobranca' })
+    setSaving(false)
+    if (r2.error) { setErr(r2.error); return }
+    onFaltaRegistrada({ ...falta, status: 'cobranca' })
+    setDoneMsg('Cobrança mantida. Nenhum crédito ou remarcação foi gerado.')
+    setStep('done')
   }
 
   async function handleSaveObs() {
     setSaving(true)
     await supabase.from('alunos').update({ observacoes: obs }).eq('id', aluno.id)
-    setSaving(false); setObsMode(false)
+    setSaving(false); setStep('menu')
   }
 
   // ── Info grid ────────────────────────────────────────────────────────────────
@@ -690,7 +703,20 @@ function AlunoCardModal({
     </div>
   )
 
-  // ── Render per step ──────────────────────────────────────────────────────────
+  // ── tipo context badge (shown in options / credito steps) ────────────────────
+  const tipoBadge = faltaTipo ? (() => {
+    const cfg = FALTA_TIPO_CFG[faltaTipo]
+    return (
+      <div className="rounded-xl px-4 py-3 text-sm" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+        <p className="font-semibold" style={{ color: cfg.color }}>{cfg.emoji} {cfg.label}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+          {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)} · {alunoHorario}
+        </p>
+      </div>
+    )
+  })() : null
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <Overlay onClose={onClose}>
       <ModalHeader title={aluno.nome} onClose={onClose} />
@@ -700,34 +726,46 @@ function AlunoCardModal({
         {step === 'menu' && (
           <>
             {infoGrid}
-            {aluno.observacoes && !obsMode && (
+            {aluno.observacoes && (
               <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
                 <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Observações</p>
                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{aluno.observacoes}</p>
               </div>
             )}
-            {existingFalta && (
+            {existingFalta ? (
               <div className="rounded-xl px-3 py-2.5 text-xs font-medium flex items-center gap-2"
-                style={{ background: existingFalta.tipo === 'cancelamento' ? 'rgba(255,152,0,0.1)' : 'rgba(255,82,82,0.1)',
-                  color: existingFalta.tipo === 'cancelamento' ? CANCELAMENTO_COLOR : FALTA_COLOR,
-                  border: `1px solid ${existingFalta.tipo === 'cancelamento' ? 'rgba(255,152,0,0.25)' : 'rgba(255,82,82,0.25)'}` }}>
-                <span>{existingFalta.tipo === 'cancelamento' ? '🟠' : '🔴'}</span>
-                <span>{existingFalta.tipo === 'cancelamento' ? 'Cancelamento' : 'Falta'} já registrado neste dia</span>
+                style={{ background: `${existingColor}1A`, color: existingColor!, border: `1px solid ${existingColor}40` }}>
+                <span>{existingEmoji}</span>
+                <span>{existingLabel} já registrado neste dia</span>
               </div>
-            )}
-            {!existingFalta && (
+            ) : (
               <div className="flex flex-col gap-2">
-                <button onClick={() => setStep('falta-culpa')}
-                  className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
-                  style={{ background: 'rgba(255,82,82,0.1)', color: FALTA_COLOR, border: '1px solid rgba(255,82,82,0.25)' }}>
-                  🔴 Marcar Falta
-                  <span className="text-xs font-normal opacity-70">(aluno não compareceu)</span>
+                <button onClick={() => handleSelectTipo('aluno-faltou')}
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
+                  style={{ background: 'rgba(255,82,82,0.08)', color: FALTA_COLOR, border: '1px solid rgba(255,82,82,0.25)' }}>
+                  <span className="text-base">🔴</span>
+                  <div>
+                    <div>Aluno faltou</div>
+                    <div className="text-xs font-normal opacity-70">Não compareceu sem avisar</div>
+                  </div>
                 </button>
-                <button onClick={() => setStep('cancelamento-options')}
-                  className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
-                  style={{ background: 'rgba(255,152,0,0.1)', color: CANCELAMENTO_COLOR, border: '1px solid rgba(255,152,0,0.25)' }}>
-                  🟠 Cancelamento c/ Antecedência
-                  <span className="text-xs font-normal opacity-70">(aluno avisou antes)</span>
+                <button onClick={() => handleSelectTipo('cancelamento')}
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
+                  style={{ background: 'rgba(255,152,0,0.08)', color: CANCELAMENTO_COLOR, border: '1px solid rgba(255,152,0,0.25)' }}>
+                  <span className="text-base">🟠</span>
+                  <div>
+                    <div>Cancelamento com antecedência</div>
+                    <div className="text-xs font-normal opacity-70">Aluno avisou com antecedência</div>
+                  </div>
+                </button>
+                <button onClick={() => handleSelectTipo('professor-cancelou')}
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
+                  style={{ background: 'rgba(124,77,255,0.08)', color: PROFESSOR_COLOR, border: '1px solid rgba(124,77,255,0.25)' }}>
+                  <span className="text-base">🟣</span>
+                  <div>
+                    <div>Professor cancelou</div>
+                    <div className="text-xs font-normal opacity-70">O professor não pôde dar a aula</div>
+                  </div>
                 </button>
               </div>
             )}
@@ -737,7 +775,7 @@ function AlunoCardModal({
                 style={{ background: 'rgba(64,196,255,0.1)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}>
                 ↺ Reagendar
               </button>
-              <button onClick={() => { setObsMode(true); setStep('obs') }}
+              <button onClick={() => setStep('obs')}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
                 style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
                 📝 Observação
@@ -771,79 +809,33 @@ function AlunoCardModal({
           </>
         )}
 
-        {/* STEP: falta-culpa */}
-        {step === 'falta-culpa' && (
+        {/* STEP: options — 3 resolution choices */}
+        {step === 'options' && faltaTipo && (
           <>
-            <div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(255,82,82,0.06)', border: '1px solid rgba(255,82,82,0.2)' }}>
-              <p className="font-semibold" style={{ color: FALTA_COLOR }}>🔴 Marcar Falta</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)} · {alunoHorario}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Quem cancelou?</p>
-              <div className="flex gap-2">
-                {(['aluno', 'professor'] as const).map(c => (
-                  <button key={c} onClick={() => handleFaltaSubmit(c)} disabled={saving}
-                    className="flex-1 py-3 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
-                    style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = FALTA_COLOR}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}>
-                    {c === 'aluno' ? '👤 Aluno' : '👨‍🏫 Professor'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {err && <p className="text-xs" style={{ color: '#FF5252' }}>{err}</p>}
-            <button onClick={() => setStep('menu')} className="py-2 rounded-xl text-sm cursor-pointer"
-              style={{ background: 'transparent', color: 'var(--text-muted)' }}>
-              ← Voltar
-            </button>
-          </>
-        )}
-
-        {/* STEP: falta-done */}
-        {step === 'falta-done' && (
-          <>
-            <div className="rounded-xl p-4 text-center flex flex-col gap-2"
-              style={{ background: 'rgba(255,82,82,0.06)', border: '1px solid rgba(255,82,82,0.2)' }}>
-              <p className="text-2xl">✅</p>
-              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Falta registrada!</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)}
-              </p>
-            </div>
-            <button onClick={() => { onClose(); onGoToFaltas() }}
-              className="w-full py-3 rounded-xl text-sm font-semibold cursor-pointer"
-              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
-              📅 Ir para Remarcações Pendentes
-            </button>
-            <button onClick={onClose} className="py-2 rounded-xl text-sm cursor-pointer"
-              style={{ background: 'transparent', color: 'var(--text-muted)' }}>
-              Fechar
-            </button>
-          </>
-        )}
-
-        {/* STEP: cancelamento-options */}
-        {step === 'cancelamento-options' && (
-          <>
-            <div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(255,152,0,0.06)', border: '1px solid rgba(255,152,0,0.2)' }}>
-              <p className="font-semibold" style={{ color: CANCELAMENTO_COLOR }}>🟠 Cancelamento com Antecedência</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)} · {alunoHorario}
-              </p>
-            </div>
+            {tipoBadge}
             <div className="flex flex-col gap-2">
-              <button onClick={handleCancelamentoRemarcacao} disabled={saving}
-                className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+              <button onClick={handleRemarcar} disabled={saving}
+                className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
-                📅 Ir para Remarcações Pendentes
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {saving ? 'Registrando...' : 'Remarcar'}
               </button>
-              <button onClick={() => setStep('cancelamento-credito')} disabled={saving}
-                className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+              <button onClick={handleGerarcredito} disabled={saving}
+                className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{ background: 'rgba(64,196,255,0.1)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}>
-                💳 Gerar Crédito
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+                </svg>
+                Gerar Crédito
+              </button>
+              <button onClick={handleManterCobranca} disabled={saving}
+                className="w-full py-3 rounded-xl text-sm font-medium cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
+                💵 Manter Cobrança
               </button>
             </div>
             {err && <p className="text-xs" style={{ color: '#FF5252' }}>{err}</p>}
@@ -854,15 +846,10 @@ function AlunoCardModal({
           </>
         )}
 
-        {/* STEP: cancelamento-credito */}
-        {step === 'cancelamento-credito' && (
+        {/* STEP: credito */}
+        {step === 'credito' && faltaTipo && (
           <>
-            <div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(255,152,0,0.06)', border: '1px solid rgba(255,152,0,0.2)' }}>
-              <p className="font-semibold" style={{ color: CANCELAMENTO_COLOR }}>💳 Gerar Crédito</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)}
-              </p>
-            </div>
+            {tipoBadge}
             <div>
               <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>
                 Valor do crédito (R$)
@@ -883,12 +870,12 @@ function AlunoCardModal({
             </div>
             {err && <p className="text-xs" style={{ color: '#FF5252' }}>{err}</p>}
             <div className="flex gap-2">
-              <button onClick={() => { setStep('cancelamento-options'); setErr('') }}
+              <button onClick={() => { setStep('options'); setErr('') }}
                 className="px-4 py-2.5 rounded-xl text-sm cursor-pointer"
                 style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
                 ← Voltar
               </button>
-              <button onClick={handleCancelamentoCredito} disabled={saving}
+              <button onClick={handleConfirmCredito} disabled={saving}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
                 style={{ background: '#40C4FF22', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.3)' }}>
                 {saving ? 'Salvando...' : '💳 Confirmar Crédito'}
@@ -897,16 +884,14 @@ function AlunoCardModal({
           </>
         )}
 
-        {/* STEP: cancelamento-done */}
-        {step === 'cancelamento-done' && (
+        {/* STEP: done */}
+        {step === 'done' && (
           <>
             <div className="rounded-xl p-4 text-center flex flex-col gap-2"
-              style={{ background: 'rgba(64,196,255,0.06)', border: '1px solid rgba(64,196,255,0.2)' }}>
+              style={{ background: 'rgba(0,230,118,0.06)', border: '1px solid rgba(0,230,118,0.2)' }}>
               <p className="text-2xl">✅</p>
-              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Crédito gerado!</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Será descontado na cobrança do próximo mês.
-              </p>
+              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Registrado!</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{doneMsg}</p>
             </div>
             <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
               style={{ background: 'var(--green-primary)', color: '#000' }}>
@@ -1562,7 +1547,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
             // Override color if there's a falta record for this aluno on this date
             const faltaRec = faltas.find(f => f.aluno_id === a.id && f.data_falta === dateStr && f.status !== 'reposta')
             const color = faltaRec
-              ? ((faltaRec.tipo ?? 'falta') === 'cancelamento' ? CANCELAMENTO_COLOR : FALTA_COLOR)
+              ? (faltaRec.tipo === 'cancelamento' ? CANCELAMENTO_COLOR : faltaRec.culpa === 'professor' ? PROFESSOR_COLOR : FALTA_COLOR)
               : TIPO_COLOR.aula
             const blockId = b.id
             const dragData: DragData = {
@@ -1809,7 +1794,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                     const a        = b.aluno
                     const faltaRec2 = faltas.find(f => f.aluno_id === a.id && f.data_falta === dateStr && f.status !== 'reposta')
                     const color    = faltaRec2
-                      ? ((faltaRec2.tipo ?? 'falta') === 'cancelamento' ? CANCELAMENTO_COLOR : FALTA_COLOR)
+                      ? (faltaRec2.tipo === 'cancelamento' ? CANCELAMENTO_COLOR : faltaRec2.culpa === 'professor' ? PROFESSOR_COLOR : FALTA_COLOR)
                       : TIPO_COLOR.aula
                     const dragData: DragData = {
                       blockType: 'aluno', aluno: a,
@@ -1932,11 +1917,11 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
           style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
           {([
             { color: TIPO_COLOR.aula,       label: 'Aula' },
-            { color: FALTA_COLOR,           label: 'Falta' },
-            { color: CANCELAMENTO_COLOR,    label: 'Cancelamento' },
+            { color: FALTA_COLOR,           label: 'Aluno faltou' },
+            { color: CANCELAMENTO_COLOR,    label: 'Cancelamento antecipado' },
+            { color: PROFESSOR_COLOR,       label: 'Professor cancelou' },
             { color: TIPO_COLOR.reposicao,  label: 'Reposição' },
             { color: TIPO_COLOR.aula_extra, label: 'Aula Extra' },
-            { color: TIPO_COLOR.reuniao,    label: 'Reunião' },
           ] as const).map(({ color, label }) => (
             <div key={label} className="flex items-center gap-1.5 shrink-0">
               <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />

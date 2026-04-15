@@ -869,9 +869,13 @@ function HistoricoRow({
 }) {
   const st = statusLabel(falta.status)
   const tipo = falta.tipo ?? 'falta'
-  const tipoLabel = tipo === 'cancelamento' ? 'Cancelamento' : 'Falta'
-  const tipoColor = tipo === 'cancelamento' ? '#FF9800' : '#FF5252'
-  const tipoBg    = tipo === 'cancelamento' ? 'rgba(255,152,0,0.12)' : 'rgba(255,82,82,0.12)'
+  const tipoLabel = tipo === 'cancelamento'
+    ? 'Cancelamento antecipado'
+    : falta.culpa === 'professor'
+    ? 'Professor cancelou'
+    : 'Aluno faltou'
+  const tipoColor = tipo === 'cancelamento' ? '#FF9800' : falta.culpa === 'professor' ? '#7C4DFF' : '#FF5252'
+  const tipoBg    = tipo === 'cancelamento' ? 'rgba(255,152,0,0.12)' : falta.culpa === 'professor' ? 'rgba(124,77,255,0.12)' : 'rgba(255,82,82,0.12)'
 
   return (
     <div
