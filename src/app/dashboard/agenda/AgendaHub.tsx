@@ -34,7 +34,7 @@ interface Props {
 
 const TABS = [
   { key: 'grade',  label: 'Grade Semanal' },
-  { key: 'faltas', label: 'Remarcações Pendentes' },
+  { key: 'faltas', label: 'Registros' },
 ]
 
 // ─── component ────────────────────────────────────────────────────────────────

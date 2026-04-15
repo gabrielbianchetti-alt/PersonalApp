@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 const NAV_ITEMS = [
   {
@@ -149,9 +148,6 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
           )
         })}
       </nav>
-
-      {/* Notifications bell */}
-      <NotificationBell variant="sidebar" />
 
       {/* Spacer so bottom section is pushed down naturally */}
       <div className="flex-1" />

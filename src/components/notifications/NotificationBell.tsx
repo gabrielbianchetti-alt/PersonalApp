@@ -319,20 +319,7 @@ const NotificationPanel = forwardRef<HTMLDivElement, PanelProps>(
           )}
         </div>
 
-        {/* Footer */}
-        <div className="shrink-0 p-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-          <a
-            href="/dashboard/notificacoes"
-            onClick={onClose}
-            className="flex items-center justify-center gap-1 py-2 px-4 rounded-xl text-sm font-medium transition-colors duration-100"
-            style={{ color: 'var(--green-primary)', background: 'var(--green-muted)' }}
-          >
-            Ver todas as notificações
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </a>
-        </div>
+
       </div>
     )
   }

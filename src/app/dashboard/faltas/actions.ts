@@ -10,7 +10,7 @@ export interface FaltaRow {
   aluno_id: string
   data_falta: string          // "YYYY-MM-DD"
   culpa: 'aluno' | 'professor'
-  status: 'pendente' | 'reposta' | 'credito' | 'vencida'
+  status: 'pendente' | 'reposta' | 'credito' | 'vencida' | 'cobranca'
   tipo: 'falta' | 'cancelamento'  // falta = no-show, cancelamento = advance notice
   horario_falta: string | null    // "HH:MM" — original lesson time
   data_reposicao: string | null  // "YYYY-MM-DD"
@@ -128,6 +128,7 @@ export async function resolveFaltaAction(
   resolution:
     | { tipo: 'reposta'; data_reposicao: string; horario_reposicao?: string; aluno_id?: string; aluno_nome?: string; duracao?: number }
     | { tipo: 'credito'; credito_valor: number }
+    | { tipo: 'cobranca' }
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -156,7 +157,7 @@ export async function resolveFaltaAction(
           duracao: resolution.duracao ?? 60,
         })
     }
-  } else {
+  } else if (resolution.tipo === 'credito') {
     updates.status = 'credito'
     updates.credito_valor = resolution.credito_valor
     // Credit is valid only for the NEXT calendar month
@@ -165,6 +166,9 @@ export async function resolveFaltaAction(
       ? `${now.getFullYear() + 1}-01`
       : `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}`
     updates.mes_validade = nm
+  } else {
+    // cobranca — resolve with no credit, no reschedule
+    updates.status = 'cobranca'
   }
 
   const { error } = await supabase

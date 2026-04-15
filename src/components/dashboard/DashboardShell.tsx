@@ -60,6 +60,14 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
 
       {/* Content area */}
       <div className="flex flex-col flex-1 min-w-0 md:ml-60">
+        {/* Desktop header */}
+        <header
+          className="hidden md:flex items-center justify-end h-14 px-6 shrink-0"
+          style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}
+        >
+          <NotificationBell variant="mobile" />
+        </header>
+
         {/* Mobile header */}
         <header
           className="flex items-center gap-3 h-14 px-4 shrink-0 md:hidden"

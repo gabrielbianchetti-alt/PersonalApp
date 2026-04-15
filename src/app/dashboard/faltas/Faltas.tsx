@@ -47,10 +47,11 @@ function urgencyBg(falta: FaltaRow, alertaDias: number): string {
 
 function statusLabel(status: FaltaRow['status']): { label: string; color: string; bg: string } {
   switch (status) {
-    case 'pendente': return { label: 'Pendente',  color: '#FFAB00', bg: 'rgba(255,171,0,0.12)' }
-    case 'reposta':  return { label: 'Reposta',   color: '#00E676', bg: 'rgba(0,230,118,0.12)' }
-    case 'credito':  return { label: 'Crédito',   color: '#40C4FF', bg: 'rgba(64,196,255,0.12)' }
-    case 'vencida':  return { label: 'Vencida',   color: '#FF5252', bg: 'rgba(255,82,82,0.12)' }
+    case 'pendente': return { label: 'Pendente',         color: '#FFAB00', bg: 'rgba(255,171,0,0.12)' }
+    case 'reposta':  return { label: 'Remarcada',        color: '#00E676', bg: 'rgba(0,230,118,0.12)' }
+    case 'credito':  return { label: 'Crédito',          color: '#40C4FF', bg: 'rgba(64,196,255,0.12)' }
+    case 'vencida':  return { label: 'Vencida',          color: '#FF5252', bg: 'rgba(255,82,82,0.12)' }
+    case 'cobranca': return { label: 'Cobrança mantida', color: '#9E9E9E', bg: 'rgba(158,158,158,0.12)' }
   }
 }
 
@@ -500,6 +501,8 @@ function DesfazerModal({
     ? `A falta voltará para Pendente com novo prazo de ${prazoDias} dias a partir da data original.`
     : falta.status === 'credito'
     ? `O crédito de ${falta.credito_valor != null ? Number(falta.credito_valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'} será removido e a falta voltará para Pendente.`
+    : falta.status === 'cobranca'
+    ? `A resolução "Cobrança mantida" será desfeita e a falta voltará para Pendente.`
     : `A reposição registrada será desfeita e a falta voltará para Pendente.`
 
   async function handleConfirm() {
@@ -549,6 +552,62 @@ function DesfazerModal({
             }
           >
             {saving ? 'Processando…' : isVencida ? 'Reabrir' : 'Desfazer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ManterCobrancaModal ──────────────────────────────────────────────────────
+
+function ManterCobrancaModal({
+  falta,
+  onClose,
+  onSaved,
+}: {
+  falta: FaltaRow
+  onClose: () => void
+  onSaved: (id: string, updates: Partial<FaltaRow>) => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleConfirm() {
+    setSaving(true)
+    const res = await resolveFaltaAction(falta.id, { tipo: 'cobranca' })
+    setSaving(false)
+    if (res.error) { setError(res.error); return }
+    onSaved(falta.id, { status: 'cobranca' })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl p-6 flex flex-col gap-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }} onClick={e => e.stopPropagation()}>
+        <div>
+          <h2 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>Manter Cobrança</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {falta.aluno_nome} · {fmtDate(falta.data_falta)}
+            {falta.horario_falta && ` · ${falta.horario_falta.slice(0, 5)}`}
+          </p>
+        </div>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Manter a cobrança normal para esta aula de <strong style={{ color: 'var(--text-primary)' }}>{falta.aluno_nome.split(' ')[0]}</strong>?
+          Nenhum crédito ou remarcação será gerado.
+        </p>
+        {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+        <div className="flex gap-2 mt-1">
+          <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={saving}
+            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-opacity"
+            style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', opacity: saving ? 0.6 : 1 }}
+          >
+            {saving ? 'Salvando…' : 'Confirmar'}
           </button>
         </div>
       </div>
@@ -652,7 +711,7 @@ function FaltaCard({
         </div>
       )}
 
-      {(falta.status === 'credito' || falta.status === 'reposta') && onDesfazer && (
+      {(falta.status === 'credito' || falta.status === 'reposta' || falta.status === 'cobranca') && onDesfazer && (
         <div className="flex gap-2 mt-1">
           <button
             onClick={() => onDesfazer(falta)}
@@ -686,12 +745,14 @@ function PendenciaCard({
   alertaDias,
   onRepor,
   onCredito,
+  onCobranca,
   onDelete,
 }: {
   falta: FaltaRow
   alertaDias: number
   onRepor: (f: FaltaRow) => void
   onCredito: (f: FaltaRow) => void
+  onCobranca: (f: FaltaRow) => void
   onDelete: (id: string) => void
 }) {
   const [confirmDel, setConfirmDel] = useState(false)
@@ -747,7 +808,7 @@ function PendenciaCard({
         <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>{falta.observacao}</p>
       )}
 
-      {/* Row 3: Action buttons */}
+      {/* Row 3: Primary action buttons */}
       <div className="flex gap-2">
         <button
           onClick={() => onRepor(falta)}
@@ -757,7 +818,7 @@ function PendenciaCard({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
           </svg>
-          Repor Aula
+          Remarcar
         </button>
         <button
           onClick={() => onCredito(falta)}
@@ -767,7 +828,7 @@ function PendenciaCard({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" />
           </svg>
-          Gerar Crédito
+          Crédito
         </button>
         {confirmDel ? (
           <button onClick={handleDelete} disabled={deleting} className="px-3 h-11 rounded-xl text-xs font-medium"
@@ -782,6 +843,17 @@ function PendenciaCard({
           </button>
         )}
       </div>
+
+      {/* Row 4: Secondary action */}
+      <button
+        onClick={() => onCobranca(falta)}
+        className="w-full h-9 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+        style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
+      >
+        💵 Manter Cobrança
+      </button>
     </div>
   )
 }
@@ -796,26 +868,42 @@ function HistoricoRow({
   onDesfazer: (f: FaltaRow) => void
 }) {
   const st = statusLabel(falta.status)
+  const tipo = falta.tipo ?? 'falta'
+  const tipoLabel = tipo === 'cancelamento' ? 'Cancelamento' : 'Falta'
+  const tipoColor = tipo === 'cancelamento' ? '#FF9800' : '#FF5252'
+  const tipoBg    = tipo === 'cancelamento' ? 'rgba(255,152,0,0.12)' : 'rgba(255,82,82,0.12)'
+
   return (
     <div
       className="flex items-center gap-3 px-4 py-3 rounded-xl"
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
     >
       <div className="flex-1 min-w-0">
+        {/* Row 1: name + tipo badge + status badge */}
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{falta.aluno_nome}</p>
+          <span className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0" style={{ color: tipoColor, background: tipoBg }}>
+            {tipoLabel}
+          </span>
           <span className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: st.bg }}>
             {st.label}
           </span>
         </div>
+        {/* Row 2: date + time + culpa + resolution */}
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Falta: {fmtDate(falta.data_falta)}</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{fmtDate(falta.data_falta)}</p>
+          {falta.horario_falta && (
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>· {falta.horario_falta.slice(0,5)}</p>
+          )}
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            · {falta.culpa === 'aluno' ? 'Aluno' : 'Professor'}
+          </p>
           {falta.status === 'reposta' && falta.data_reposicao && (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>· Reposta: {fmtDate(falta.data_reposicao)}</p>
+            <p className="text-xs" style={{ color: '#00E676' }}>· Remarcada {fmtDate(falta.data_reposicao)}</p>
           )}
           {falta.status === 'credito' && falta.credito_valor != null && (
             <p className="text-xs font-medium" style={{ color: '#40C4FF' }}>
-              · {Number(falta.credito_valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              · Crédito {Number(falta.credito_valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </p>
           )}
         </div>
@@ -849,10 +937,29 @@ interface Props {
 type Modal =
   | { type: 'nova' }
   | { type: 'resolver'; falta: FaltaRow; defaultTipo?: 'reposta' | 'credito' }
+  | { type: 'cobranca'; falta: FaltaRow }
   | { type: 'desfazer'; falta: FaltaRow }
   | { type: 'prefs' }
 
-type HistoricoFiltro = 'todos' | 'reposta' | 'credito' | 'vencida'
+type HistoricoFiltro = 'todos' | 'reposta' | 'credito' | 'vencida' | 'cobranca'
+
+const MES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+function mesAtual(): string {
+  const n = new Date()
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`
+}
+
+function navMes(mesStr: string, delta: number): string {
+  const [y, m] = mesStr.split('-').map(Number)
+  const d = new Date(y, m - 1 + delta, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function fmtMesLabel(mesStr: string): string {
+  const [y, m] = mesStr.split('-').map(Number)
+  return `${MES_NOMES[m - 1]} ${y}`
+}
 
 export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
   const [faltas, setFaltas]               = useState<FaltaRow[]>(faltasIniciais)
@@ -860,6 +967,8 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
   const [modal, setModal]                 = useState<Modal | null>(null)
   const [filterAluno, setFilterAluno]     = useState('')
   const [historicoFiltro, setHistoricoFiltro] = useState<HistoricoFiltro>('todos')
+  const [historicoMes, setHistoricoMes]   = useState<string>(mesAtual)
+  const [historicoSearch, setHistoricoSearch] = useState('')
   const [loading, setLoading]             = useState(false)
   const [toast, setToast]                 = useState<string | null>(null)
 
@@ -880,11 +989,18 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
   })
 
   const historicoAll = faltas
-    .filter(f => f.status !== 'pendente' && filterFn(f))
+    .filter(f => f.status !== 'pendente')
+    .filter(f => f.data_falta.startsWith(historicoMes))
+    .filter(f => !historicoSearch || f.aluno_nome.toLowerCase().includes(historicoSearch.toLowerCase()))
     .sort((a, b) => new Date(b.data_falta).getTime() - new Date(a.data_falta).getTime())
   const historicoFiltered = historicoFiltro === 'todos'
     ? historicoAll
     : historicoAll.filter(f => f.status === historicoFiltro)
+
+  const totalFaltas        = historicoAll.filter(f => (f.tipo ?? 'falta') === 'falta').length
+  const totalCancelamentos = historicoAll.filter(f => f.tipo === 'cancelamento').length
+  const totalRemarcadas    = historicoAll.filter(f => f.status === 'reposta').length
+  const totalCobrancas     = historicoAll.filter(f => f.status === 'cobranca').length
 
   async function handleRefresh() {
     setLoading(true)
@@ -906,6 +1022,7 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
     setModal(null)
     if (falta?.status === 'vencida') showToast('Falta reaberta — prazo recalculado.')
     else if (falta?.status === 'credito') showToast('Crédito desfeito — falta voltou para Pendente.')
+    else if (falta?.status === 'cobranca') showToast('Cobrança mantida desfeita — falta voltou para Pendente.')
     else showToast('Reposição desfeita — falta voltou para Pendente.')
   }
 
@@ -1009,8 +1126,9 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
                   key={f.id}
                   falta={f}
                   alertaDias={prefs.alerta_dias}
-                  onRepor={f  => setModal({ type: 'resolver', falta: f, defaultTipo: 'reposta' })}
-                  onCredito={f => setModal({ type: 'resolver', falta: f, defaultTipo: 'credito' })}
+                  onRepor={f    => setModal({ type: 'resolver', falta: f, defaultTipo: 'reposta' })}
+                  onCredito={f  => setModal({ type: 'resolver', falta: f, defaultTipo: 'credito' })}
+                  onCobranca={f => setModal({ type: 'cobranca', falta: f })}
                   onDelete={handleFaltaDeleted}
                 />
               ))}
@@ -1020,14 +1138,63 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
 
         {/* ── SEÇÃO B: Histórico ───────────────────────────────────────────────── */}
         <section>
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {/* Header row */}
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Histórico</h2>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="px-3 py-1.5 rounded-lg text-xs"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}
+            >
+              {loading ? 'Atualizando…' : '↻ Atualizar'}
+            </button>
+          </div>
+
+          {/* Month navigator */}
+          <div className="flex items-center justify-between gap-2 mb-3 rounded-xl px-4 py-2.5"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+            <button
+              onClick={() => setHistoricoMes(m => navMes(m, -1))}
+              className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+              style={{ color: 'var(--text-secondary)', background: 'var(--bg-input)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {fmtMesLabel(historicoMes)}
+            </span>
+            <button
+              onClick={() => setHistoricoMes(m => navMes(m, +1))}
+              disabled={historicoMes >= mesAtual()}
+              className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+              style={{ color: historicoMes >= mesAtual() ? 'var(--text-muted)' : 'var(--text-secondary)', background: 'var(--bg-input)', opacity: historicoMes >= mesAtual() ? 0.4 : 1 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Search + status filters */}
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <input
+              type="text"
+              placeholder="Buscar por nome…"
+              value={historicoSearch}
+              onChange={e => setHistoricoSearch(e.target.value)}
+              className="flex-1 min-w-[140px] rounded-lg px-3 py-1.5 text-sm outline-none"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+            />
             <div className="flex gap-1 flex-wrap">
               {([
-                { key: 'todos',   label: 'Todos' },
-                { key: 'reposta', label: 'Repostas ✅' },
-                { key: 'credito', label: 'Créditos 💰' },
-                { key: 'vencida', label: 'Vencidas ❌' },
+                { key: 'todos',    label: 'Todos' },
+                { key: 'reposta',  label: 'Remarcadas' },
+                { key: 'credito',  label: 'Créditos' },
+                { key: 'cobranca', label: 'Cobranças' },
+                { key: 'vencida',  label: 'Vencidas' },
               ] as const).map(opt => (
                 <button
                   key={opt.key}
@@ -1042,19 +1209,40 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
                 </button>
               ))}
             </div>
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="ml-auto px-3 py-1.5 rounded-lg text-xs"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}
-            >
-              {loading ? 'Atualizando…' : '↻ Atualizar'}
-            </button>
           </div>
+
+          {/* Totals strip */}
+          {historicoAll.length > 0 && (
+            <div className="flex items-center gap-3 mb-3 px-3 py-2 rounded-lg flex-wrap"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+              {totalFaltas > 0 && (
+                <span className="text-xs font-medium" style={{ color: '#FF5252' }}>
+                  {totalFaltas} falta{totalFaltas !== 1 ? 's' : ''}
+                </span>
+              )}
+              {totalCancelamentos > 0 && (
+                <span className="text-xs font-medium" style={{ color: '#FF9800' }}>
+                  {totalCancelamentos} cancelamento{totalCancelamentos !== 1 ? 's' : ''}
+                </span>
+              )}
+              {totalRemarcadas > 0 && (
+                <span className="text-xs font-medium" style={{ color: '#00E676' }}>
+                  {totalRemarcadas} remarcada{totalRemarcadas !== 1 ? 's' : ''}
+                </span>
+              )}
+              {totalCobrancas > 0 && (
+                <span className="text-xs font-medium" style={{ color: '#9E9E9E' }}>
+                  {totalCobrancas} cobrança{totalCobrancas !== 1 ? 's' : ''} mantida{totalCobrancas !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          )}
 
           {historicoFiltered.length === 0 ? (
             <div className="rounded-xl py-10 text-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum registro encontrado.</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                {historicoAll.length === 0 ? 'Nenhum registro em ' + fmtMesLabel(historicoMes) + '.' : 'Nenhum registro encontrado.'}
+              </p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -1087,6 +1275,13 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
           falta={modal.falta}
           alunos={alunos}
           defaultTipo={modal.defaultTipo}
+          onClose={() => setModal(null)}
+          onSaved={handleFaltaResolved}
+        />
+      )}
+      {modal?.type === 'cobranca' && (
+        <ManterCobrancaModal
+          falta={modal.falta}
           onClose={() => setModal(null)}
           onSaved={handleFaltaResolved}
         />
