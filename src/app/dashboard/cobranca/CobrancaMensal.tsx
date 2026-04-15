@@ -404,11 +404,6 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
     const msg = messages[aluno.id] ?? buildMessage(aluno, year, month, preferencias, template, creditoAl, alunoExtras)
     const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
 
-    console.log('[WhatsApp] aluno:', aluno.nome)
-    console.log('[WhatsApp] raw digits:', raw)
-    console.log('[WhatsApp] phone:', phone)
-    console.log('[WhatsApp] url:', url)
-
     // ── 2. Open WhatsApp BEFORE any await ────────────────────────────────────
     // Mobile browsers block window.open() called after an await (treated as
     // non-user-gesture and silently suppressed by popup blockers).

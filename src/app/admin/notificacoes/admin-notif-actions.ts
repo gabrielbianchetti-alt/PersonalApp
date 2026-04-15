@@ -3,8 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-
-const ADMIN_EMAIL = 'gabrielbianchetti@hotmail.com'
+import { ADMIN_EMAIL } from '@/lib/constants'
 
 async function checkAdmin() {
   const supabase = await createClient()

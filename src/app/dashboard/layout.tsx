@@ -5,8 +5,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
 import { getOrCreateAssinaturaAction } from '@/app/dashboard/configuracoes/assinatura-actions'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
-
-const ADMIN_EMAIL = 'gabrielbianchetti@hotmail.com'
+import { ADMIN_EMAIL } from '@/lib/constants'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()

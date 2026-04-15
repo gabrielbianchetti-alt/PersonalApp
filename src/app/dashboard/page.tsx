@@ -2,28 +2,9 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardHome } from './DashboardHome'
 import { gerarNotificacoesAutomaticasAction } from './notificacoes/auto-notif'
+import { countWeekdaysInMonth, toDateStr, DOW_TO_KEY } from '@/lib/utils/date'
 
 export const metadata: Metadata = { title: 'Dashboard — PersonalHub' }
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
-const DOW_TO_KEY: Record<number, string> = {
-  1: 'seg', 2: 'ter', 3: 'qua', 4: 'qui', 5: 'sex', 6: 'sab', 0: 'dom',
-}
-
-function countWeekdaysInMonth(year: number, month: number): Record<string, number> {
-  const counts: Record<string, number> = { seg: 0, ter: 0, qua: 0, qui: 0, sex: 0, sab: 0, dom: 0 }
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = DOW_TO_KEY[new Date(year, month, d).getDay()]
-    if (key) counts[key]++
-  }
-  return counts
-}
-
-function toDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 // ─── page ─────────────────────────────────────────────────────────────────────
 

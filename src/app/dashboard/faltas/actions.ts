@@ -71,7 +71,7 @@ export async function getFaltasAction(): Promise<{ data?: FaltaRow[]; error?: st
 
   const { data, error } = await supabase
     .from('faltas')
-    .select('*, alunos(nome)')
+    .select('id, professor_id, aluno_id, data_falta, culpa, status, tipo, horario_falta, data_reposicao, credito_valor, mes_validade, prazo_vencimento, observacao, created_at, updated_at, alunos(nome)')
     .eq('professor_id', user.id)
     .order('data_falta', { ascending: false })
 
@@ -178,11 +178,7 @@ export async function resolveFaltaAction(
     .eq('professor_id', user.id)
 
   if (error) {
-    console.error('resolveFalta — código:', error.code)
-    console.error('resolveFalta — mensagem:', error.message)
-    console.error('resolveFalta — detalhes:', error.details)
-    console.error('resolveFalta — hint:', error.hint)
-    console.error('resolveFalta — updates enviados:', JSON.stringify(updates))
+    console.error('resolveFalta:', error.code, error.message, error.hint ?? '')
     return { error: `[${error.code}] ${error.message}${error.hint ? ' — ' + error.hint : ''}` }
   }
   return {}

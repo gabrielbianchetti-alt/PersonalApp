@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { DIAS_SEMANA, formatCurrency } from '@/types/aluno'
+import { countWeekdaysInMonth } from '@/lib/utils/date'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -10,22 +11,6 @@ const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ]
-
-/** getDay() returns 0=Sun,1=Mon,...,6=Sat */
-const GETDAY_TO_KEY: Record<number, string> = {
-  1: 'seg', 2: 'ter', 3: 'qua', 4: 'qui', 5: 'sex', 6: 'sab', 0: 'dom',
-}
-
-/** Conta quantas vezes cada dia da semana ocorre no mês (contagem EXATA, dia a dia) */
-function countWeekdaysInMonth(year: number, month: number): Record<string, number> {
-  const counts: Record<string, number> = { seg: 0, ter: 0, qua: 0, qui: 0, sex: 0, sab: 0, dom: 0 }
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = GETDAY_TO_KEY[new Date(year, month, d).getDay()]
-    if (key) counts[key]++
-  }
-  return counts
-}
 
 // ─── types ───────────────────────────────────────────────────────────────────
 

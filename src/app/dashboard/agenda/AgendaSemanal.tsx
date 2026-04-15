@@ -1100,6 +1100,11 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
   const [hoverPos, setHoverPos]         = useState<{ dayIdx: number; y: number; timeMin: number } | null>(null)
   const [loadingWeek, setLoadingWeek]   = useState(false)
 
+  // ── current time line ────────────────────────────────────────────────────────
+  const [nowMin, setNowMin] = useState(() => {
+    const n = new Date(); return n.getHours() * 60 + n.getMinutes()
+  })
+
   // ── DnD state ───────────────────────────────────────────────────────────────
   const [activeBlock, setActiveBlock]   = useState<ActiveBlock | null>(null)
   const [dropTarget, setDropTarget]     = useState<DropTarget | null>(null)
@@ -1291,6 +1296,27 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     scrollToMinOffset(n.getHours() * 60 + n.getMinutes())
   }
 
+  // Auto-scroll to current time on mount + update the time line every 60 s
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        const n   = new Date()
+        const min = n.getHours() * 60 + n.getMinutes()
+        if (min >= GRID_START && min <= GRID_END) {
+          const px     = (min - GRID_START) * MIN_PX
+          const offset = Math.max(0, px - scrollContainerRef.current.clientHeight * 0.4)
+          scrollContainerRef.current.scrollTop = offset
+        }
+      }
+    })
+    const interval = setInterval(() => {
+      const n = new Date()
+      setNowMin(n.getHours() * 60 + n.getMinutes())
+    }, 60_000)
+    return () => { cancelAnimationFrame(raf); clearInterval(interval) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── DnD handlers ─────────────────────────────────────────────────────────────
 
   function handleTouchLongPress(
@@ -1476,6 +1502,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     const closedTop    = toPx(cfg.start - GRID_START)
     const closedBottom = toPx(GRID_END - cfg.end)
     const isHovered    = hoverPos?.dayIdx === dayIdx
+    const isToday      = dateStr === todayStr
 
     // Drop highlight in this column
     const dropHere = dropTarget?.dayIdx === dayIdx ? dropTarget : null
@@ -1531,6 +1558,24 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                 Disponível · {minToTime(hoverPos!.timeMin)}
               </span>
             </div>
+          </div>
+        )}
+
+        {/* Current time line */}
+        {isToday && nowMin >= GRID_START && nowMin <= GRID_END && (
+          <div className="absolute left-0 right-0 pointer-events-none"
+            style={{ top: toPx(nowMin - GRID_START), zIndex: 20 }}>
+            {/* Horizontal line */}
+            <div style={{ position: 'absolute', left: 0, right: 0, borderTop: '2px solid var(--green-primary)' }} />
+            {/* Time badge */}
+            <span style={{
+              position: 'absolute', left: 3, top: -9,
+              background: 'var(--green-primary)', color: '#000',
+              fontSize: 8, fontWeight: 700, lineHeight: 1,
+              padding: '2px 4px', borderRadius: 4, whiteSpace: 'nowrap',
+            }}>
+              {minToTime(nowMin)}
+            </span>
           </div>
         )}
 
@@ -1759,6 +1804,19 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                 {isToday && (
                   <div className="absolute inset-0 pointer-events-none"
                     style={{ background: 'rgba(0,230,118,0.03)', zIndex: 0 }} />
+                )}
+
+                {/* Current time line (compact) */}
+                {isToday && nowMin >= GRID_START && nowMin <= GRID_END && (
+                  <div className="absolute left-0 right-0 pointer-events-none"
+                    style={{ top: cToPx(nowMin - GRID_START), zIndex: 15 }}>
+                    <div style={{ position: 'absolute', left: 0, right: 0, borderTop: '1.5px solid var(--green-primary)' }} />
+                    <div style={{
+                      position: 'absolute', left: 0, top: -3,
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: 'var(--green-primary)',
+                    }} />
+                  </div>
                 )}
 
                 {/* Closed areas */}

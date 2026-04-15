@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { countWeekdaysInMonth } from '@/lib/utils/date'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -71,22 +72,6 @@ export interface PrevisaoReportData {
   otimista: number
   metaLucro: number
   alunosNecessarios: number
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const DOW_TO_KEY: Record<number, string> = {
-  1: 'seg', 2: 'ter', 3: 'qua', 4: 'qui', 5: 'sex', 6: 'sab', 0: 'dom',
-}
-
-function countWeekdaysInMonth(year: number, month: number): Record<string, number> {
-  const counts: Record<string, number> = { seg: 0, ter: 0, qua: 0, qui: 0, sex: 0, sab: 0, dom: 0 }
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = DOW_TO_KEY[new Date(year, month, d).getDay()]
-    if (key) counts[key]++
-  }
-  return counts
 }
 
 // ── Financeiro Report ─────────────────────────────────────────────────────────

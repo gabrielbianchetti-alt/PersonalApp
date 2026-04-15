@@ -404,7 +404,6 @@ function EnviarTermoModal({
     }
 
     const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(texto)}`
-    console.log('[Termos WhatsApp] phone:', phone, '| url:', url)
 
     // ── 2. Open WhatsApp BEFORE the await (avoids popup blocker) ─────────────
     window.open(url, '_blank')

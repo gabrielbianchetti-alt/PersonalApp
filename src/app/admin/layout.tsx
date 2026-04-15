@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { ADMIN_EMAIL } from '@/lib/constants'
 
-export const ADMIN_EMAIL = 'gabrielbianchetti@hotmail.com'
+export { ADMIN_EMAIL }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()

@@ -43,17 +43,17 @@ export default async function AlunosPage({
       .order('nome'),
     supabase
       .from('suspensoes')
-      .select('*, alunos(nome, horarios)')
+      .select('id, professor_id, aluno_id, tipo, status, data_inicio, data_retorno, motivo, acao_horario, created_at, updated_at, alunos(nome, horarios)')
       .eq('professor_id', user.id)
       .order('created_at', { ascending: false }),
     supabase
       .from('modelos_termo')
-      .select('*')
+      .select('id, professor_id, nome, conteudo, tipo, created_at, updated_at')
       .eq('professor_id', user.id)
       .order('created_at'),
     supabase
       .from('termos_enviados')
-      .select('*, alunos(nome)')
+      .select('id, professor_id, aluno_id, conteudo, modelo_usado, enviado_em, created_at, alunos(nome)')
       .eq('professor_id', user.id)
       .order('enviado_em', { ascending: false }),
   ])
@@ -61,14 +61,22 @@ export default async function AlunosPage({
   // Enrich suspensoes with joined aluno data
   const suspensoesRows: SuspensaoRow[] = (suspensoes ?? []).map((r: Record<string, unknown>) => {
     const al = r.alunos as { nome: string; horarios: HorarioDia[] } | null
-    const { alunos: _al, ...rest } = r
-    void _al
     return {
-      ...rest,
-      aluno_nome:     al?.nome ?? '—',
+      id:            r.id as string,
+      professor_id:  r.professor_id as string,
+      aluno_id:      r.aluno_id as string,
+      tipo:          r.tipo as SuspensaoRow['tipo'],
+      status:        r.status as SuspensaoRow['status'],
+      data_inicio:   r.data_inicio as string,
+      data_retorno:  r.data_retorno as string | null,
+      motivo:        r.motivo as string | null,
+      acao_horario:  r.acao_horario as SuspensaoRow['acao_horario'],
+      created_at:    r.created_at as string,
+      updated_at:    r.updated_at as string,
+      aluno_nome:    al?.nome ?? '—',
       aluno_horarios: al?.horarios ?? [],
-    }
-  }) as unknown as SuspensaoRow[]
+    } satisfies SuspensaoRow
+  })
 
   // Enrich historico with aluno names
   const historicoRows: TermoEnviado[] = (historico ?? []).map((r: Record<string, unknown>) => ({

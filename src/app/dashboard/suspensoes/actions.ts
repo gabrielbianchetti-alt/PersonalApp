@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import type { SuspensaoTipo, AcaoHorario, SuspensaoRow, Conflitante } from './types'
+import type { SuspensaoTipo, SuspensaoStatus, AcaoHorario, SuspensaoRow, Conflitante } from './types'
 
 export type { SuspensaoTipo, SuspensaoStatus, AcaoHorario, SuspensaoRow, AlunoSuspenso, Conflitante } from './types'
 
@@ -14,22 +14,30 @@ export async function getSuspensoesAction(): Promise<{ data?: SuspensaoRow[]; er
 
   const { data, error } = await supabase
     .from('suspensoes')
-    .select('*, alunos(nome, horarios)')
+    .select('id, professor_id, aluno_id, tipo, status, data_inicio, data_retorno, motivo, acao_horario, created_at, updated_at, alunos(nome, horarios)')
     .eq('professor_id', user.id)
     .order('created_at', { ascending: false })
 
   if (error) { console.error('getSuspensoes:', error); return { error: `Erro ao buscar suspensões: ${error.message} (código: ${error.code})` } }
 
-  const rows = (data ?? []).map((r: Record<string, unknown>) => {
+  const rows: SuspensaoRow[] = (data ?? []).map((r: Record<string, unknown>) => {
     const al = r.alunos as { nome: string; horarios: { dia: string; horario: string }[] } | null
-    const { alunos: _alunos, ...rest } = r
-    void _alunos
     return {
-      ...rest,
-      aluno_nome:     al?.nome ?? '—',
+      id:            r.id as string,
+      professor_id:  r.professor_id as string,
+      aluno_id:      r.aluno_id as string,
+      tipo:          r.tipo as SuspensaoTipo,
+      status:        r.status as SuspensaoStatus,
+      data_inicio:   r.data_inicio as string,
+      data_retorno:  r.data_retorno as string | null,
+      motivo:        r.motivo as string | null,
+      acao_horario:  r.acao_horario as AcaoHorario,
+      created_at:    r.created_at as string,
+      updated_at:    r.updated_at as string,
+      aluno_nome:    al?.nome ?? '—',
       aluno_horarios: al?.horarios ?? [],
-    }
-  }) as unknown as SuspensaoRow[]
+    } satisfies SuspensaoRow
+  })
 
   return { data: rows }
 }

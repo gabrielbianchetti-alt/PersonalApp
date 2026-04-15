@@ -28,15 +28,14 @@ export async function fetchNotificacoesAction(): Promise<{
     return { error: 'Erro ao buscar notificações.' }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const notificacoes = ((data ?? []) as any[]).map((row) => ({
-    id: row.id,
-    notificacao_id: row.notificacao_id,
-    usuario_id: row.usuario_id,
-    lida: row.lida,
-    lida_em: row.lida_em,
-    created_at: row.created_at,
-    notificacao: row.notificacao,
+  const notificacoes = (data ?? []).map((row) => ({
+    id:             (row as Record<string, unknown>)['id'] as string,
+    notificacao_id: (row as Record<string, unknown>)['notificacao_id'] as string,
+    usuario_id:     (row as Record<string, unknown>)['usuario_id'] as string,
+    lida:           (row as Record<string, unknown>)['lida'] as boolean,
+    lida_em:        (row as Record<string, unknown>)['lida_em'] as string | null,
+    created_at:     (row as Record<string, unknown>)['created_at'] as string,
+    notificacao:    (row as Record<string, unknown>)['notificacao'],
   })) as NotificacaoComLeitura[]
 
   const unreadCount = notificacoes.filter(n => !n.lida).length
