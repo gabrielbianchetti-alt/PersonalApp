@@ -592,7 +592,7 @@ function ManterCobrancaModal({
           </p>
         </div>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Manter a cobrança normal para esta aula de <strong style={{ color: 'var(--text-primary)' }}>{falta.aluno_nome.split(' ')[0]}</strong>?
+          Manter a cobrança normal para esta aula de <strong style={{ color: 'var(--text-primary)' }}>{(falta.aluno_nome ?? '').split(' ')[0]}</strong>?
           Nenhum crédito ou remarcação será gerado.
         </p>
         {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
@@ -995,7 +995,7 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
   const historicoAll = faltas
     .filter(f => f.status !== 'pendente')
     .filter(f => f.data_falta.startsWith(historicoMes))
-    .filter(f => !historicoSearch || f.aluno_nome.toLowerCase().includes(historicoSearch.toLowerCase()))
+    .filter(f => !historicoSearch || (f.aluno_nome ?? '').toLowerCase().includes(historicoSearch.toLowerCase()))
     .sort((a, b) => new Date(b.data_falta).getTime() - new Date(a.data_falta).getTime())
   const historicoFiltered = historicoFiltro === 'todos'
     ? historicoAll
