@@ -1,3 +1,5 @@
+import { LogoFull } from '@/components/brand/LogoFull'
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
@@ -15,19 +17,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm"
-            style={{
-              background: 'var(--green-primary)',
-              color: '#000',
-            }}
-          >
-            PH
-          </div>
-          <span className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-            PersonalHub
-          </span>
+        <div className="flex items-center justify-center mb-8">
+          <LogoFull iconSize={36} fontSize={20} gap={10} />
         </div>
 
         {children}

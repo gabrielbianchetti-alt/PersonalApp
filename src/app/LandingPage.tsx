@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { LogoFull } from '@/components/brand/LogoFull'
 
 // ─── tokens ───────────────────────────────────────────────────────────────────
 const G  = '#00E676'
@@ -222,9 +223,7 @@ export default function LandingPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           height: 60,
         }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: TW, letterSpacing: -0.5 }}>
-            Personal<span style={{ color: G }}>Hub</span>
-          </div>
+          <LogoFull iconSize={28} fontSize={17} gap={8} variant="brand" />
           <Link href="/register" style={{
             background: G, color: '#000',
             fontWeight: 700, fontSize: 13, padding: '9px 20px',
@@ -891,9 +890,7 @@ export default function LandingPage() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexWrap: 'wrap', gap: 16,
       }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: TW }}>
-          Personal<span style={{ color: G }}>Hub</span>
-        </div>
+        <LogoFull iconSize={22} fontSize={14} gap={7} variant="brand" />
         <div style={{ display: 'flex', gap: 28 }}>
           {[['Entrar', '/login'], ['Cadastrar', '/register']].map(([label, href]) => (
             <Link key={href} href={href} style={{ fontSize: 13, color: TS, textDecoration: 'none' }}>
