@@ -28,63 +28,44 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  // Generate auto notifications (non-blocking, errors are swallowed intentionally)
+  // Generate auto-notifications (non-blocking)
   void gerarNotificacoesAutomaticasAction()
 
   const professorNome: string =
     (user.user_metadata?.full_name as string | undefined) ?? 'Professor'
 
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
-  const mesRef = `${year}-${String(month + 1).padStart(2, '0')}`
+  const now      = new Date()
+  const year     = now.getFullYear()
+  const month    = now.getMonth()
+  const mesRef   = `${year}-${String(month + 1).padStart(2, '0')}`
   const todayStr = now.toISOString().split('T')[0]
   const todayKey = DOW_TO_KEY[now.getDay()] ?? ''
 
   // ── parallel fetches ──────────────────────────────────────────────────────
   const [
     { data: alunosRaw },
-    { data: custos },
     { data: cobrancas },
-    { data: faltasPendentes },
     { data: eventosHoje },
-    { data: metaRow },
     { data: creditos },
   ] = await Promise.all([
     supabase
       .from('alunos')
-      .select('id, nome, horarios, duracao, local, modelo_cobranca, valor, data_nascimento, whatsapp, status, dia_cobranca')
+      .select('id, nome, horarios, duracao, local, modelo_cobranca, valor, whatsapp, status, dia_cobranca')
       .eq('professor_id', user.id)
       .eq('status', 'ativo'),
-    supabase
-      .from('custos')
-      .select('valor')
-      .eq('professor_id', user.id)
-      .eq('mes_referencia', mesRef)
-      .or('ativo.is.null,ativo.eq.true'),
     supabase
       .from('cobrancas')
       .select('id, aluno_id, status, valor, created_at')
       .eq('professor_id', user.id)
       .eq('mes_referencia', mesRef),
-    supabase
-      .from('faltas')
-      .select('id, aluno_id, data_falta, prazo_vencimento, culpa, status')
-      .eq('professor_id', user.id)
-      .eq('status', 'pendente')
-      .order('prazo_vencimento', { ascending: true }),
+    // Today's one-off events (reposição + aula extra)
     supabase
       .from('eventos_agenda')
-      .select('id, aluno_id, data_especifica, hora_inicio, local, tipo, descricao')
+      .select('id, aluno_id, horario_inicio, tipo')
       .eq('professor_id', user.id)
       .eq('data_especifica', todayStr)
-      .eq('tipo', 'reposicao'),
-    supabase
-      .from('metas')
-      .select('meta_mensal')
-      .eq('professor_id', user.id)
-      .maybeSingle(),
-    // Credits to be subtracted from per-aula billing
+      .in('tipo', ['reposicao', 'aula_extra']),
+    // Credits valid this month
     supabase
       .from('faltas')
       .select('aluno_id, credito_valor')
@@ -96,7 +77,7 @@ export default async function DashboardPage() {
   const alunos = (alunosRaw ?? []) as {
     id: string; nome: string; horarios: { dia: string; horario: string }[] | null
     duracao: number | null; local: string | null; modelo_cobranca: string; valor: number
-    data_nascimento: string | null; whatsapp: string | null; status: string; dia_cobranca: number | null
+    whatsapp: string | null; status: string; dia_cobranca: number | null
   }[]
 
   // ── faturamento bruto ─────────────────────────────────────────────────────
@@ -110,73 +91,39 @@ export default async function DashboardPage() {
     return sum + aulas * Number(a.valor)
   }, 0)
 
-  // ── custos e lucro ────────────────────────────────────────────────────────
-  const custoTotal = (custos ?? []).reduce((s, c) => s + Number(c.valor), 0)
-  const lucro = faturamento - custoTotal
-  const margem = faturamento > 0 ? Math.round((lucro / faturamento) * 100) : 0
-
-  // ── recebimentos (derived from todosAlunos below) ────────────────────────
-
-  // ── aulas de hoje ─────────────────────────────────────────────────────────
+  // ── aluno map for quick lookup ────────────────────────────────────────────
   const alunoMap = Object.fromEntries(alunos.map(a => [a.id, a]))
 
-  const aulasRegulares = todayKey ? alunos
-    .map(a => {
-      const h = ((a.horarios ?? []) as { dia: string; horario: string }[]).find(x => x.dia === todayKey)
-      if (!h) return null
-      return { alunoId: a.id, alunoNome: a.nome, horario: h.horario.slice(0, 5), local: a.local ?? '', tipo: 'regular' as const }
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null)
-  : []
+  // ── aulas de hoje ─────────────────────────────────────────────────────────
+  const aulasRegulares = todayKey
+    ? alunos
+        .map(a => {
+          const h = ((a.horarios ?? []) as { dia: string; horario: string }[]).find(x => x.dia === todayKey)
+          if (!h) return null
+          return {
+            alunoId:   a.id,
+            alunoNome: a.nome,
+            horario:   h.horario.slice(0, 5),
+            local:     a.local ?? '',
+            tipo:      'regular' as const,
+          }
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null)
+    : []
 
-  const aulasReposicao = (eventosHoje ?? []).map(e => ({
-    alunoId: e.aluno_id,
-    alunoNome: alunoMap[e.aluno_id]?.nome ?? 'Aluno',
-    horario: String(e.hora_inicio ?? '').slice(0, 5),
-    local: e.local ?? alunoMap[e.aluno_id]?.local ?? '',
-    tipo: 'reposicao' as const,
-  }))
+  const aulasEvento = (eventosHoje ?? []).map(e => ({
+    alunoId:   e.aluno_id ?? '',
+    alunoNome: alunoMap[e.aluno_id ?? '']?.nome ?? 'Aluno',
+    horario:   String(e.horario_inicio ?? '').slice(0, 5),
+    local:     alunoMap[e.aluno_id ?? '']?.local ?? '',
+    tipo:      (e.tipo === 'aula_extra' ? 'aula_extra' : 'reposicao') as 'reposicao' | 'aula_extra',
+  })).filter(e => e.alunoId)
 
-  const aulasHoje = [...aulasRegulares, ...aulasReposicao].sort((a, b) =>
+  const aulasHoje = [...aulasRegulares, ...aulasEvento].sort((a, b) =>
     a.horario.localeCompare(b.horario)
   )
 
-  // ── aniversários do mês ───────────────────────────────────────────────────
-  const aniversarios = alunos
-    .filter(a => {
-      if (!a.data_nascimento) return false
-      const birthMonth = parseInt(a.data_nascimento.split('-')[1], 10) - 1
-      return birthMonth === month
-    })
-    .map(a => {
-      const birthDay = parseInt(a.data_nascimento!.split('-')[2], 10)
-      const birthDate = new Date(year, month, birthDay)
-      const today = new Date(year, month, now.getDate())
-      const diffMs = birthDate.getTime() - today.getTime()
-      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-      return { id: a.id, nome: a.nome, dia: birthDay, diasRestantes: diffDays }
-    })
-    .sort((a, b) => a.dia - b.dia)
-
-  // ── reposições pendentes ──────────────────────────────────────────────────
-  const reposicoesPendentes = (faltasPendentes ?? []).map(f => {
-    const prazoDate = new Date(f.prazo_vencimento + 'T00:00:00')
-    const todayDate = new Date(todayStr + 'T00:00:00')
-    const diffDays = Math.ceil(
-      (prazoDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24)
-    )
-    return {
-      id: f.id,
-      alunoId: f.aluno_id,
-      alunoNome: alunoMap[f.aluno_id]?.nome ?? 'Aluno',
-      dataFalta: f.data_falta,
-      prazo: f.prazo_vencimento,
-      diasRestantes: diffDays,
-      culpa: f.culpa as 'aluno' | 'professor',
-    }
-  })
-
-  // ── créditos por aluno para o mês atual ──────────────────────────────────
+  // ── créditos por aluno ────────────────────────────────────────────────────
   const creditosPorAluno: Record<string, number> = {}
   for (const row of (creditos ?? [])) {
     if (row.credito_valor) {
@@ -184,32 +131,28 @@ export default async function DashboardPage() {
     }
   }
 
-  // ── todos alunos com status de cobrança do mês ───────────────────────────
-  // IMPORTANT: valor must be the monthly TOTAL, not the per-aula unit price.
-  // For 'por_aula': count exact weekday occurrences in the month × unit price − credits.
-  // For 'mensalidade': the fixed value − credits.
+  // ── todos alunos com status de cobrança ───────────────────────────────────
   const todayMs = new Date(todayStr + 'T00:00:00').getTime()
   const todosAlunos = alunos.map(a => {
-    const c = (cobrancas ?? []).find(r => r.aluno_id === a.id)
-    const createdDate = c?.created_at ? new Date(c.created_at) : null
+    const c            = (cobrancas ?? []).find(r => r.aluno_id === a.id)
+    const createdDate  = c?.created_at ? new Date(c.created_at) : null
     const diasDesdeEnvio = createdDate
       ? Math.floor((todayMs - createdDate.getTime()) / (1000 * 60 * 60 * 24))
       : null
 
-    // Calculate the gross monthly total using the same weekdayCounts already computed above
     const gross = a.modelo_cobranca === 'mensalidade'
       ? Number(a.valor)
       : ((a.horarios ?? []) as { dia: string; horario: string }[]).reduce(
           (s, h) => s + (weekdayCounts[h.dia] ?? 0), 0
         ) * Number(a.valor)
-    const credito = creditosPorAluno[a.id] ?? 0
+    const credito    = creditosPorAluno[a.id] ?? 0
     const valorMensal = Math.max(0, gross - credito)
 
     return {
       alunoId:       a.id,
       alunoNome:     a.nome,
       whatsapp:      a.whatsapp ?? null,
-      valor:         valorMensal,   // monthly total, not unit price
+      valor:         valorMensal,
       dia_cobranca:  a.dia_cobranca ?? 1,
       cobrancaId:    c?.id ?? null,
       status:        ((c?.status) ?? 'pendente') as 'pendente' | 'enviado' | 'pago',
@@ -224,14 +167,8 @@ export default async function DashboardPage() {
     <DashboardHome
       professorNome={professorNome}
       faturamento={faturamento}
-      lucro={lucro}
-      margem={margem}
-      custoTotal={custoTotal}
       totalAlunos={alunos.length}
       aulasHoje={aulasHoje}
-      reposicoesPendentes={reposicoesPendentes}
-      aniversarios={aniversarios}
-      alunos={alunos.map(a => ({ id: a.id, nome: a.nome }))}
       todosAlunos={todosAlunos}
       mesRef={mesRef}
     />
