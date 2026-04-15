@@ -66,7 +66,7 @@ function NovaFaltaModal({
   onClose,
   onSaved,
 }: {
-  alunos: { id: string; nome: string }[]
+  alunos: AlunoComHorarios[]
   prazo_dias: number
   onClose: () => void
   onSaved: (f: FaltaRow) => void
@@ -176,22 +176,48 @@ function NovaFaltaModal({
 
 // ─── ResolverModal ────────────────────────────────────────────────────────────
 
+const WEEK_DAY_KEYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as const
+
 function ResolverModal({
   falta,
+  alunos,
   onClose,
   onSaved,
   defaultTipo = 'reposta',
 }: {
   falta: FaltaRow
+  alunos: AlunoComHorarios[]
   onClose: () => void
   onSaved: (id: string, updates: Partial<FaltaRow>) => void
   defaultTipo?: 'reposta' | 'credito'
 }) {
   const [tipo, setTipo] = useState<'reposta' | 'credito'>(defaultTipo)
-  const [dataRep, setDataRep] = useState(today())
+  const [dataRep, setDataRep]   = useState(today())
+  const [horaRep, setHoraRep]   = useState(falta.horario_falta ?? '08:00')
   const [creditoValor, setCreditoValor] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState('')
+
+  // Conflict detection: check alunos at the selected date+time
+  const conflictAlunos = (() => {
+    if (tipo !== 'reposta' || !dataRep || !horaRep) return []
+    const dow = new Date(dataRep + 'T12:00:00').getDay()
+    const dayKey = WEEK_DAY_KEYS[dow]
+    const [h, m] = horaRep.split(':').map(Number)
+    const selMin = h * 60 + m
+    return alunos.filter(a => {
+      if (!a.horarios) return false
+      const sched = a.horarios.find(x => x.dia === dayKey)
+      if (!sched) return false
+      const [sh, sm] = sched.horario.split(':').map(Number)
+      const schedMin = sh * 60 + sm
+      const dur = a.duracao ?? 60
+      return selMin >= schedMin && selMin < schedMin + dur
+    })
+  })()
+
+  // Find the aluno being rescheduled
+  const alunoRep = alunos.find(a => a.id === falta.aluno_id)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -199,7 +225,14 @@ function ResolverModal({
 
     let res: { error?: string }
     if (tipo === 'reposta') {
-      res = await resolveFaltaAction(falta.id, { tipo: 'reposta', data_reposicao: dataRep })
+      res = await resolveFaltaAction(falta.id, {
+        tipo: 'reposta',
+        data_reposicao: dataRep,
+        horario_reposicao: horaRep,
+        aluno_id: falta.aluno_id,
+        aluno_nome: alunoRep?.nome,
+        duracao: alunoRep?.duracao,
+      })
     } else {
       const val = parseFloat(creditoValor.replace(',', '.'))
       if (!val || val <= 0) { setError('Informe um valor válido.'); setSaving(false); return }
@@ -223,6 +256,7 @@ function ResolverModal({
           <h2 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>Resolver Falta</h2>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
             {falta.aluno_nome} · {fmtDate(falta.data_falta)}
+            {falta.horario_falta && ` · ${falta.horario_falta}`}
           </p>
         </div>
 
@@ -246,18 +280,48 @@ function ResolverModal({
           </div>
 
           {tipo === 'reposta' ? (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Data da Reposição</label>
-              <input
-                type="date"
-                value={dataRep}
-                min={today()}
-                onChange={e => setDataRep(e.target.value)}
-                className="rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
-              />
+            <div className="flex flex-col gap-3">
+              {/* Date + Time pickers */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Data</label>
+                  <input
+                    type="date"
+                    value={dataRep}
+                    min={today()}
+                    onChange={e => setDataRep(e.target.value)}
+                    className="rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Horário</label>
+                  <input
+                    type="time"
+                    value={horaRep}
+                    onChange={e => setHoraRep(e.target.value)}
+                    className="rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+              </div>
+
+              {/* Conflict warning */}
+              {conflictAlunos.length > 0 && (
+                <div className="rounded-lg px-3 py-2.5 flex items-start gap-2"
+                  style={{ background: 'rgba(255,171,0,0.08)', border: '1px solid rgba(255,171,0,0.25)' }}>
+                  <span style={{ color: '#FFAB00', fontSize: 14, lineHeight: 1.4 }}>⚠️</span>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: '#FFAB00' }}>Conflito de horário</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {conflictAlunos.map(a => a.nome.split(' ')[0]).join(', ')} tem aula neste horário.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                A reposição será registrada na agenda automaticamente.
+                Uma aula de reposição será criada automaticamente na agenda.
               </p>
             </div>
           ) : (
@@ -769,8 +833,15 @@ function HistoricoRow({
 
 // ─── Main Faltas component ────────────────────────────────────────────────────
 
+interface AlunoComHorarios {
+  id: string
+  nome: string
+  horarios?: { dia: string; horario: string }[]
+  duracao?: number
+}
+
 interface Props {
-  alunos: { id: string; nome: string }[]
+  alunos: AlunoComHorarios[]
   faltasIniciais: FaltaRow[]
   prefsIniciais: PrefsF
 }
@@ -877,7 +948,7 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
         {/* ── Header ──────────────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Faltas e Reposições</h1>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Remarcações Pendentes</h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Prazo: {prefs.prazo_dias}d · Alerta: {prefs.alerta_dias}d</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -1014,6 +1085,7 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
       {modal?.type === 'resolver' && (
         <ResolverModal
           falta={modal.falta}
+          alunos={alunos}
           defaultTipo={modal.defaultTipo}
           onClose={() => setModal(null)}
           onSaved={handleFaltaResolved}
@@ -1031,15 +1103,6 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
         />
       )}
 
-      {/* Toast */}
-      {toast && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg z-50"
-          style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', animation: 'fadeInUp 0.2s ease' }}
-        >
-          {toast}
-        </div>
-      )}
     </>
   )
 }

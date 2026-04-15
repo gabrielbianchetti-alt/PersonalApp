@@ -10,6 +10,11 @@ import {
   type EventoTipo,
   type EventoAgendaRow,
 } from './actions'
+import {
+  createFaltaAction,
+  resolveFaltaAction,
+  type FaltaRow,
+} from '../faltas/actions'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -41,8 +46,10 @@ const TIPO_COLOR: Record<EventoTipo, string> = {
   bloqueado:  '#FF5252',
   refeicao:   '#9E9E9E',
   outro:      '#CE93D8',
-  aula_extra: '#69F0AE',
+  aula_extra: '#FFEB3B',
 }
+const FALTA_COLOR       = '#FF5252'  // vermelho — aluno faltou sem avisar
+const CANCELAMENTO_COLOR = '#FF9800' // laranja — cancelamento com antecedência
 const TIPO_LABEL: Record<EventoTipo, string> = {
   aula:       'Aula',
   reposicao:  'Reposição',
@@ -110,6 +117,8 @@ type Modal =
 interface Props {
   alunos: AlunoAgenda[]
   eventosIniciais: EventoAgendaRow[]
+  faltasIniciais: FaltaRow[]
+  onGoToFaltas: () => void
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -556,46 +565,106 @@ function AddEventModal({
 
 // ─── AlunoCardModal ─────────────────────────────────────────────────────────────
 
+type AlunoModalStep =
+  | 'menu'
+  | 'obs'
+  | 'falta-culpa'
+  | 'falta-done'
+  | 'cancelamento-options'
+  | 'cancelamento-credito'
+  | 'cancelamento-done'
+
 function AlunoCardModal({
-  aluno, dayIdx, date, eventos, onClose, onReagendar, onCancelado, onSaved,
+  aluno, dayIdx, date, eventos, prazoFaltaDias, faltasData, onClose, onReagendar, onFaltaRegistrada, onGoToFaltas,
 }: {
   aluno: AlunoAgenda; dayIdx: number; date: Date
-  eventos: EventoAgendaRow[]; onClose: () => void
+  eventos: EventoAgendaRow[]
+  prazoFaltaDias: number
+  faltasData: FaltaRow[]
+  onClose: () => void
   onReagendar: () => void
-  onCancelado: (ev: EventoAgendaRow) => void
-  onSaved: (ev: EventoAgendaRow) => void
+  onFaltaRegistrada: (f: FaltaRow) => void
+  onGoToFaltas: () => void
 }) {
-  const [saving,  setSaving]  = useState(false)
-  const [obsMode, setObsMode] = useState(false)
-  const [obs,     setObs]     = useState(aluno.observacoes ?? '')
+  const [step,     setStep]    = useState<AlunoModalStep>('menu')
+  const [saving,   setSaving]  = useState(false)
+  const [obsMode,  setObsMode] = useState(false)
+  const [obs,      setObs]     = useState(aluno.observacoes ?? '')
+  const [creditoValor, setCreditoValor] = useState('')
+  const [createdFalta, setCreatedFalta] = useState<FaltaRow | null>(null)
+  const [err,      setErr]     = useState('')
   const supabase = createClient()
 
-  const dateStr = toDateStr(date)
-  const dayKey = WEEK_KEYS[dayIdx]
+  const dateStr    = toDateStr(date)
+  const dayKey     = WEEK_KEYS[dayIdx]
   const alunoHorario = aluno.horarios.find(x => x.dia === dayKey)?.horario ?? '08:00'
-  const isCancelled = eventos.some(e =>
-    e.tipo === 'bloqueado' && e.data_especifica === dateStr &&
-    timeToMin(e.horario_inicio) === timeToMin(alunoHorario)
-  )
 
-  async function handleCancelar() {
-    setSaving(true)
-    const res = await createEventoAction({
-      tipo: 'bloqueado', titulo: `Aula cancelada — ${aluno.nome.split(' ')[0]}`,
-      aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: alunoHorario, duracao: aluno.duracao,
+  // Check if there's already a falta for this aluno on this date
+  const existingFalta = faltasData.find(f => f.aluno_id === aluno.id && f.data_falta === dateStr)
+
+  const PLANO_LABEL: Record<string, string> = { por_aula: 'Por aula', mensalidade: 'Mensalidade' }
+
+  // ── step: falta-culpa → save falta ──────────────────────────────────────────
+  async function handleFaltaSubmit(culpa: 'aluno' | 'professor') {
+    setSaving(true); setErr('')
+    const res = await createFaltaAction({
+      aluno_id: aluno.id,
+      data_falta: dateStr,
+      culpa,
+      tipo: 'falta',
+      horario_falta: alunoHorario,
+      prazo_dias: prazoFaltaDias,
     })
     setSaving(false)
-    if (res.data) { onCancelado(res.data); onClose() }
+    if (res.error) { setErr(res.error); return }
+    setCreatedFalta(res.data!)
+    onFaltaRegistrada(res.data!)
+    setStep('falta-done')
   }
 
-  async function handleFalta() {
-    setSaving(true)
-    const res = await createEventoAction({
-      tipo: 'outro', titulo: `Falta — ${aluno.nome.split(' ')[0]}`,
-      aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: alunoHorario, duracao: 15, cor: '#FF5252',
+  // ── step: cancelamento → ir para remarcações ─────────────────────────────────
+  async function handleCancelamentoRemarcacao() {
+    setSaving(true); setErr('')
+    const res = await createFaltaAction({
+      aluno_id: aluno.id,
+      data_falta: dateStr,
+      culpa: 'aluno',
+      tipo: 'cancelamento',
+      horario_falta: alunoHorario,
+      prazo_dias: prazoFaltaDias,
     })
     setSaving(false)
-    if (res.data) { onSaved(res.data); onClose() }
+    if (res.error) { setErr(res.error); return }
+    onFaltaRegistrada(res.data!)
+    onClose()
+    onGoToFaltas()
+  }
+
+  // ── step: cancelamento → gerar crédito ──────────────────────────────────────
+  async function handleCancelamentoCredito() {
+    const val = parseFloat(creditoValor.replace(',', '.'))
+    if (!val || val <= 0) { setErr('Informe um valor de crédito válido.'); return }
+    setSaving(true); setErr('')
+
+    // Create falta first
+    const r1 = await createFaltaAction({
+      aluno_id: aluno.id,
+      data_falta: dateStr,
+      culpa: 'aluno',
+      tipo: 'cancelamento',
+      horario_falta: alunoHorario,
+      prazo_dias: prazoFaltaDias,
+    })
+    if (r1.error) { setSaving(false); setErr(r1.error); return }
+
+    // Resolve immediately as credit
+    const r2 = await resolveFaltaAction(r1.data!.id, { tipo: 'credito', credito_valor: val })
+    setSaving(false)
+    if (r2.error) { setErr(r2.error); return }
+
+    onFaltaRegistrada({ ...r1.data!, status: 'credito', credito_valor: val })
+    setCreatedFalta(r1.data!)
+    setStep('cancelamento-done')
   }
 
   async function handleSaveObs() {
@@ -604,66 +673,248 @@ function AlunoCardModal({
     setSaving(false); setObsMode(false)
   }
 
-  const PLANO_LABEL: Record<string, string> = { por_aula: 'Por aula', mensalidade: 'Mensalidade' }
+  // ── Info grid ────────────────────────────────────────────────────────────────
+  const infoGrid = (
+    <div className="grid grid-cols-2 gap-2">
+      {[
+        { label: 'Horário', value: `${alunoHorario} (${aluno.duracao}min)` },
+        { label: 'Local',   value: aluno.local || '—' },
+        { label: 'Plano',   value: PLANO_LABEL[aluno.modelo_cobranca] ?? aluno.modelo_cobranca },
+        { label: 'Data',    value: `${WEEK_LABELS[dayIdx]} ${formatDay(date)}` },
+      ].map(({ label, value }) => (
+        <div key={label} className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+          <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</p>
+        </div>
+      ))}
+    </div>
+  )
 
+  // ── Render per step ──────────────────────────────────────────────────────────
   return (
     <Overlay onClose={onClose}>
       <ModalHeader title={aluno.nome} onClose={onClose} />
       <div className="p-5 flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: 'Horário', value: `${alunoHorario} (${aluno.duracao}min)` },
-            { label: 'Local',   value: aluno.local || '—' },
-            { label: 'Plano',   value: PLANO_LABEL[aluno.modelo_cobranca] ?? aluno.modelo_cobranca },
-            { label: 'Data',    value: `${WEEK_LABELS[dayIdx]} ${formatDay(date)}` },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-              <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</p>
-            </div>
-          ))}
-        </div>
-        {!obsMode && aluno.observacoes && (
-          <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-            <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Observações</p>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{aluno.observacoes}</p>
-          </div>
-        )}
-        {obsMode && (
-          <div className="flex flex-col gap-2">
-            <textarea value={obs} onChange={e => setObs(e.target.value)} rows={3}
-              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
-              style={{ background: 'var(--bg-input)', border: '1px solid var(--border-focus)', color: 'var(--text-primary)' }} />
+
+        {/* STEP: menu */}
+        {step === 'menu' && (
+          <>
+            {infoGrid}
+            {aluno.observacoes && !obsMode && (
+              <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Observações</p>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{aluno.observacoes}</p>
+              </div>
+            )}
+            {existingFalta && (
+              <div className="rounded-xl px-3 py-2.5 text-xs font-medium flex items-center gap-2"
+                style={{ background: existingFalta.tipo === 'cancelamento' ? 'rgba(255,152,0,0.1)' : 'rgba(255,82,82,0.1)',
+                  color: existingFalta.tipo === 'cancelamento' ? CANCELAMENTO_COLOR : FALTA_COLOR,
+                  border: `1px solid ${existingFalta.tipo === 'cancelamento' ? 'rgba(255,152,0,0.25)' : 'rgba(255,82,82,0.25)'}` }}>
+                <span>{existingFalta.tipo === 'cancelamento' ? '🟠' : '🔴'}</span>
+                <span>{existingFalta.tipo === 'cancelamento' ? 'Cancelamento' : 'Falta'} já registrado neste dia</span>
+              </div>
+            )}
+            {!existingFalta && (
+              <div className="flex flex-col gap-2">
+                <button onClick={() => setStep('falta-culpa')}
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
+                  style={{ background: 'rgba(255,82,82,0.1)', color: FALTA_COLOR, border: '1px solid rgba(255,82,82,0.25)' }}>
+                  🔴 Marcar Falta
+                  <span className="text-xs font-normal opacity-70">(aluno não compareceu)</span>
+                </button>
+                <button onClick={() => setStep('cancelamento-options')}
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
+                  style={{ background: 'rgba(255,152,0,0.1)', color: CANCELAMENTO_COLOR, border: '1px solid rgba(255,152,0,0.25)' }}>
+                  🟠 Cancelamento c/ Antecedência
+                  <span className="text-xs font-normal opacity-70">(aluno avisou antes)</span>
+                </button>
+              </div>
+            )}
             <div className="flex gap-2">
-              <button onClick={() => setObsMode(false)}
-                className="px-3 py-2 rounded-lg text-xs cursor-pointer"
-                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
-                Cancelar
+              <button onClick={onReagendar}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
+                style={{ background: 'rgba(64,196,255,0.1)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}>
+                ↺ Reagendar
               </button>
-              <button onClick={handleSaveObs} disabled={saving}
-                className="flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-50"
-                style={{ background: 'var(--green-primary)', color: '#000' }}>
-                {saving ? '...' : 'Salvar obs'}
+              <button onClick={() => { setObsMode(true); setStep('obs') }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                📝 Observação
               </button>
             </div>
-          </div>
+          </>
         )}
-        {!obsMode && (
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: '✗ Falta justificada', action: handleFalta,   color: '#FF5252',     bg: 'rgba(255,82,82,0.1)',   border: 'rgba(255,82,82,0.2)', disabled: saving || isCancelled },
-              { label: '↺ Reagendar',          action: onReagendar,   color: '#40C4FF',     bg: 'rgba(64,196,255,0.1)', border: 'rgba(64,196,255,0.2)', disabled: false },
-              { label: '📝 Observação',        action: ()=>setObsMode(true), color: 'var(--text-secondary)', bg: 'var(--bg-card)', border: 'var(--border-subtle)', disabled: false },
-              { label: isCancelled ? 'Já cancelada' : '⊘ Cancelar aula', action: handleCancelar, color: '#FF5252', bg: 'rgba(255,82,82,0.1)', border: 'rgba(255,82,82,0.2)', disabled: saving || isCancelled },
-            ].map(({ label, action, color, bg, border, disabled }) => (
-              <button key={label} onClick={action} disabled={disabled}
-                className="py-2.5 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-40"
-                style={{ background: bg, color, border: `1px solid ${border}` }}>
-                {label}
+
+        {/* STEP: obs */}
+        {step === 'obs' && (
+          <>
+            {infoGrid}
+            <div className="flex flex-col gap-2">
+              <textarea value={obs} onChange={e => setObs(e.target.value)} rows={3}
+                autoFocus
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-focus)', color: 'var(--text-primary)' }} />
+              <div className="flex gap-2">
+                <button onClick={() => setStep('menu')}
+                  className="px-4 py-2.5 rounded-xl text-sm cursor-pointer"
+                  style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                  ← Voltar
+                </button>
+                <button onClick={handleSaveObs} disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+                  style={{ background: 'var(--green-primary)', color: '#000' }}>
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* STEP: falta-culpa */}
+        {step === 'falta-culpa' && (
+          <>
+            <div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(255,82,82,0.06)', border: '1px solid rgba(255,82,82,0.2)' }}>
+              <p className="font-semibold" style={{ color: FALTA_COLOR }}>🔴 Marcar Falta</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)} · {alunoHorario}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Quem cancelou?</p>
+              <div className="flex gap-2">
+                {(['aluno', 'professor'] as const).map(c => (
+                  <button key={c} onClick={() => handleFaltaSubmit(c)} disabled={saving}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = FALTA_COLOR}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}>
+                    {c === 'aluno' ? '👤 Aluno' : '👨‍🏫 Professor'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {err && <p className="text-xs" style={{ color: '#FF5252' }}>{err}</p>}
+            <button onClick={() => setStep('menu')} className="py-2 rounded-xl text-sm cursor-pointer"
+              style={{ background: 'transparent', color: 'var(--text-muted)' }}>
+              ← Voltar
+            </button>
+          </>
+        )}
+
+        {/* STEP: falta-done */}
+        {step === 'falta-done' && (
+          <>
+            <div className="rounded-xl p-4 text-center flex flex-col gap-2"
+              style={{ background: 'rgba(255,82,82,0.06)', border: '1px solid rgba(255,82,82,0.2)' }}>
+              <p className="text-2xl">✅</p>
+              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Falta registrada!</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)}
+              </p>
+            </div>
+            <button onClick={() => { onClose(); onGoToFaltas() }}
+              className="w-full py-3 rounded-xl text-sm font-semibold cursor-pointer"
+              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+              📅 Ir para Remarcações Pendentes
+            </button>
+            <button onClick={onClose} className="py-2 rounded-xl text-sm cursor-pointer"
+              style={{ background: 'transparent', color: 'var(--text-muted)' }}>
+              Fechar
+            </button>
+          </>
+        )}
+
+        {/* STEP: cancelamento-options */}
+        {step === 'cancelamento-options' && (
+          <>
+            <div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(255,152,0,0.06)', border: '1px solid rgba(255,152,0,0.2)' }}>
+              <p className="font-semibold" style={{ color: CANCELAMENTO_COLOR }}>🟠 Cancelamento com Antecedência</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)} · {alunoHorario}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button onClick={handleCancelamentoRemarcacao} disabled={saving}
+                className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+                style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+                📅 Ir para Remarcações Pendentes
               </button>
-            ))}
-          </div>
+              <button onClick={() => setStep('cancelamento-credito')} disabled={saving}
+                className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+                style={{ background: 'rgba(64,196,255,0.1)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}>
+                💳 Gerar Crédito
+              </button>
+            </div>
+            {err && <p className="text-xs" style={{ color: '#FF5252' }}>{err}</p>}
+            <button onClick={() => setStep('menu')} className="py-2 rounded-xl text-sm cursor-pointer"
+              style={{ background: 'transparent', color: 'var(--text-muted)' }}>
+              ← Voltar
+            </button>
+          </>
         )}
+
+        {/* STEP: cancelamento-credito */}
+        {step === 'cancelamento-credito' && (
+          <>
+            <div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(255,152,0,0.06)', border: '1px solid rgba(255,152,0,0.2)' }}>
+              <p className="font-semibold" style={{ color: CANCELAMENTO_COLOR }}>💳 Gerar Crédito</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)}
+              </p>
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>
+                Valor do crédito (R$)
+              </label>
+              <input
+                type="text" inputMode="decimal" placeholder="Ex: 80,00"
+                value={creditoValor}
+                onChange={e => setCreditoValor(e.target.value)}
+                autoFocus
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                onFocus={e => e.target.style.borderColor = 'var(--border-focus)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
+              />
+              <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
+                O crédito será descontado na cobrança do próximo mês.
+              </p>
+            </div>
+            {err && <p className="text-xs" style={{ color: '#FF5252' }}>{err}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setStep('cancelamento-options'); setErr('') }}
+                className="px-4 py-2.5 rounded-xl text-sm cursor-pointer"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                ← Voltar
+              </button>
+              <button onClick={handleCancelamentoCredito} disabled={saving}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+                style={{ background: '#40C4FF22', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.3)' }}>
+                {saving ? 'Salvando...' : '💳 Confirmar Crédito'}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* STEP: cancelamento-done */}
+        {step === 'cancelamento-done' && (
+          <>
+            <div className="rounded-xl p-4 text-center flex flex-col gap-2"
+              style={{ background: 'rgba(64,196,255,0.06)', border: '1px solid rgba(64,196,255,0.2)' }}>
+              <p className="text-2xl">✅</p>
+              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Crédito gerado!</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Será descontado na cobrança do próximo mês.
+              </p>
+            </div>
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
+              style={{ background: 'var(--green-primary)', color: '#000' }}>
+              Fechar
+            </button>
+          </>
+        )}
+
       </div>
     </Overlay>
   )
@@ -851,9 +1102,12 @@ function AvailableSlotsModal({
 
 // ─── main component ────────────────────────────────────────────────────────────
 
-export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
+export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToFaltas }: Props) {
   const [weekOffset, setWeekOffset]     = useState(0)
   const [eventos, setEventos]           = useState<EventoAgendaRow[]>(eventosIniciais)
+  const [faltas,  setFaltas]            = useState<FaltaRow[]>(faltasIniciais)
+  // Default prazo_dias=30 (used when creating faltas from agenda — loaded from prefs via state)
+  const prazoFaltaDias = 30
   const [modal, setModal]               = useState<Modal>(null)
   const [mobileDayIdx, setMobileDayIdx] = useState(() => {
     const d = new Date().getDay(); return d === 0 ? 6 : d - 1
@@ -1305,7 +1559,11 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
           if (b.isAluno && b.aluno) {
             const a       = b.aluno
-            const color   = TIPO_COLOR.aula
+            // Override color if there's a falta record for this aluno on this date
+            const faltaRec = faltas.find(f => f.aluno_id === a.id && f.data_falta === dateStr && f.status !== 'reposta')
+            const color = faltaRec
+              ? ((faltaRec.tipo ?? 'falta') === 'cancelamento' ? CANCELAMENTO_COLOR : FALTA_COLOR)
+              : TIPO_COLOR.aula
             const blockId = b.id
             const dragData: DragData = {
               blockType: 'aluno', aluno: a,
@@ -1549,7 +1807,10 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
 
                   if (b.isAluno && b.aluno) {
                     const a        = b.aluno
-                    const color    = TIPO_COLOR.aula
+                    const faltaRec2 = faltas.find(f => f.aluno_id === a.id && f.data_falta === dateStr && f.status !== 'reposta')
+                    const color    = faltaRec2
+                      ? ((faltaRec2.tipo ?? 'falta') === 'cancelamento' ? CANCELAMENTO_COLOR : FALTA_COLOR)
+                      : TIPO_COLOR.aula
                     const dragData: DragData = {
                       blockType: 'aluno', aluno: a,
                       dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
@@ -1664,6 +1925,24 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Color legend */}
+        <div className="flex items-center gap-3 px-4 md:px-6 py-2 shrink-0 overflow-x-auto"
+          style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+          {([
+            { color: TIPO_COLOR.aula,       label: 'Aula' },
+            { color: FALTA_COLOR,           label: 'Falta' },
+            { color: CANCELAMENTO_COLOR,    label: 'Cancelamento' },
+            { color: TIPO_COLOR.reposicao,  label: 'Reposição' },
+            { color: TIPO_COLOR.aula_extra, label: 'Aula Extra' },
+            { color: TIPO_COLOR.reuniao,    label: 'Reunião' },
+          ] as const).map(({ color, label }) => (
+            <div key={label} className="flex items-center gap-1.5 shrink-0">
+              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</span>
+            </div>
+          ))}
         </div>
 
         {/* Mobile view toggle (Dia / Semana) */}
@@ -1845,9 +2124,14 @@ export function AgendaSemanal({ alunos, eventosIniciais }: Props) {
         )}
         {modal?.type === 'aluno-card' && (
           <AlunoCardModal aluno={modal.aluno} dayIdx={modal.dayIdx} date={modal.date}
-            eventos={eventos} onClose={() => setModal(null)}
+            eventos={eventos}
+            prazoFaltaDias={prazoFaltaDias}
+            faltasData={faltas}
+            onClose={() => setModal(null)}
             onReagendar={() => setModal({ type: 'add', dayIdx: modal.dayIdx, date: modal.date, timeMin: timeToMin(modal.aluno.horarios.find(x => x.dia === WEEK_KEYS[modal.dayIdx])?.horario ?? '08:00') })}
-            onCancelado={addEvento} onSaved={addEvento} />
+            onFaltaRegistrada={(f) => setFaltas(prev => [...prev.filter(x => !(x.aluno_id === f.aluno_id && x.data_falta === f.data_falta)), f])}
+            onGoToFaltas={() => { setModal(null); onGoToFaltas() }}
+          />
         )}
         {modal?.type === 'evento-card' && (
           <EventoCardModal evento={modal.evento} alunoNome={modal.alunoNome}

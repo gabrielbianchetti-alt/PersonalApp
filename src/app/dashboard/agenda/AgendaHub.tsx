@@ -34,7 +34,7 @@ interface Props {
 
 const TABS = [
   { key: 'grade',  label: 'Grade Semanal' },
-  { key: 'faltas', label: 'Faltas e Reposições' },
+  { key: 'faltas', label: 'Remarcações Pendentes' },
 ]
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -69,13 +69,15 @@ export function AgendaHub({
           <AgendaSemanal
             alunos={alunos}
             eventosIniciais={eventosIniciais}
+            faltasIniciais={faltasIniciais}
+            onGoToFaltas={() => setTab('faltas')}
           />
         )}
 
-        {/* ── Faltas e Reposições ── */}
+        {/* ── Remarcações Pendentes ── */}
         {tab === 'faltas' && (
           <Faltas
-            alunos={alunosFaltas}
+            alunos={alunos}
             faltasIniciais={faltasIniciais}
             prefsIniciais={prefsIniciais}
           />

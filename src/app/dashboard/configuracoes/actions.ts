@@ -40,7 +40,8 @@ export async function getOrCreatePerfilAction(): Promise<{
   crypto.getRandomValues(bytes)
   const codigo = 'PH' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase()
 
-  const { data: newRow, error: insertError } = await admin
+  // Try full insert first (with codigo_indicacao)
+  let { data: newRow, error: insertError } = await admin
     .from('professor_perfil')
     .insert({
       professor_id: user.id,
@@ -52,9 +53,27 @@ export async function getOrCreatePerfilAction(): Promise<{
     .select()
     .single()
 
+  // If column doesn't exist in the DB yet, retry without it
+  if (insertError && (insertError.code === '42703' || insertError.message?.includes('codigo_indicacao'))) {
+    console.warn('getOrCreatePerfil: retrying without codigo_indicacao column')
+    ;({ data: newRow, error: insertError } = await admin
+      .from('professor_perfil')
+      .insert({
+        professor_id: user.id,
+        nome: (user.user_metadata?.full_name as string | undefined) ?? '',
+        cor_tema: '#00E676',
+        modo_tema: 'escuro',
+      })
+      .select()
+      .single())
+  }
+
   if (insertError) {
-    console.error('getOrCreatePerfil:', insertError)
-    return { error: 'Erro ao carregar perfil.' }
+    console.error('getOrCreatePerfil — code:', insertError.code)
+    console.error('getOrCreatePerfil — message:', insertError.message)
+    console.error('getOrCreatePerfil — details:', insertError.details)
+    console.error('getOrCreatePerfil — hint:', insertError.hint)
+    return { error: `Erro ao criar perfil: ${insertError.message ?? 'desconhecido'}` }
   }
 
   return { data: newRow as ProfessorPerfil, email: user.email }

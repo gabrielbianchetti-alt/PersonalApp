@@ -11,6 +11,8 @@ export interface FaltaRow {
   data_falta: string          // "YYYY-MM-DD"
   culpa: 'aluno' | 'professor'
   status: 'pendente' | 'reposta' | 'credito' | 'vencida'
+  tipo: 'falta' | 'cancelamento'  // falta = no-show, cancelamento = advance notice
+  horario_falta: string | null    // "HH:MM" — original lesson time
   data_reposicao: string | null  // "YYYY-MM-DD"
   credito_valor: number | null
   mes_validade: string | null    // "YYYY-MM" — month the credit is valid for
@@ -88,6 +90,8 @@ export async function createFaltaAction(input: {
   data_falta: string
   culpa: 'aluno' | 'professor'
   prazo_dias: number
+  tipo?: 'falta' | 'cancelamento'
+  horario_falta?: string | null
   observacao?: string
 }): Promise<{ data?: FaltaRow; error?: string }> {
   const supabase = await createClient()
@@ -106,6 +110,8 @@ export async function createFaltaAction(input: {
       aluno_id: input.aluno_id,
       data_falta: input.data_falta,
       culpa: input.culpa,
+      tipo: input.tipo ?? 'falta',
+      horario_falta: input.horario_falta ?? null,
       status: 'pendente',
       prazo_vencimento,
       observacao: input.observacao ?? null,
@@ -113,13 +119,15 @@ export async function createFaltaAction(input: {
     .select()
     .single()
 
-  if (error) { console.error('createFalta:', error); return { error: 'Erro ao registrar falta.' } }
+  if (error) { console.error('createFalta:', error.code, error.message); return { error: 'Erro ao registrar falta.' } }
   return { data: row as FaltaRow }
 }
 
 export async function resolveFaltaAction(
   id: string,
-  resolution: { tipo: 'reposta'; data_reposicao: string } | { tipo: 'credito'; credito_valor: number }
+  resolution:
+    | { tipo: 'reposta'; data_reposicao: string; horario_reposicao?: string; aluno_id?: string; aluno_nome?: string; duracao?: number }
+    | { tipo: 'credito'; credito_valor: number }
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -132,6 +140,22 @@ export async function resolveFaltaAction(
   if (resolution.tipo === 'reposta') {
     updates.status = 'reposta'
     updates.data_reposicao = resolution.data_reposicao
+
+    // If a specific time is provided, also create a reposicao event in the agenda
+    if (resolution.horario_reposicao && resolution.aluno_id) {
+      const nome = resolution.aluno_nome?.split(' ')[0] ?? 'Aluno'
+      await supabase
+        .from('eventos_agenda')
+        .insert({
+          professor_id: user.id,
+          tipo: 'reposicao',
+          titulo: `Reposição — ${nome}`,
+          aluno_id: resolution.aluno_id,
+          data_especifica: resolution.data_reposicao,
+          horario_inicio: resolution.horario_reposicao,
+          duracao: resolution.duracao ?? 60,
+        })
+    }
   } else {
     updates.status = 'credito'
     updates.credito_valor = resolution.credito_valor

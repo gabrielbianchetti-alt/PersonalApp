@@ -74,8 +74,13 @@ export default async function AgendaPage({
 
   const prefsDefault: PrefsF = prefs ?? { ativo: false, prazo_dias: 30, alerta_dias: 5 }
 
-  // Alunos for faltas (id + nome only)
-  const alunosFaltas = (alunos ?? []).map(a => ({ id: a.id, nome: a.nome }))
+  // Alunos for faltas — include horarios and duracao for conflict detection
+  const alunosFaltas = (alunos ?? []).map(a => ({
+    id: a.id,
+    nome: a.nome,
+    horarios: a.horarios as { dia: string; horario: string }[],
+    duracao: a.duracao as number,
+  }))
 
   // Determine initial tab
   const validTabs: AgendaTab[] = ['grade', 'faltas']
