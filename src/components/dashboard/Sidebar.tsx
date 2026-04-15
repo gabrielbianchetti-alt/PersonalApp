@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LogoFull } from '@/components/brand/LogoFull'
 
 const NAV_ITEMS = [
   {
@@ -106,7 +105,15 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         className="flex items-center gap-2.5 h-14 px-5 shrink-0"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
       >
-        <LogoFull iconSize={28} fontSize={14} gap={8} />
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0"
+          style={{ background: 'var(--green-primary)', color: '#000' }}
+        >
+          PH
+        </div>
+        <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+          PersonalHub
+        </span>
       </div>
 
       {/* Scrollable content: nav + bottom section */}

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { LogoFull } from '@/components/brand/LogoFull'
 
 export const metadata: Metadata = {
   title: 'Assinar — PersonalHub',
@@ -25,7 +24,16 @@ export default function AssinarLayout({ children }: { children: React.ReactNode 
           gap: 8,
         }}
       >
-        <LogoFull iconSize={26} fontSize={15} gap={8} />
+        <div
+          style={{
+            width: 30, height: 30, borderRadius: 8,
+            background: '#1e293b',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <span style={{ color: '#00E676', fontWeight: 800, fontSize: 11 }}>PH</span>
+        </div>
+        <span style={{ fontWeight: 800, fontSize: 16, color: '#f8fafc' }}>PersonalHub</span>
       </header>
       <main style={{ flex: 1 }}>{children}</main>
     </div>
