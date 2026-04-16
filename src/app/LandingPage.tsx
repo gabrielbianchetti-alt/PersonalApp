@@ -87,37 +87,39 @@ function useCountUp(target: number, duration = 1600, active = false) {
   return val
 }
 
-// ─── PromoBar ─────────────────────────────────────────────────────────────────
-function PromoBar() {
+// ─── SVG Icons (minimalistas, cor sólida única) ───────────────────────────────
+function SvgIco({ size = 20, children }: { size?: number; children: React.ReactNode }) {
   return (
-    <div style={{
-      background: ACC,
-      color: WHITE,
-      textAlign: 'center',
-      padding: '0 16px',
-      height: 44,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 13,
-      fontWeight: 500,
-      gap: 6,
-      flexWrap: 'wrap',
-    }}>
-      <span>🎉 Oferta de lançamento: primeiro mês grátis com o código</span>
-      <span style={{
-        background: '#000',
-        color: WHITE,
-        borderRadius: 99,
-        padding: '2px 12px',
-        fontWeight: 800,
-        letterSpacing: 0.5,
-        fontSize: 12,
-      }}>PRIMEIROS20</span>
-      <span>— Cancele quando quiser.</span>
-    </div>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', flexShrink: 0 }}>
+      {children}
+    </svg>
   )
 }
+const IcoDumbbell  = ({s=20}:{s?:number}) => <SvgIco size={s}><circle cx="5.5" cy="9" r="1.5"/><circle cx="5.5" cy="15" r="1.5"/><circle cx="18.5" cy="9" r="1.5"/><circle cx="18.5" cy="15" r="1.5"/><line x1="5.5" y1="9" x2="5.5" y2="15"/><line x1="18.5" y1="9" x2="18.5" y2="15"/><line x1="7" y1="12" x2="17" y2="12" strokeWidth="3"/></SvgIco>
+const IcoMoney     = ({s=20}:{s?:number}) => <SvgIco size={s}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></SvgIco>
+const IcoCalendar  = ({s=20}:{s?:number}) => <SvgIco size={s}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></SvgIco>
+const IcoPhone     = ({s=20}:{s?:number}) => <SvgIco size={s}><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18" strokeWidth="3"/></SvgIco>
+const IcoLock      = ({s=20}:{s?:number}) => <SvgIco size={s}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></SvgIco>
+const IcoXCircle   = ({s=20}:{s?:number}) => <SvgIco size={s}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></SvgIco>
+const IcoBan       = ({s=20}:{s?:number}) => <SvgIco size={s}><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></SvgIco>
+const IcoBarChart  = ({s=20}:{s?:number}) => <SvgIco size={s}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></SvgIco>
+const IcoPencil    = ({s=20}:{s?:number}) => <SvgIco size={s}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></SvgIco>
+const IcoHash      = ({s=20}:{s?:number}) => <SvgIco size={s}><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></SvgIco>
+const IcoClock     = ({s=20}:{s?:number}) => <SvgIco size={s}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></SvgIco>
+const IcoHelp      = ({s=20}:{s?:number}) => <SvgIco size={s}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="3"/></SvgIco>
+const IcoDollar    = ({s=20}:{s?:number}) => <SvgIco size={s}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></SvgIco>
+const IcoSend      = ({s=20}:{s?:number}) => <SvgIco size={s}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></SvgIco>
+const IcoUser      = ({s=20}:{s?:number}) => <SvgIco size={s}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></SvgIco>
+const IcoX         = ({s=20}:{s?:number}) => <SvgIco size={s}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></SvgIco>
+const IcoCheck     = ({s=20}:{s?:number}) => <SvgIco size={s}><polyline points="20 6 9 17 4 12"/></SvgIco>
+const IcoHome      = ({s=20}:{s?:number}) => <SvgIco size={s}><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></SvgIco>
+const IcoUsers     = ({s=20}:{s?:number}) => <SvgIco size={s}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></SvgIco>
+const IcoCreditCard= ({s=20}:{s?:number}) => <SvgIco size={s}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></SvgIco>
+const IcoRefresh   = ({s=20}:{s?:number}) => <SvgIco size={s}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></SvgIco>
+const IcoTrending  = ({s=20}:{s?:number}) => <SvgIco size={s}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></SvgIco>
+const IcoFileText  = ({s=20}:{s?:number}) => <SvgIco size={s}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></SvgIco>
+const IcoPause     = ({s=20}:{s?:number}) => <SvgIco size={s}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></SvgIco>
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 function Navbar() {
@@ -236,7 +238,7 @@ function HeroSection() {
             borderRadius: 99,
             padding: '6px 20px',
           }}>
-            <span style={{ color: ACC, fontWeight: 700, fontSize: 13 }}>Para personal trainers 🏋️</span>
+            <span style={{ color: ACC, fontWeight: 700, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IcoDumbbell s={14} />Para personal trainers</span>
           </div>
         </FadeIn>
 
@@ -291,9 +293,9 @@ function HeroSection() {
             justifyContent: 'center',
           }}>
             {[
-              { icon: '💰', title: 'Controle financeiro total', desc: 'Saiba quanto você realmente lucra' },
-              { icon: '📅', title: 'Agenda e cobrança integradas', desc: 'Uma coisa alimenta a outra' },
-              { icon: '📱', title: 'Tudo em um só app', desc: 'Chega de planilha e calculadora' },
+              { icon: <IcoMoney />, title: 'Controle financeiro total', desc: 'Saiba quanto você realmente lucra' },
+              { icon: <IcoCalendar />, title: 'Agenda e cobrança integradas', desc: 'Uma coisa alimenta a outra' },
+              { icon: <IcoPhone />, title: 'Tudo em um só app', desc: 'Chega de planilha e calculadora' },
             ].map(card => (
               <div key={card.title} style={{
                 background: WHITE,
@@ -316,7 +318,7 @@ function HeroSection() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 16,
+                  color: ACC,
                 }}>
                   {card.icon}
                 </div>
@@ -366,9 +368,9 @@ function HeroSection() {
             flexWrap: 'wrap',
             marginTop: 20,
           }}>
-            <span>🔒 Pagamento seguro</span>
-            <span>✕ Cancele quando quiser</span>
-            <span>🚫 Sem fidelidade</span>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}><IcoLock s={13}/>Pagamento seguro</span>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}><IcoXCircle s={13}/>Cancele quando quiser</span>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}><IcoBan s={13}/>Sem fidelidade</span>
           </div>
         </FadeIn>
 
@@ -397,13 +399,13 @@ function HeroSection() {
 }
 
 // ─── PainSection ──────────────────────────────────────────────────────────────
-const PAINS = [
-  { icon: '📊', title: 'Planilha no Google Sheets', desc: 'Aquela planilha que ninguém mais entende, cheio de fórmulas quebradas' },
-  { icon: '📝', title: 'Bloco de notas no celular', desc: 'Nomes, horários e valores espalhados entre conversas do WhatsApp' },
-  { icon: '🔢', title: 'Calculadora todo mês', desc: 'Calculando manualmente quanto cobrar de cada aluno' },
-  { icon: '⏰', title: 'Cobrança atrasada', desc: 'Demora para enviar porque o fechamento ainda não foi feito' },
-  { icon: '❓', title: 'Reposições esquecidas', desc: 'No fim do mês não tem certeza de quantas aulas deu mesmo' },
-  { icon: '💸', title: 'Lucro desconhecido', desc: 'Não sabe o real porque não considerou taxas, cancelamentos e custos' },
+const PAINS: { icon: React.ReactNode; title: string; desc: string }[] = [
+  { icon: <IcoBarChart />, title: 'Planilha no Google Sheets', desc: 'Aquela planilha que ninguém mais entende, cheio de fórmulas quebradas' },
+  { icon: <IcoPencil />,   title: 'Bloco de notas no celular', desc: 'Nomes, horários e valores espalhados entre conversas do WhatsApp' },
+  { icon: <IcoHash />,     title: 'Calculadora todo mês', desc: 'Calculando manualmente quanto cobrar de cada aluno' },
+  { icon: <IcoClock />,    title: 'Cobrança atrasada', desc: 'Demora para enviar porque o fechamento ainda não foi feito' },
+  { icon: <IcoHelp />,     title: 'Reposições esquecidas', desc: 'No fim do mês não tem certeza de quantas aulas deu mesmo' },
+  { icon: <IcoDollar />,   title: 'Lucro desconhecido', desc: 'Não sabe o real porque não considerou taxas, cancelamentos e custos' },
 ]
 
 function PainSection() {
@@ -456,7 +458,7 @@ function PainSection() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 20,
+                  color: 'rgba(255,255,255,0.7)',
                   flexShrink: 0,
                 }}>
                   {pain.icon}
@@ -624,7 +626,7 @@ function MockCobranca() {
         justifyContent: 'center',
         gap: 8,
       }}>
-        📲 Enviar WhatsApp
+        <IcoSend s={16}/> Enviar WhatsApp
       </button>
     </div>
   )
@@ -954,16 +956,16 @@ function DemoSection() {
 }
 
 // ─── Modules section ──────────────────────────────────────────────────────────
-const MODULES = [
-  { icon: '🏠', name: 'Dashboard', desc: 'Tudo que importa em 5 segundos' },
-  { icon: '👥', name: 'Cadastro de Alunos', desc: 'Formulário completo em 4 etapas' },
-  { icon: '📅', name: 'Agenda Semanal', desc: 'Grade visual de segunda a domingo' },
-  { icon: '🔢', name: 'Cálculo Mensal', desc: 'Contagem exata, zero conta manual' },
-  { icon: '💳', name: 'Cobrança', desc: 'Mensagem pronta com Pix ou cartão' },
-  { icon: '🔄', name: 'Faltas e Reposições', desc: 'Prazo, crédito e alertas' },
-  { icon: '📊', name: 'Financeiro', desc: 'Custos, faturamento e lucro real' },
-  { icon: '📋', name: 'Termo de Serviço', desc: 'Enviado pelo WhatsApp' },
-  { icon: '⏸️', name: 'Suspensão e Atestado', desc: 'Pausa sem perder o cadastro' },
+const MODULES: { icon: React.ReactNode; name: string; desc: string }[] = [
+  { icon: <IcoHome />,       name: 'Dashboard',            desc: 'Tudo que importa em 5 segundos' },
+  { icon: <IcoUsers />,      name: 'Cadastro de Alunos',   desc: 'Formulário completo em 4 etapas' },
+  { icon: <IcoCalendar />,   name: 'Agenda Semanal',       desc: 'Grade visual de segunda a domingo' },
+  { icon: <IcoHash />,       name: 'Cálculo Mensal',       desc: 'Contagem exata, zero conta manual' },
+  { icon: <IcoCreditCard />, name: 'Cobrança',             desc: 'Mensagem pronta com Pix ou cartão' },
+  { icon: <IcoRefresh />,    name: 'Faltas e Reposições',  desc: 'Prazo, crédito e alertas' },
+  { icon: <IcoTrending />,   name: 'Financeiro',           desc: 'Custos, faturamento e lucro real' },
+  { icon: <IcoFileText />,   name: 'Termo de Serviço',     desc: 'Enviado pelo WhatsApp' },
+  { icon: <IcoPause />,      name: 'Suspensão e Atestado', desc: 'Pausa sem perder o cadastro' },
 ]
 
 function ModulesSection() {
@@ -1036,7 +1038,7 @@ function ModulesSection() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 20,
+                  color: ACC,
                 }}>
                   {mod.icon}
                 </div>
@@ -1132,9 +1134,9 @@ function SocialProofSection() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 16,
+                    color: 'rgba(252,110,32,0.6)',
                   }}>
-                    👤
+                    <IcoUser s={20}/>
                   </div>
                   <span style={{ color: WHITE, fontSize: 14, fontWeight: 700 }}>— Nome Sobrenome</span>
                 </div>
@@ -1203,10 +1205,10 @@ function ComparisonSection() {
                     FUNCIONALIDADE
                   </th>
                   <th style={{ padding: '20px', textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600, background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    ❌ Jeito Antigo
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:6, color:'rgba(255,255,255,0.4)' }}><IcoX s={14}/>Jeito Antigo</span>
                   </th>
                   <th style={{ padding: '20px', textAlign: 'center', fontSize: 13, color: ACC, fontWeight: 800, background: 'rgba(252,110,32,0.15)', borderBottom: '1px solid rgba(252,110,32,0.2)' }}>
-                    ✅ PersonalHub
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:6, color:ACC }}><IcoCheck s={14}/>PersonalHub</span>
                   </th>
                 </tr>
               </thead>
@@ -1520,7 +1522,6 @@ export default function LandingPage() {
         }
       `}</style>
 
-      <PromoBar />
       <Navbar />
       <HeroSection />
 
