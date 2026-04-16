@@ -2,7 +2,14 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { FinanceiroHub } from './FinanceiroHub'
 import type { FinanceiroTab } from './FinanceiroHub'
-import { ensureFixosForMesAction, type CustoRow } from './actions'
+import {
+  ensureFixosForMesAction,
+  getReceitasExtrasForMesAction,
+  getHistoricoFinanceiroAction,
+  type CustoRow,
+  type ReceitaExtraRow,
+  type HistoricoMes,
+} from './actions'
 
 export const metadata: Metadata = { title: 'Financeiro — PersonalHub' }
 
@@ -16,8 +23,23 @@ export default async function FinanceiroPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const today   = new Date()
+  const today    = new Date()
   const mesAtual = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+
+  // Compute last 6 months ending at mesAtual for the historico chart
+  function getLast6Months(endMes: string): string[] {
+    const [y, mo] = endMes.split('-').map(Number)
+    const month = mo - 1
+    const result: string[] = []
+    for (let i = 5; i >= 0; i--) {
+      let m = month - i
+      let yr = y
+      while (m < 0) { m += 12; yr-- }
+      result.push(`${yr}-${String(m + 1).padStart(2, '0')}`)
+    }
+    return result
+  }
+  const mesesHistorico = getLast6Months(mesAtual)
 
   // Replicate active fixos into the current month before the parallel fetch
   await ensureFixosForMesAction(mesAtual)
@@ -28,6 +50,8 @@ export default async function FinanceiroPage({
     { data: cobrancas },
     { data: prefs },
     { data: creditos },
+    { data: receitasExtras },
+    { data: historico },
   ] = await Promise.all([
     supabase
       .from('alunos')
@@ -58,6 +82,8 @@ export default async function FinanceiroPage({
       .eq('professor_id', user.id)
       .eq('status', 'credito')
       .or(`mes_validade.is.null,mes_validade.eq.${mesAtual}`),
+    getReceitasExtrasForMesAction(mesAtual),
+    getHistoricoFinanceiroAction(mesesHistorico),
   ])
 
   // Build creditos map
@@ -86,6 +112,8 @@ export default async function FinanceiroPage({
       mesInicial={mesAtual}
       alunosCustos={alunosList}
       custosIniciais={(custos ?? []) as CustoRow[]}
+      receitasExtrasIniciais={(receitasExtras ?? []) as ReceitaExtraRow[]}
+      historicoIniciais={(historico ?? []) as HistoricoMes[]}
     />
   )
 }

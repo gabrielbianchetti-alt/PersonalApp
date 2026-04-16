@@ -331,3 +331,114 @@ export async function ensureFixosForMesAction(
   console.error('[ensureFixos] insert error:', ie1.message)
   return { inserted: 0, error: ie1.message }
 }
+
+// ─── receitas extras ──────────────────────────────────────────────────────────
+
+export interface ReceitaExtraRow {
+  id: string
+  professor_id: string
+  descricao: string
+  valor: number
+  data: string | null
+  mes_referencia: string
+  created_at: string
+}
+
+export async function createReceitaExtraAction(input: {
+  descricao: string
+  valor: number
+  data?: string | null
+  mes_referencia: string
+}): Promise<{ data?: ReceitaExtraRow; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { data, error } = await supabase
+    .from('receitas_extras')
+    .insert({ professor_id: user.id, ...input })
+    .select()
+    .single()
+
+  if (error) { console.error('createReceitaExtra:', error); return { error: 'Erro ao salvar receita.' } }
+  return { data: data as ReceitaExtraRow }
+}
+
+export async function getReceitasExtrasForMesAction(
+  mesRef: string
+): Promise<{ data?: ReceitaExtraRow[]; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { data, error } = await supabase
+    .from('receitas_extras')
+    .select('*')
+    .eq('professor_id', user.id)
+    .eq('mes_referencia', mesRef)
+    .order('created_at', { ascending: false })
+
+  if (error) { console.error('getReceitasExtras:', error); return { error: 'Erro ao buscar receitas.' } }
+  return { data: (data ?? []) as ReceitaExtraRow[] }
+}
+
+export async function deleteReceitaExtraAction(
+  id: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { error } = await supabase
+    .from('receitas_extras')
+    .delete()
+    .eq('id', id)
+    .eq('professor_id', user.id)
+
+  if (error) { console.error('deleteReceitaExtra:', error); return { error: 'Erro ao remover receita.' } }
+  return {}
+}
+
+// ─── historico financeiro (multi-month for chart) ─────────────────────────────
+
+export interface HistoricoMes {
+  mes: string           // "YYYY-MM"
+  custos: number
+  receitas_extras: number
+}
+
+export async function getHistoricoFinanceiroAction(
+  meses: string[]
+): Promise<{ data?: HistoricoMes[]; error?: string }> {
+  if (!meses.length) return { data: [] }
+
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const [custosRes, receitasRes] = await Promise.all([
+    supabase
+      .from('custos')
+      .select('mes_referencia, valor')
+      .eq('professor_id', user.id)
+      .in('mes_referencia', meses)
+      .or('ativo.is.null,ativo.eq.true'),
+    supabase
+      .from('receitas_extras')
+      .select('mes_referencia, valor')
+      .eq('professor_id', user.id)
+      .in('mes_referencia', meses),
+  ])
+
+  const result: HistoricoMes[] = meses.map(mes => ({
+    mes,
+    custos: (custosRes.data ?? [])
+      .filter(c => c.mes_referencia === mes)
+      .reduce((s, c) => s + Number(c.valor), 0),
+    receitas_extras: (receitasRes.data ?? [])
+      .filter(r => r.mes_referencia === mes)
+      .reduce((s, r) => s + Number(r.valor), 0),
+  }))
+
+  return { data: result }
+}

@@ -5,7 +5,7 @@ import { TabBar } from '@/components/dashboard/TabBar'
 import { CalculoMensal } from '../calculo/CalculoMensal'
 import { CobrancaMensal } from '../cobranca/CobrancaMensal'
 import { Financeiro as CustosLucro } from './Financeiro'
-import type { CustoRow } from './actions'
+import type { CustoRow, ReceitaExtraRow, HistoricoMes } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +68,8 @@ interface Props {
   // Custos e Lucro
   alunosCustos: AlunoFin[]
   custosIniciais: CustoRow[]
+  receitasExtrasIniciais: ReceitaExtraRow[]
+  historicoIniciais: HistoricoMes[]
 }
 
 const TABS = [
@@ -88,6 +90,8 @@ export function FinanceiroHub({
   mesInicial,
   alunosCustos,
   custosIniciais,
+  receitasExtrasIniciais,
+  historicoIniciais,
 }: Props) {
   const [tab, setTab] = useState<FinanceiroTab>(initialTab)
 
@@ -127,6 +131,8 @@ export function FinanceiroHub({
           <CustosLucro
             alunos={alunosCustos}
             custosIniciais={custosIniciais}
+            receitasExtrasIniciais={receitasExtrasIniciais}
+            historicoIniciais={historicoIniciais}
             mesInicial={mesInicial}
           />
         )}
