@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const ADMIN_EMAIL = 'gabrielbianchetti@hotmail.com'
+const ADMIN_EMAILS = ['gabrielbianchetti@hotmail.com', 'suporte.personalhub@outlook.com']
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -49,7 +49,7 @@ export async function proxy(request: NextRequest) {
   // ── Dashboard routes: verify subscription ────────────────────────────────
   if (user && pathname.startsWith('/dashboard')) {
     // Admin always has access
-    if (user.email === ADMIN_EMAIL) {
+    if (ADMIN_EMAILS.includes(user.email ?? '')) {
       return supabaseResponse
     }
 

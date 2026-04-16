@@ -4,12 +4,12 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStripe } from '@/lib/stripe'
-import { ADMIN_EMAIL } from './layout'
+import { ADMIN_EMAILS } from './layout'
 
 async function guardAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || user.email !== ADMIN_EMAIL) redirect('/dashboard')
+  if (!user || !ADMIN_EMAILS.includes(user.email ?? '')) redirect('/dashboard')
   return user
 }
 

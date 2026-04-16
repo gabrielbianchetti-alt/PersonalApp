@@ -1,4 +1,10 @@
 // ─── App-wide constants ───────────────────────────────────────────────────────
 
-/** Email address of the super-admin user. Used for route guards and admin checks. */
-export const ADMIN_EMAIL = 'gabrielbianchetti@hotmail.com'
+/** Super-admin emails. All listed users have access to /admin panel. */
+export const ADMIN_EMAILS = [
+  'gabrielbianchetti@hotmail.com',
+  'suporte.personalhub@outlook.com',
+]
+
+/** @deprecated Use ADMIN_EMAILS instead */
+export const ADMIN_EMAIL = ADMIN_EMAILS[0]

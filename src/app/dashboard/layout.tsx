@@ -5,7 +5,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
 import { getOrCreateAssinaturaAction } from '@/app/dashboard/configuracoes/assinatura-actions'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
-import { ADMIN_EMAIL } from '@/lib/constants'
+import { ADMIN_EMAILS } from '@/lib/constants'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -32,7 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     (user?.user_metadata?.full_name as string | undefined) ??
     'Professor'
 
-  const isAdmin = user?.email === ADMIN_EMAIL
+  const isAdmin = ADMIN_EMAILS.includes(user?.email ?? '')
 
   // Get (or create) assinatura — auto-starts 7-day trial on first login
   let assinatura = null

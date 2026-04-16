@@ -1,14 +1,14 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { ADMIN_EMAIL } from '@/lib/constants'
+import { ADMIN_EMAILS } from '@/lib/constants'
 
-export { ADMIN_EMAIL }
+export { ADMIN_EMAILS }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !ADMIN_EMAILS.includes(user.email ?? '')) {
     redirect('/dashboard')
   }
 

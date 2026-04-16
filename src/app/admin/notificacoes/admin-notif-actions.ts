@@ -3,12 +3,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { ADMIN_EMAIL } from '@/lib/constants'
+import { ADMIN_EMAILS } from '@/lib/constants'
 
 async function checkAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || user.email !== ADMIN_EMAIL) throw new Error('Não autorizado')
+  if (!user || !ADMIN_EMAILS.includes(user.email ?? '')) throw new Error('Não autorizado')
   return user
 }
 
