@@ -64,22 +64,16 @@ export async function deleteAlunoAction(
 
   if (!aluno) return { error: 'Aluno não encontrado.' }
 
-  // Delete all related records (order matters — child tables first)
+  // Delete all related records in parallel
   const tables = [
-    { table: 'faltas',          col: 'aluno_id' },
-    { table: 'cobrancas',       col: 'aluno_id' },
-    { table: 'termos_enviados', col: 'aluno_id' },
-    { table: 'suspensoes',      col: 'aluno_id' },
-    { table: 'eventos_agenda',  col: 'aluno_id' },
+    'faltas', 'cobrancas', 'termos_enviados', 'suspensoes', 'eventos_agenda',
   ] as const
 
-  for (const { table, col } of tables) {
-    await supabase
-      .from(table)
-      .delete()
-      .eq(col, alunoId)
-      .eq('professor_id', user.id)
-  }
+  await Promise.all(
+    tables.map(table =>
+      supabase.from(table).delete().eq('aluno_id', alunoId).eq('professor_id', user.id)
+    )
+  )
 
   // Finally delete the aluno record
   const { error } = await supabase

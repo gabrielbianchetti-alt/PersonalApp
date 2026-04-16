@@ -113,22 +113,28 @@ export async function fetchAdminNotificacoesAction(): Promise<{
     .limit(100)
 
   if (error) return { error: 'Erro ao buscar notificações.' }
+  if (!data?.length) return { data: [] }
 
-  // For each, count deliveries and reads
-  const historico: AdminNotifHistorico[] = await Promise.all(
-    (data ?? []).map(async (n: { id: string; titulo: string; mensagem: string; categoria: string; created_at: string }) => {
-      const { count: total } = await admin
-        .from('notificacoes_usuario')
-        .select('id', { count: 'exact', head: true })
-        .eq('notificacao_id', n.id)
-      const { count: lido } = await admin
-        .from('notificacoes_usuario')
-        .select('id', { count: 'exact', head: true })
-        .eq('notificacao_id', n.id)
-        .eq('lida', true)
-      return { ...n, total_enviado: total ?? 0, total_lido: lido ?? 0 }
-    })
-  )
+  // Single query to aggregate deliveries and reads — replaces N×2 queries
+  const notifIds = data.map((n: { id: string }) => n.id)
+  const { data: statsRows } = await admin
+    .from('notificacoes_usuario')
+    .select('notificacao_id, lida')
+    .in('notificacao_id', notifIds)
+
+  // Aggregate in JS
+  const statsMap: Record<string, { total: number; lido: number }> = {}
+  for (const row of (statsRows ?? []) as { notificacao_id: string; lida: boolean }[]) {
+    if (!statsMap[row.notificacao_id]) statsMap[row.notificacao_id] = { total: 0, lido: 0 }
+    statsMap[row.notificacao_id].total++
+    if (row.lida) statsMap[row.notificacao_id].lido++
+  }
+
+  const historico: AdminNotifHistorico[] = (data as { id: string; titulo: string; mensagem: string; categoria: string; created_at: string }[]).map(n => ({
+    ...n,
+    total_enviado: statsMap[n.id]?.total ?? 0,
+    total_lido:    statsMap[n.id]?.lido  ?? 0,
+  }))
 
   return { data: historico }
 }

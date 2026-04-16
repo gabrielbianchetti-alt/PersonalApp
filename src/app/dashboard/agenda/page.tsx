@@ -37,6 +37,11 @@ export default async function AgendaPage({
   const weekStart = toDateStr(monday)
   const weekEnd   = toDateStr(sunday)
 
+  // Limit faltas to last 12 months (still shows pending/credit across full period)
+  const twelveMonthsAgo = new Date(today)
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+  const faltasFrom = toDateStr(twelveMonthsAgo)
+
   const [
     { data: alunos },
     { data: eventos },
@@ -58,6 +63,7 @@ export default async function AgendaPage({
       .from('faltas')
       .select('*, alunos(nome)')
       .eq('professor_id', user.id)
+      .or(`data_falta.gte.${faltasFrom},status.in.(pendente,credito,reposicao_agendada)`)
       .order('data_falta', { ascending: false }),
     supabase
       .from('preferencias_faltas')
