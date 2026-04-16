@@ -705,7 +705,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
             <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl"
               style={{ background: 'var(--green-muted)', border: '1px solid rgba(252,110,32,0.2)' }}>
               <p className="text-xs font-medium mb-1" style={{ color: 'var(--green-primary)' }}>Faturamento total</p>
-              <p className="text-xl font-bold leading-tight break-words" style={{ color: 'var(--green-primary)' }}>
+              <p className="text-lg font-bold leading-tight whitespace-nowrap overflow-hidden" style={{ color: 'var(--green-primary)' }}>
                 {fmtCurrency(faturamento)}
               </p>
               <div className="flex flex-wrap gap-2 mt-1">
@@ -724,7 +724,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
             <div className="p-4 rounded-2xl"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
               <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Total de custos</p>
-              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{fmtCurrency(totalCustos)}</p>
+              <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: 'var(--text-primary)' }}>{fmtCurrency(totalCustos)}</p>
               <div className="flex gap-2 mt-1 flex-wrap">
                 <span className="text-xs" style={{ color: 'var(--green-primary)' }}>F: {fmtCurrency(totalFixo)}</span>
                 <span className="text-xs" style={{ color: '#40C4FF' }}>V: {fmtCurrency(totalVariavel)}</span>
@@ -735,7 +735,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
             <div className="p-4 rounded-2xl"
               style={{ background: 'var(--bg-card)', border: `1px solid ${lucro >= 0 ? 'var(--border-subtle)' : 'rgba(255,82,82,0.2)'}` }}>
               <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Lucro líquido</p>
-              <p className="text-2xl font-bold" style={{ color: lucro >= 0 ? 'var(--text-primary)' : '#FF5252' }}>
+              <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: lucro >= 0 ? 'var(--text-primary)' : '#FF5252' }}>
                 {fmtCurrency(lucro)}
               </p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>

@@ -13,8 +13,8 @@
   --border-subtle: #3D3D3D;
   --border-focus: rgba(252, 110, 32, 0.5);
   --text-primary: #F5F5F5;
-  --text-secondary: #A0A0A0;
-  --text-muted: #555555;
+  --text-secondary: #C0C0C0;
+  --text-muted: #888888;
 }
 
 html {
