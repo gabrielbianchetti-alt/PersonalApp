@@ -3,37 +3,39 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 
-// ─── tokens ───────────────────────────────────────────────────────────────────
-const G  = '#00E676'
-const GD = '#00C853'
-const BG = '#0F0F0F'
-const BG2 = '#141414'
-const BG3 = '#1A1A1A'
-const CARD = '#1C1C1C'
-const BORDER = '#2A2A2A'
-const TW  = '#FFFFFF'
-const TG  = '#A3A3A3'
-const TS  = '#6B6B6B'
+// ─── Color tokens ─────────────────────────────────────────────────────────────
+const G     = '#7cb972'                        // sage green — accent
+const GB    = '#34502b'                        // forest green — badge bg
+const BG    = '#09100a'                        // near-black, green-tinted
+const BG2   = '#0d160d'
+const BG3   = '#111a11'
+const CARD  = '#141f13'
+const BORDER  = '#233022'
+const TW    = '#edf3eb'                        // warm white
+const TG    = '#8aaa84'                        // muted sage
+const TS    = '#506050'                        // subtle
+const RED   = '#e05252'
 
-// ─── font ─────────────────────────────────────────────────────────────────────
+// ─── Font loader ──────────────────────────────────────────────────────────────
 function FontLoader() {
   useEffect(() => {
     if (document.querySelector('#ph-font')) return
     const l = document.createElement('link')
-    l.id   = 'ph-font'
-    l.rel  = 'stylesheet'
+    l.id  = 'ph-font'
+    l.rel = 'stylesheet'
     l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap'
     document.head.appendChild(l)
   }, [])
   return null
 }
 
-// ─── fade in ─────────────────────────────────────────────────────────────────
-function useFadeIn(threshold = 0.1) {
+// ─── FadeIn on scroll ─────────────────────────────────────────────────────────
+function useFadeIn(threshold = 0.12) {
   const ref = useRef<HTMLDivElement>(null)
   const [vis, setVis] = useState(false)
   useEffect(() => {
-    const el = ref.current; if (!el) return
+    const el = ref.current
+    if (!el) return
     const obs = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) { setVis(true); obs.disconnect() } },
       { threshold }
@@ -44,15 +46,18 @@ function useFadeIn(threshold = 0.1) {
   return { ref, vis }
 }
 
-function FadeIn({ children, delay = 0, style = {} }: {
-  children: React.ReactNode; delay?: number; style?: React.CSSProperties
+function FadeIn({ children, delay = 0, y = 32, style = {} }: {
+  children: React.ReactNode
+  delay?: number
+  y?: number
+  style?: React.CSSProperties
 }) {
   const { ref, vis } = useFadeIn()
   return (
     <div ref={ref} style={{
       opacity: vis ? 1 : 0,
-      transform: vis ? 'none' : 'translateY(40px)',
-      transition: `opacity 0.75s ease ${delay}ms, transform 0.75s ease ${delay}ms`,
+      transform: vis ? 'none' : `translateY(${y}px)`,
+      transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
       ...style,
     }}>
       {children}
@@ -60,8 +65,8 @@ function FadeIn({ children, delay = 0, style = {} }: {
   )
 }
 
-// ─── count-up ─────────────────────────────────────────────────────────────────
-function useCountUp(target: number, duration = 1600, active = false) {
+// ─── Count-up ─────────────────────────────────────────────────────────────────
+function useCountUp(target: number, duration = 1800, active = false) {
   const [val, setVal] = useState(0)
   const started = useRef(false)
   useEffect(() => {
@@ -79,729 +84,1003 @@ function useCountUp(target: number, duration = 1600, active = false) {
   return val
 }
 
-function CountUpStat({ value, suffix = '', label, active }: {
-  value: number; suffix?: string; label: string; active: boolean
-}) {
-  const v = useCountUp(value, 1600, active)
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function Label({ children, color = G }: { children: React.ReactNode; color?: string }) {
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 44, fontWeight: 900, color: G, lineHeight: 1 }}>
-        {v}{suffix}
-      </div>
-      <div style={{ fontSize: 13, color: TG, marginTop: 6, fontWeight: 500 }}>{label}</div>
-    </div>
+    <p style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: 2.5, textTransform: 'uppercase', marginBottom: 16 }}>
+      {children}
+    </p>
   )
 }
 
-// ─── divider ─────────────────────────────────────────────────────────────────
-function Divider() {
-  return <div style={{ height: 1, background: BORDER, margin: '0 auto', maxWidth: 900 }} />
+function Section({ children, bg = BG, style = {} }: {
+  children: React.ReactNode; bg?: string; style?: React.CSSProperties
+}) {
+  return (
+    <section style={{ padding: '100px 24px', background: bg, ...style }}>
+      <div style={{ maxWidth: 960, margin: '0 auto' }}>{children}</div>
+    </section>
+  )
 }
 
-// ─── dashboard mockup ─────────────────────────────────────────────────────────
-function DashboardMockup() {
+// ─── Phone mockup ─────────────────────────────────────────────────────────────
+function PhoneMockup({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      background: '#111', borderRadius: 16, border: `1px solid ${BORDER}`,
-      overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
-      fontFamily: 'inherit',
+      width: 260, minHeight: 520,
+      background: '#0a0a0a',
+      borderRadius: 44,
+      border: `8px solid #1e2b1c`,
+      boxShadow: '0 40px 80px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.04)',
+      overflow: 'hidden',
+      position: 'relative',
+      flexShrink: 0,
     }}>
-      {/* Top bar */}
+      {/* Notch */}
       <div style={{
-        background: '#161616', borderBottom: `1px solid ${BORDER}`,
-        padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 8,
-      }}>
-        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56' }} />
-        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFBD2E' }} />
-        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27C93F' }} />
-        <div style={{ flex: 1, textAlign: 'center', fontSize: 11, color: TS, letterSpacing: 0.5 }}>
-          PersonalHub — Dashboard
-        </div>
-      </div>
-      {/* Content */}
-      <div style={{ padding: 20 }}>
-        {/* Stat row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
-          {[
-            { label: 'Faturamento mensal', val: 'R$ 4.800', color: G },
-            { label: 'Alunos ativos', val: '18', color: '#60A5FA' },
-            { label: 'Pagamentos em dia', val: '94%', color: '#A78BFA' },
-          ].map(s => (
-            <div key={s.label} style={{
-              background: CARD, borderRadius: 10, padding: '12px 14px',
-              border: `1px solid ${BORDER}`,
-            }}>
-              <div style={{ fontSize: 10, color: TS, marginBottom: 4 }}>{s.label}</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.val}</div>
-            </div>
-          ))}
-        </div>
-        {/* Aluno list */}
-        <div style={{ background: CARD, borderRadius: 10, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${BORDER}`, fontSize: 11, color: TG, fontWeight: 600 }}>
-            ALUNOS — COBRANÇAS DO MÊS
+        position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+        width: 100, height: 24, background: '#0a0a0a',
+        borderRadius: 12, zIndex: 10, border: '1px solid #1a1a1a',
+      }} />
+      <div style={{ paddingTop: 48, height: '100%', overflow: 'hidden' }}>{children}</div>
+    </div>
+  )
+}
+
+// ─── Screen: Dashboard ────────────────────────────────────────────────────────
+function ScreenDashboard() {
+  return (
+    <div style={{ padding: '12px 14px', background: '#0f150e', minHeight: 480 }}>
+      <div style={{ fontSize: 10, color: TS, marginBottom: 12, fontWeight: 600 }}>Bom dia, Gabriel 👋</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+        {[
+          { label: 'Faturamento', val: 'R$4.800', color: G },
+          { label: 'Alunos ativos', val: '18', color: '#60a5fa' },
+          { label: 'Recebido', val: 'R$4.160', color: G },
+          { label: 'Pendente', val: 'R$640', color: '#f59e0b' },
+        ].map(s => (
+          <div key={s.label} style={{ background: CARD, borderRadius: 10, padding: '10px', border: `1px solid ${BORDER}` }}>
+            <div style={{ fontSize: 8.5, color: TS, marginBottom: 3 }}>{s.label}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: s.color }}>{s.val}</div>
           </div>
-          {[
-            { nome: 'Carlos Mendes', val: 'R$320', status: 'Pago', ok: true },
-            { nome: 'Ana Ferreira', val: 'R$280', status: 'Pago', ok: true },
-            { nome: 'Bruno Costa',  val: 'R$350', status: 'Pendente', ok: false },
-            { nome: 'Larissa Nunes',val: 'R$300', status: 'Pago', ok: true },
-          ].map(a => (
-            <div key={a.nome} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '9px 14px', borderBottom: `1px solid #1F1F1F`,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{
-                  width: 26, height: 26, borderRadius: '50%',
-                  background: a.ok ? 'rgba(0,230,118,0.12)' : 'rgba(255,171,0,0.12)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700,
-                  color: a.ok ? G : '#FFAB00',
-                }}>
-                  {a.nome.slice(0,2).toUpperCase()}
-                </div>
-                <div style={{ fontSize: 12, color: TW, fontWeight: 500 }}>{a.nome}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: TW }}>{a.val}</div>
-                <div style={{
-                  fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
-                  background: a.ok ? 'rgba(0,230,118,0.12)' : 'rgba(255,171,0,0.12)',
-                  color: a.ok ? G : '#FFAB00',
-                }}>
-                  {a.status}
-                </div>
-              </div>
-            </div>
-          ))}
+        ))}
+      </div>
+      <div style={{ background: CARD, borderRadius: 10, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
+        <div style={{ padding: '8px 10px', borderBottom: `1px solid ${BORDER}`, fontSize: 8.5, color: TS, fontWeight: 700, letterSpacing: 1 }}>
+          COBRANÇAS DO MÊS
         </div>
+        {[
+          { nome: 'Carlos M.', val: 'R$320', ok: true },
+          { nome: 'Ana F.', val: 'R$280', ok: true },
+          { nome: 'Bruno C.', val: 'R$350', ok: false },
+          { nome: 'Larissa N.', val: 'R$300', ok: true },
+        ].map(a => (
+          <div key={a.nome} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '7px 10px', borderBottom: `1px solid #1a2419`,
+          }}>
+            <span style={{ fontSize: 11, color: TW, fontWeight: 500 }}>{a.nome}</span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: TW }}>{a.val}</span>
+              <span style={{
+                fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 10,
+                background: a.ok ? 'rgba(124,185,114,0.12)' : 'rgba(224,82,82,0.12)',
+                color: a.ok ? G : RED,
+              }}>{a.ok ? 'Pago' : 'Pend.'}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
-// ─── section wrapper ─────────────────────────────────────────────────────────
-function Section({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
+// ─── Screen: Cálculo Mensal ───────────────────────────────────────────────────
+function ScreenFinanceiro() {
   return (
-    <section style={{
-      padding: '96px 24px',
-      ...style,
-    }}>
-      <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        {children}
+    <div style={{ padding: '12px 14px', background: '#0f150e', minHeight: 480 }}>
+      <div style={{ fontSize: 10, color: TS, marginBottom: 14, fontWeight: 600 }}>Cálculo Mensal</div>
+      <div style={{
+        background: CARD, borderRadius: 10, padding: '10px 12px',
+        border: `1px solid ${BORDER}`, marginBottom: 12,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <span style={{ fontSize: 11, color: TG }}>Abril 2026</span>
+        <span style={{ fontSize: 14, fontWeight: 900, color: TW }}>R$ 4.800</span>
       </div>
-    </section>
+      {[
+        { label: 'Mensalidades', val: 'R$3.840', pct: 80, color: G },
+        { label: 'Aulas avulsas', val: 'R$640', pct: 13, color: '#60a5fa' },
+        { label: 'Reposições cobradas', val: 'R$320', pct: 7, color: '#a78bfa' },
+      ].map(r => (
+        <div key={r.label} style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 9.5, color: TG }}>{r.label}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: r.color }}>{r.val}</span>
+          </div>
+          <div style={{ height: 5, background: '#1a2419', borderRadius: 3 }}>
+            <div style={{ height: '100%', width: `${r.pct}%`, background: r.color, borderRadius: 3 }} />
+          </div>
+        </div>
+      ))}
+      <div style={{
+        background: 'rgba(124,185,114,0.06)', borderRadius: 10,
+        border: `1px solid rgba(124,185,114,0.15)`, padding: '10px 12px', marginTop: 12,
+      }}>
+        <div style={{ fontSize: 8.5, color: G, fontWeight: 700, marginBottom: 6 }}>AULAS EXTRAS COMPUTADAS</div>
+        {[
+          { aluno: 'Carlos M.', aulas: '+2 aulas', val: '+R$80' },
+          { aluno: 'Ana F.', aulas: '+1 aula', val: '+R$40' },
+        ].map(e => (
+          <div key={e.aluno} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 10, color: TG }}>{e.aluno} <span style={{ color: '#60a5fa' }}>{e.aulas}</span></span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: G }}>{e.val}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Screen: Agenda ───────────────────────────────────────────────────────────
+function ScreenAgenda() {
+  return (
+    <div style={{ padding: '12px 14px', background: '#0f150e', minHeight: 480 }}>
+      <div style={{ fontSize: 10, color: TS, marginBottom: 14, fontWeight: 600 }}>Agenda da Semana</div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+        {['S', 'T', 'Q', 'Q', 'S'].map((d, i) => (
+          <div key={i} style={{
+            flex: 1, textAlign: 'center', padding: '5px 0', borderRadius: 8,
+            background: i === 1 ? GB : CARD,
+            border: `1px solid ${i === 1 ? G : BORDER}`,
+          }}>
+            <div style={{ fontSize: 8, color: i === 1 ? G : TS }}>{d}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: i === 1 ? TW : TG }}>{14 + i}</div>
+          </div>
+        ))}
+      </div>
+      {[
+        { hora: '06:00', nome: 'Carlos M.', local: 'Academia' },
+        { hora: '07:00', nome: 'Ana F.', local: 'Parque' },
+        { hora: '08:00', nome: 'Bruno C.', local: 'Academia' },
+        { hora: '17:00', nome: 'Larissa N.', local: 'Academia' },
+        { hora: '18:00', nome: 'Rodrigo P.', local: 'Online' },
+      ].map(ev => (
+        <div key={ev.hora} style={{
+          display: 'flex', gap: 8, alignItems: 'center',
+          padding: '7px 8px', borderRadius: 8, marginBottom: 4,
+          background: CARD, border: `1px solid ${BORDER}`,
+        }}>
+          <span style={{ fontSize: 9.5, fontWeight: 800, color: G, minWidth: 38 }}>{ev.hora}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10.5, color: TW, fontWeight: 600 }}>{ev.nome}</div>
+            <div style={{ fontSize: 9, color: TS }}>{ev.local}</div>
+          </div>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: G }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Screen: Faltas ───────────────────────────────────────────────────────────
+function ScreenReposicoes() {
+  return (
+    <div style={{ padding: '12px 14px', background: '#0f150e', minHeight: 480 }}>
+      <div style={{ fontSize: 10, color: TS, marginBottom: 14, fontWeight: 600 }}>Faltas e Reposições</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 12 }}>
+        {[
+          { label: 'Pendentes', val: '3', color: '#f59e0b' },
+          { label: 'Agendadas', val: '2', color: '#60a5fa' },
+          { label: 'Vencidas', val: '1', color: RED },
+        ].map(s => (
+          <div key={s.label} style={{
+            background: CARD, borderRadius: 8, padding: '8px',
+            border: `1px solid ${BORDER}`, textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: s.color }}>{s.val}</div>
+            <div style={{ fontSize: 8, color: TS }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      {[
+        { aluno: 'Bruno C.', data: '10/04', prazo: '10/05', status: 'Pendente', sc: '#f59e0b' },
+        { aluno: 'Ana F.', data: '08/04', prazo: '08/05', status: 'Agendada', sc: '#60a5fa' },
+        { aluno: 'Marcos S.', data: '02/04', prazo: '02/05', status: 'Vencida', sc: RED },
+      ].map(f => (
+        <div key={f.aluno} style={{
+          background: CARD, borderRadius: 8, padding: '9px 10px',
+          border: `1px solid ${BORDER}`, marginBottom: 6,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: TW }}>{f.aluno}</span>
+            <span style={{
+              fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 10,
+              background: `${f.sc}18`, color: f.sc,
+            }}>{f.status}</span>
+          </div>
+          <div style={{ fontSize: 9, color: TS }}>Falta: {f.data} · Prazo: {f.prazo}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Screen: Alunos ───────────────────────────────────────────────────────────
+function ScreenAlunos() {
+  return (
+    <div style={{ padding: '12px 14px', background: '#0f150e', minHeight: 480 }}>
+      <div style={{ fontSize: 10, color: TS, marginBottom: 14, fontWeight: 600 }}>Meus Alunos</div>
+      {[
+        { nome: 'Carlos Mendes', dias: 'Seg/Qua/Sex', valor: 'R$320/mês', ok: true },
+        { nome: 'Ana Ferreira', dias: 'Ter/Qui', valor: 'R$280/mês', ok: true },
+        { nome: 'Bruno Costa', dias: 'Seg/Sex', valor: 'R$350/mês', ok: false },
+        { nome: 'Larissa Nunes', dias: 'Ter/Qui', valor: 'R$300/mês', ok: true },
+        { nome: 'Rodrigo Pinto', dias: 'Qua/Sex', valor: 'R$280/mês', ok: true },
+      ].map(a => (
+        <div key={a.nome} style={{
+          background: CARD, borderRadius: 10, padding: '10px 11px',
+          border: `1px solid ${BORDER}`, marginBottom: 6,
+          display: 'flex', alignItems: 'center', gap: 9,
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+            background: a.ok ? 'rgba(124,185,114,0.12)' : 'rgba(224,82,82,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 9.5, fontWeight: 700, color: a.ok ? G : RED,
+          }}>
+            {a.nome.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: TW }}>{a.nome}</div>
+            <div style={{ fontSize: 9, color: TS }}>{a.dias} · {a.valor}</div>
+          </div>
+          <span style={{
+            fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 10,
+            background: a.ok ? 'rgba(124,185,114,0.1)' : 'rgba(224,82,82,0.1)',
+            color: a.ok ? G : RED,
+          }}>{a.ok ? 'Ativo' : 'Pausado'}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Carousel ─────────────────────────────────────────────────────────────────
+const SLIDES = [
+  { title: 'Dashboard completo', desc: 'Faturamento, alunos ativos e cobranças do mês na mesma tela', screen: <ScreenDashboard /> },
+  { title: 'Cálculo mensal automático', desc: 'Aulas extras e variações calculadas automaticamente, sem planilha', screen: <ScreenFinanceiro /> },
+  { title: 'Agenda visual da semana', desc: 'Todos os alunos, horários e locais organizados por dia', screen: <ScreenAgenda /> },
+  { title: 'Faltas e reposições', desc: 'Controle de prazo, status e agendamento de cada reposição', screen: <ScreenReposicoes /> },
+  { title: 'Gestão de alunos', desc: 'Ficha completa: dias, horários, valor e status de cada aluno', screen: <ScreenAlunos /> },
+]
+
+function ScreensCarousel() {
+  const [active, setActive] = useState(0)
+  const [fading, setFading] = useState(false)
+
+  function go(next: number) {
+    if (fading) return
+    setFading(true)
+    setTimeout(() => { setActive(next); setFading(false) }, 240)
+  }
+
+  const prev = () => go((active - 1 + SLIDES.length) % SLIDES.length)
+  const next = () => go((active + 1) % SLIDES.length)
+  const item = SLIDES[active]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 44 }}>
+      <div className="carousel-inner" style={{
+        display: 'flex', gap: 64, alignItems: 'center',
+        flexWrap: 'wrap', justifyContent: 'center',
+      }}>
+        {/* Phone */}
+        <div style={{
+          opacity: fading ? 0 : 1, transform: fading ? 'scale(0.96)' : 'scale(1)',
+          transition: 'opacity 0.22s, transform 0.22s',
+        }}>
+          <PhoneMockup>{item.screen}</PhoneMockup>
+        </div>
+
+        {/* Text + arrows */}
+        <div style={{ maxWidth: 380 }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: `rgba(52,80,43,0.45)`, border: `1px solid rgba(124,185,114,0.25)`,
+            borderRadius: 100, padding: '5px 16px', marginBottom: 22,
+          }}>
+            <span style={{ fontSize: 11, color: G, fontWeight: 600 }}>{active + 1} / {SLIDES.length}</span>
+          </div>
+
+          <h3 style={{
+            fontSize: 28, fontWeight: 800, color: TW,
+            letterSpacing: -0.5, lineHeight: 1.2, marginBottom: 14,
+            opacity: fading ? 0 : 1, transform: fading ? 'translateX(-8px)' : 'none',
+            transition: 'opacity 0.22s, transform 0.22s',
+          }}>{item.title}</h3>
+
+          <p style={{
+            fontSize: 16, color: TG, lineHeight: 1.65,
+            opacity: fading ? 0 : 1, transition: 'opacity 0.22s',
+          }}>{item.desc}</p>
+
+          <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+            <button onClick={prev} style={{
+              width: 44, height: 44, borderRadius: '50%',
+              background: CARD, border: `1px solid ${BORDER}`,
+              color: TW, fontSize: 18, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'border-color 0.2s',
+            }}>←</button>
+            <button onClick={next} style={{
+              width: 44, height: 44, borderRadius: '50%',
+              background: GB, border: `1px solid ${G}`,
+              color: TW, fontSize: 18, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background 0.2s',
+            }}>→</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Dots */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        {SLIDES.map((_, i) => (
+          <button key={i} onClick={() => go(i)} style={{
+            width: i === active ? 28 : 8, height: 8,
+            borderRadius: 4, border: 'none', cursor: 'pointer',
+            background: i === active ? G : BORDER,
+            transition: 'width 0.3s, background 0.3s',
+            padding: 0,
+          }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── FAQ ──────────────────────────────────────────────────────────────────────
+const FAQ = [
+  { q: 'Funciona no celular?', a: 'Sim, 100%. O PersonalHub é mobile-first — foi projetado para ser usado no celular. Funciona perfeitamente em qualquer smartphone, tablet ou computador.' },
+  { q: 'Preciso instalar alguma coisa?', a: 'Não. O PersonalHub funciona diretamente no navegador, sem baixar nenhum aplicativo. Abriu, usou.' },
+  { q: 'Posso cancelar quando quiser?', a: 'Sim, sem burocracia. Sem fidelidade, sem multa, sem ligação para cancelar. Você cancela quando quiser pelo próprio sistema.' },
+  { q: 'Meus dados ficam seguros?', a: 'Sim. Todos os dados são criptografados e armazenados com backups automáticos diários. Sua base de alunos está protegida.' },
+  { q: 'Tem período de teste gratuito?', a: 'Sim. São 7 dias grátis para testar tudo sem compromisso. Não é necessário cartão de crédito para começar.' },
+  { q: 'Quantos alunos posso cadastrar?', a: 'Ilimitados. Não há limite de alunos, cobranças, registros de faltas ou termos. Tudo sem limite no plano único.' },
+]
+
+function FAQItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ borderBottom: `1px solid ${BORDER}` }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', textAlign: 'left',
+          padding: '22px 0', background: 'none', border: 'none', cursor: 'pointer',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16,
+        }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 600, color: TW, lineHeight: 1.4 }}>{q}</span>
+        <span style={{
+          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+          background: open ? GB : CARD, border: `1px solid ${open ? G : BORDER}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: open ? G : TG, fontSize: 18, fontWeight: 300,
+          transition: 'all 0.2s', transform: open ? 'rotate(45deg)' : 'none',
+        }}>+</span>
+      </button>
+      <div style={{ maxHeight: open ? 200 : 0, overflow: 'hidden', transition: 'max-height 0.35s ease' }}>
+        <p style={{ fontSize: 15, color: TG, lineHeight: 1.7, paddingBottom: 22 }}>{a}</p>
+      </div>
+    </div>
   )
 }
 
 // ─── LANDING PAGE ─────────────────────────────────────────────────────────────
 export default function LandingPage() {
+  const [statsVisible, setStatsVisible] = useState(false)
+  const statsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = statsRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setStatsVisible(true) }, { threshold: 0.3 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  const cAlunos  = useCountUp(18, 1800, statsVisible)
+  const cMobile  = useCountUp(100, 1600, statsVisible)
+  const cPreco   = useCountUp(29, 1800, statsVisible)
+
   return (
-    <div style={{ background: BG, color: TW, fontFamily: "'Inter', -apple-system, sans-serif", overflowX: 'hidden' }}>
+    <div style={{
+      background: BG, color: TW,
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      overflowX: 'hidden',
+    }}>
       <FontLoader />
 
-      {/* Global animations */}
       <style>{`
-        @keyframes pulse-green { 0%,100%{opacity:.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.04)} }
-        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
-        * { box-sizing: border-box; }
-        ::selection { background: ${G}33; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        ::selection { background: rgba(124,185,114,0.25); }
+        @keyframes pulse  { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.1)} }
+        @keyframes float  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+        @keyframes glow   { 0%,100%{box-shadow:0 0 40px rgba(124,185,114,0.18)} 50%{box-shadow:0 0 70px rgba(124,185,114,0.38)} }
+        .cta-btn {
+          background: ${G}; color: #000; font-weight: 800; text-decoration: none;
+          border-radius: 14px; display: inline-flex; align-items: center; justify-content: center;
+          transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+        }
+        .cta-btn:hover { background: #8dc882; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,185,114,0.35); }
+        .fcard { transition: transform 0.2s, border-color 0.2s; }
+        .fcard:hover { transform: translateY(-3px); border-color: rgba(124,185,114,0.3) !important; }
+        @media (max-width: 720px) {
+          .hero-grid   { grid-template-columns: 1fr !important; }
+          .hero-right  { display: none !important; }
+          .chaos-grid  { grid-template-columns: 1fr !important; }
+          .chaos-arrow { display: none !important; }
+          .ba-grid     { grid-template-columns: 1fr !important; }
+          .mod-grid    { grid-template-columns: repeat(2, 1fr) !important; }
+          .carousel-inner { flex-direction: column !important; }
+        }
       `}</style>
 
-      {/* ── NAV ───────────────────────────────────────────────────────────── */}
+      {/* ── NAV ─────────────────────────────────────────────────────────────── */}
       <nav style={{
         position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(15,15,15,0.92)', backdropFilter: 'blur(16px)',
-        borderBottom: `1px solid ${BORDER}`,
-        padding: '0 24px',
+        background: 'rgba(9,16,10,0.92)', backdropFilter: 'blur(20px)',
+        borderBottom: `1px solid ${BORDER}`, padding: '0 24px',
       }}>
         <div style={{
-          maxWidth: 1000, margin: '0 auto',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          height: 60,
+          maxWidth: 960, margin: '0 auto',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60,
         }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: TW, letterSpacing: -0.5 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: TW, letterSpacing: -0.3 }}>
             Personal<span style={{ color: G }}>Hub</span>
           </div>
-          <Link href="/register" style={{
-            background: G, color: '#000',
-            fontWeight: 700, fontSize: 13, padding: '9px 20px',
-            borderRadius: 8, textDecoration: 'none',
-          }}>
-            Começar grátis
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Link href="/login" style={{ fontSize: 13, color: TG, textDecoration: 'none', fontWeight: 500 }}>
+              Entrar
+            </Link>
+            <Link href="/register" className="cta-btn" style={{ fontSize: 13, padding: '9px 20px' }}>
+              Começar grátis
+            </Link>
+          </div>
         </div>
       </nav>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SEÇÃO 1 — HERO
+          1. HERO / BUYBOX
       ══════════════════════════════════════════════════════════════════════ */}
-      <section style={{ padding: '80px 24px 72px', background: BG }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)',
-            gap: 64, alignItems: 'center',
-          }}
-            className="hero-grid"
-          >
-            {/* Left */}
+      <section style={{ padding: '90px 24px 80px', background: BG, position: 'relative', overflow: 'hidden' }}>
+        {/* BG glows */}
+        <div style={{
+          position: 'absolute', top: -200, right: -100, width: 600, height: 600, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(52,80,43,0.4) 0%, transparent 65%)', pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: -150, left: -100, width: 400, height: 400, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(52,80,43,0.2) 0%, transparent 65%)', pointerEvents: 'none',
+        }} />
+
+        <div style={{ maxWidth: 960, margin: '0 auto', position: 'relative' }}>
+          <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 72, alignItems: 'center' }}>
+
+            {/* Left — copy */}
             <FadeIn>
+              {/* Badge */}
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
-                background: 'rgba(0,230,118,0.08)', border: `1px solid rgba(0,230,118,0.2)`,
-                borderRadius: 100, padding: '6px 14px', marginBottom: 28,
+                background: `rgba(52,80,43,0.5)`, border: `1px solid rgba(124,185,114,0.3)`,
+                borderRadius: 100, padding: '6px 16px', marginBottom: 28,
               }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: G, animation: 'pulse-green 2s infinite' }} />
-                <span style={{ fontSize: 12, color: G, fontWeight: 600 }}>Para personal trainers</span>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: G, animation: 'pulse 2.5s infinite' }} />
+                <span style={{ fontSize: 12, color: G, fontWeight: 600 }}>Gestão completa para personal trainers</span>
               </div>
 
               <h1 style={{
-                fontSize: 'clamp(36px, 5vw, 58px)', fontWeight: 900,
-                lineHeight: 1.08, letterSpacing: -1.5,
-                color: TW, marginBottom: 20,
+                fontSize: 'clamp(38px,5.5vw,64px)', fontWeight: 900,
+                lineHeight: 1.06, letterSpacing: -2, color: TW, marginBottom: 22,
               }}>
-                Pare de perder<br />
-                <span style={{ color: G }}>dinheiro</span> por falta<br />
-                de organização
+                Controle total<br />do seu trabalho<br />
+                <span style={{ color: G }}>na palma da mão</span>
               </h1>
 
-              <p style={{
-                fontSize: 17, color: TG, lineHeight: 1.7,
-                marginBottom: 36, maxWidth: 460,
-              }}>
-                Controle seus alunos, suas cobranças e saiba exatamente
-                quanto sobra no seu bolso no fim do mês.
+              <p style={{ fontSize: 17, color: TG, lineHeight: 1.7, marginBottom: 20, maxWidth: 460 }}>
+                Alunos, agenda, cobranças e financeiro num só lugar.
+                Pare de perder dinheiro por falta de organização.
               </p>
 
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <Link href="/register" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 8,
-                  background: G, color: '#000',
-                  fontWeight: 800, fontSize: 16, padding: '15px 32px',
-                  borderRadius: 12, textDecoration: 'none',
-                  boxShadow: `0 0 32px rgba(0,230,118,0.3)`,
-                  transition: 'transform 0.15s',
-                }}>
-                  Começar agora por R$29,90
-                </Link>
-              </div>
-
-              <p style={{ fontSize: 12, color: TS, marginTop: 14 }}>
-                7 dias grátis · Sem contrato · Cancele quando quiser
-              </p>
-            </FadeIn>
-
-            {/* Right — dashboard mockup */}
-            <FadeIn delay={150}>
-              <div style={{ animation: 'float 6s ease-in-out infinite' }}>
-                <DashboardMockup />
-              </div>
-            </FadeIn>
-          </div>
-        </div>
-
-        {/* Responsive hero grid */}
-        <style>{`
-          @media (max-width: 700px) {
-            .hero-grid { grid-template-columns: 1fr !important; }
-            .hero-grid > div:last-child { display: none; }
-          }
-        `}</style>
-      </section>
-
-      <Divider />
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          SEÇÃO 2 — DOR REAL
-      ══════════════════════════════════════════════════════════════════════ */}
-      <Section>
-        <FadeIn>
-          <p style={{ fontSize: 12, fontWeight: 700, color: G, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 }}>
-            Reconhece isso?
-          </p>
-          <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 16 }}>
-            Se você é personal, isso provavelmente<br />
-            <span style={{ color: G }}>acontece com você</span>
-          </h2>
-          <p style={{ fontSize: 16, color: TG, maxWidth: 520, lineHeight: 1.65, marginBottom: 52 }}>
-            A maioria dos personais é excelente no treino. O problema está na gestão.
-          </p>
-        </FadeIn>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-          {[
-            { icon: '⏰', text: 'Você demora pra cobrar e deixa pra depois' },
-            { icon: '😶', text: 'Tem aluno que paga atrasado e você nem percebe' },
-            { icon: '📱', text: 'Sua agenda fica bagunçada no meio da correria' },
-            { icon: '❓', text: 'No fim do mês, você não sabe quanto realmente ganhou' },
-            { icon: '😤', text: 'Você trabalha muito, mas não tem controle do dinheiro' },
-          ].map((item, i) => (
-            <FadeIn key={i} delay={i * 80}>
+              {/* Price anchor */}
               <div style={{
-                background: CARD, border: `1px solid ${BORDER}`,
-                borderRadius: 14, padding: '22px 22px',
-                display: 'flex', alignItems: 'flex-start', gap: 14,
-                transition: 'border-color 0.2s',
+                display: 'inline-flex', alignItems: 'center', gap: 12,
+                background: `rgba(52,80,43,0.3)`, border: `1px solid rgba(124,185,114,0.2)`,
+                borderRadius: 12, padding: '12px 20px', marginBottom: 32,
               }}>
-                <span style={{ fontSize: 24, flexShrink: 0, lineHeight: 1 }}>{item.icon}</span>
-                <p style={{ fontSize: 15, color: TG, lineHeight: 1.55, margin: 0, fontWeight: 500 }}>
-                  {item.text}
-                </p>
+                <span style={{ fontSize: 22, fontWeight: 900, color: TW }}>
+                  R$29,90<span style={{ fontSize: 14, fontWeight: 500, color: TG }}>/mês</span>
+                </span>
+                <div style={{ width: 1, height: 22, background: BORDER }} />
+                <span style={{ fontSize: 13, color: G, fontWeight: 600 }}>menos de R$1 por dia</span>
               </div>
-            </FadeIn>
-          ))}
-        </div>
 
-        {/* Destaque */}
-        <FadeIn delay={200}>
-          <div style={{
-            marginTop: 44, background: 'rgba(0,230,118,0.05)',
-            border: `1px solid rgba(0,230,118,0.2)`,
-            borderLeft: `4px solid ${G}`,
-            borderRadius: 12, padding: '24px 28px',
-          }}>
-            <p style={{ fontSize: 17, fontWeight: 700, color: TW, margin: 0, lineHeight: 1.55 }}>
-              👉 O problema não é falta de aluno.<br />
-              <span style={{ color: G }}>É falta de organização.</span>
-            </p>
-          </div>
-        </FadeIn>
-      </Section>
-
-      <Divider />
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          SEÇÃO 3 — GATILHO FINANCEIRO
-      ══════════════════════════════════════════════════════════════════════ */}
-      <Section style={{ background: BG2 }}>
-        <FadeIn>
-          <p style={{ fontSize: 12, fontWeight: 700, color: '#FF5252', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 }}>
-            Impacto real no seu bolso
-          </p>
-          <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 48 }}>
-            Você está deixando dinheiro<br />
-            <span style={{ color: '#FF5252' }}>parado todos os meses</span>
-          </h2>
-        </FadeIn>
-
-        <FadeIn delay={100}>
-          <div style={{
-            background: CARD, border: `1px solid ${BORDER}`,
-            borderRadius: 16, padding: '40px',
-            maxWidth: 680,
-          }}>
-            <p style={{ fontSize: 17, color: TG, lineHeight: 1.8, marginBottom: 28 }}>
-              Se você demora em média{' '}
-              <span style={{ color: TW, fontWeight: 800 }}>10 dias para cobrar seus alunos</span>:
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32 }}>
-              {[
-                { icon: '💸', text: 'São 10 dias sem esse dinheiro na sua conta' },
-                { icon: '📉', text: '10 dias que você poderia estar usando esse valor' },
-              ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <span style={{ fontSize: 22 }}>{item.icon}</span>
-                  <p style={{ fontSize: 16, color: TG, margin: 0 }}>{item.text}</p>
-                </div>
-              ))}
-            </div>
-
-            <p style={{ fontSize: 16, color: TG, marginBottom: 24 }}>
-              Agora multiplica isso por um ano:
-            </p>
-
-            <div style={{
-              background: 'rgba(255,82,82,0.08)', border: `1px solid rgba(255,82,82,0.2)`,
-              borderRadius: 12, padding: '24px 28px', marginBottom: 28,
-            }}>
-              <p style={{ fontSize: 22, fontWeight: 900, color: '#FF5252', margin: 0, lineHeight: 1.4 }}>
-                👉 São <span style={{ fontSize: 32 }}>120 dias</span> com seu dinheiro fora da sua mão.<br />
-                <span style={{ fontSize: 18, opacity: 0.9 }}>4 meses do seu faturamento atrasado.</span>
-              </p>
-            </div>
-
-            <blockquote style={{
-              borderLeft: `3px solid ${G}`,
-              paddingLeft: 20, margin: 0,
-            }}>
-              <p style={{ fontSize: 20, fontWeight: 800, color: TW, margin: 0, fontStyle: 'italic' }}>
-                &quot;Atrasar cobrança é atrasar sua vida financeira.&quot;
-              </p>
-            </blockquote>
-          </div>
-        </FadeIn>
-      </Section>
-
-      <Divider />
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          SEÇÃO 4 — SOLUÇÃO
-      ══════════════════════════════════════════════════════════════════════ */}
-      <Section>
-        <FadeIn>
-          <p style={{ fontSize: 12, fontWeight: 700, color: G, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 }}>
-            A solução
-          </p>
-          <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 16 }}>
-            O PersonalHub resolve<br />
-            <span style={{ color: G }}>isso pra você</span>
-          </h2>
-          <p style={{ fontSize: 16, color: TG, maxWidth: 520, lineHeight: 1.65, marginBottom: 52 }}>
-            Ele organiza tudo que hoje está solto na sua rotina — num lugar só, simples de usar.
-          </p>
-        </FadeIn>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-          {[
-            { icon: '📅', title: 'Agenda organizada', desc: 'Visualize todos os seus treinos em um calendário limpo e sem confusão.' },
-            { icon: '👥', title: 'Alunos centralizados', desc: 'Ficha completa de cada aluno: dados, objetivos, histórico e contato.' },
-            { icon: '💰', title: 'Controle de pagamentos', desc: 'Saiba em tempo real quem pagou, quem está atrasado e quanto está pendente.' },
-            { icon: '📊', title: 'Faturamento automático', desc: 'O sistema calcula tudo. Você vê o número real sem fazer uma planilha.' },
-          ].map((card, i) => (
-            <FadeIn key={i} delay={i * 100}>
-              <div style={{
-                background: CARD, border: `1px solid ${BORDER}`,
-                borderRadius: 14, padding: '28px 24px',
-                height: '100%',
-                transition: 'border-color 0.2s, transform 0.2s',
-              }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 12,
-                  background: 'rgba(0,230,118,0.1)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22, marginBottom: 16,
-                }}>
-                  {card.icon}
-                </div>
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: TW, marginBottom: 8 }}>{card.title}</h3>
-                <p style={{ fontSize: 14, color: TG, lineHeight: 1.6, margin: 0 }}>{card.desc}</p>
-              </div>
-            </FadeIn>
-          ))}
-        </div>
-
-        <FadeIn delay={200}>
-          <div style={{
-            marginTop: 44, background: 'rgba(0,230,118,0.05)',
-            border: `1px solid rgba(0,230,118,0.18)`,
-            borderRadius: 12, padding: '24px 28px', textAlign: 'center',
-          }}>
-            <p style={{ fontSize: 17, fontWeight: 700, color: TW, margin: 0 }}>
-              👉 Você passa a saber exatamente quanto entrou e quanto sobrou.
-            </p>
-          </div>
-        </FadeIn>
-      </Section>
-
-      <Divider />
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          SEÇÃO 5 — COMO FUNCIONA
-      ══════════════════════════════════════════════════════════════════════ */}
-      <Section style={{ background: BG2 }}>
-        <FadeIn>
-          <p style={{ fontSize: 12, fontWeight: 700, color: G, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 }}>
-            Como funciona
-          </p>
-          <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 52 }}>
-            Veja o que você passa<br />
-            a <span style={{ color: G }}>enxergar todos os dias</span>
-          </h2>
-        </FadeIn>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 56 }}>
-          {[
-            {
-              num: '01',
-              title: 'Veja quanto você vai faturar no mês',
-              desc: 'O sistema soma as cobranças dos seus alunos e te mostra o número exato antes mesmo do mês terminar. Sem surpresa, sem planilha, sem achismo.',
-              visual: (
-                <div style={{ background: '#111', borderRadius: 12, border: `1px solid ${BORDER}`, padding: 20 }}>
-                  <div style={{ fontSize: 11, color: TS, marginBottom: 16, fontWeight: 600, letterSpacing: 1 }}>PREVISÃO DO MÊS</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {[
-                      { label: 'Confirmado', val: 'R$ 3.840', pct: 80, color: G },
-                      { label: 'Pendente',   val: 'R$   960', pct: 20, color: '#FFAB00' },
-                    ].map(r => (
-                      <div key={r.label}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                          <span style={{ fontSize: 12, color: TG }}>{r.label}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: r.color }}>{r.val}</span>
-                        </div>
-                        <div style={{ height: 6, background: '#222', borderRadius: 4 }}>
-                          <div style={{ height: '100%', width: `${r.pct}%`, background: r.color, borderRadius: 4 }} />
-                        </div>
-                      </div>
-                    ))}
-                    <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 13, color: TG, fontWeight: 600 }}>Total projetado</span>
-                      <span style={{ fontSize: 18, fontWeight: 900, color: TW }}>R$ 4.800</span>
-                    </div>
-                  </div>
-                </div>
-              ),
-            },
-            {
-              num: '02',
-              title: 'Controle quem pagou e quem não pagou',
-              desc: 'Cada aluno tem um status de cobrança claro. Você vê em segundos quem está em dia, quem está atrasado e qual o valor pendente.',
-              visual: (
-                <div style={{ background: '#111', borderRadius: 12, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-                  <div style={{ padding: '12px 16px', borderBottom: `1px solid ${BORDER}`, fontSize: 11, color: TS, fontWeight: 600, letterSpacing: 1 }}>
-                    SITUAÇÃO DAS COBRANÇAS
-                  </div>
-                  {[
-                    { nome: 'Rafael Souza', val: 'R$400', dias: null, ok: true },
-                    { nome: 'Priya Santos', val: 'R$280', dias: null, ok: true },
-                    { nome: 'Lucas Alves',  val: 'R$320', dias: 5,    ok: false },
-                    { nome: 'Marta Lima',   val: 'R$350', dias: null, ok: true },
-                  ].map(a => (
-                    <div key={a.nome} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 16px', borderBottom: `1px solid #1a1a1a`,
-                    }}>
-                      <div style={{ fontSize: 13, color: TW }}>{a.nome}</div>
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: TW }}>{a.val}</span>
-                        <span style={{
-                          fontSize: 10, fontWeight: 600, padding: '2px 9px', borderRadius: 20,
-                          background: a.ok ? 'rgba(0,230,118,0.1)' : 'rgba(255,82,82,0.1)',
-                          color: a.ok ? G : '#FF5252',
-                        }}>
-                          {a.ok ? 'Pago' : `${a.dias}d atraso`}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ),
-            },
-            {
-              num: '03',
-              title: 'Organize sua agenda sem erro',
-              desc: 'Cada aluno tem seus dias e horários cadastrados. A agenda mostra tudo em ordem — sem duplos agendamentos e sem confusão.',
-              visual: (
-                <div style={{ background: '#111', borderRadius: 12, border: `1px solid ${BORDER}`, padding: 20 }}>
-                  <div style={{ fontSize: 11, color: TS, marginBottom: 14, fontWeight: 600, letterSpacing: 1 }}>HOJE — SEG 14</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[
-                      { hora: '06:00', nome: 'Carlos M.', local: 'Academia Central' },
-                      { hora: '07:00', nome: 'Ana F.',    local: 'Parque Ibirapuera' },
-                      { hora: '08:00', nome: 'Bruno C.',  local: 'Academia Central' },
-                      { hora: '17:00', nome: 'Larissa N.', local: 'Academia Norte' },
-                      { hora: '18:00', nome: 'Rodrigo P.', local: 'Online' },
-                    ].map(ev => (
-                      <div key={ev.hora} style={{
-                        display: 'flex', gap: 12, alignItems: 'center',
-                        background: CARD, borderRadius: 8, padding: '10px 12px',
-                        border: `1px solid ${BORDER}`,
-                      }}>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: G, minWidth: 44 }}>{ev.hora}</span>
-                        <div>
-                          <div style={{ fontSize: 13, color: TW, fontWeight: 600 }}>{ev.nome}</div>
-                          <div style={{ fontSize: 11, color: TS }}>{ev.local}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ),
-            },
-          ].map((step, i) => (
-            <FadeIn key={i} delay={100}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: i % 2 === 0 ? '1fr 1fr' : '1fr 1fr',
-                gap: 56, alignItems: 'center',
-              }}
-                className={`step-grid${i % 2 === 1 ? ' step-reverse' : ''}`}
-              >
-                <div style={{ order: i % 2 === 1 ? 2 : 1 }}>
-                  <div style={{ fontSize: 64, fontWeight: 900, color: BORDER, lineHeight: 1, marginBottom: 8 }}>
-                    {step.num}
-                  </div>
-                  <h3 style={{ fontSize: 26, fontWeight: 800, color: TW, marginBottom: 14, lineHeight: 1.2 }}>
-                    {step.title}
-                  </h3>
-                  <p style={{ fontSize: 15, color: TG, lineHeight: 1.7 }}>{step.desc}</p>
-                </div>
-                <div style={{ order: i % 2 === 1 ? 1 : 2 }}>
-                  {step.visual}
-                </div>
-              </div>
-            </FadeIn>
-          ))}
-        </div>
-
-        <style>{`
-          @media (max-width: 650px) {
-            .step-grid { grid-template-columns: 1fr !important; }
-            .step-grid > div { order: unset !important; }
-          }
-        `}</style>
-      </Section>
-
-      <Divider />
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          SEÇÃO 6 — ANTES vs DEPOIS
-      ══════════════════════════════════════════════════════════════════════ */}
-      <Section>
-        <FadeIn>
-          <p style={{ fontSize: 12, fontWeight: 700, color: G, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 }}>
-            Transformação
-          </p>
-          <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 52 }}>
-            O que muda quando<br />
-            <span style={{ color: G }}>você tem controle</span>
-          </h2>
-        </FadeIn>
-
-        <FadeIn delay={100}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            {/* Antes */}
-            <div style={{
-              background: 'rgba(255,82,82,0.04)', border: `1px solid rgba(255,82,82,0.15)`,
-              borderRadius: 16, padding: '32px 28px',
-            }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                background: 'rgba(255,82,82,0.08)', border: `1px solid rgba(255,82,82,0.2)`,
-                borderRadius: 8, padding: '6px 14px', marginBottom: 28,
-              }}>
-                <span style={{ fontSize: 14 }}>😓</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#FF5252' }}>ANTES</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* 3 main benefits */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 38 }}>
                 {[
-                  'Cobrança atrasada, dinheiro parado',
-                  'Não sabe quanto vai ganhar no mês',
-                  'Agenda bagunçada e estressante',
-                  'Sensação de trabalhar sem crescer',
-                  'Medo de perder aluno por desorganização',
-                ].map((item, i) => (
+                  ['Controle financeiro real', 'Saiba quanto lucra, não só quanto fatura'],
+                  ['Agenda visual organizada', 'Grade semanal clara, sem conflito de horário'],
+                  ['Cálculo automático de aulas', 'Extras e reposições computados sozinhos'],
+                ].map(([title, desc], i) => (
                   <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <span style={{ color: '#FF5252', fontSize: 16, flexShrink: 0, marginTop: 1 }}>✗</span>
-                    <span style={{ fontSize: 15, color: TG, lineHeight: 1.5 }}>{item}</span>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                      background: `rgba(52,80,43,0.6)`, border: `1px solid ${G}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <span style={{ fontSize: 11, color: G, fontWeight: 800 }}>✓</span>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: TW }}>{title}</span>
+                      <span style={{ fontSize: 13, color: TG }}> — {desc}</span>
+                    </div>
                   </div>
                 ))}
               </div>
+
+              {/* CTA */}
+              <Link href="/register" className="cta-btn" style={{
+                fontSize: 17, padding: '17px 36px', marginBottom: 18,
+                animation: 'glow 3s infinite',
+              }}>
+                Comece grátis por 7 dias →
+              </Link>
+
+              {/* Trust */}
+              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                {[['🔒', 'Pagamento seguro'], ['✗', 'Sem fidelidade'], ['✓', 'Cancele quando quiser']].map(([icon, label]) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ fontSize: 12 }}>{icon}</span>
+                    <span style={{ fontSize: 12, color: TS }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </FadeIn>
+
+            {/* Right — floating phone */}
+            <div className="hero-right" style={{ display: 'flex', justifyContent: 'center' }}>
+              <FadeIn delay={200}>
+                <div style={{ animation: 'float 6s ease-in-out infinite', position: 'relative' }}>
+                  <div style={{
+                    position: 'absolute', inset: -50, borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(52,80,43,0.55) 0%, transparent 70%)',
+                    pointerEvents: 'none',
+                  }} />
+                  <PhoneMockup><ScreenDashboard /></PhoneMockup>
+                </div>
+              </FadeIn>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats bar */}
+      <div ref={statsRef} style={{
+        background: BG2, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`,
+        padding: '44px 24px',
+      }}>
+        <div style={{
+          maxWidth: 760, margin: '0 auto',
+          display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 36,
+        }}>
+          {[
+            { val: `${cAlunos}+`, label: 'Alunos em média por personal na plataforma' },
+            { val: `${cMobile}%`, label: 'Mobile-first — feito para o celular' },
+            { val: `R$${cPreco},90`, label: 'Por mês — menos de R$1 por dia' },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 44, fontWeight: 900, color: G, lineHeight: 1, letterSpacing: -1 }}>{s.val}</div>
+              <div style={{ fontSize: 12, color: TS, marginTop: 8, maxWidth: 160 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          2. DOR DO PERSONAL
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Section bg={BG}>
+        <FadeIn>
+          <Label>Você se identifica?</Label>
+          <h2 style={{ fontSize: 'clamp(30px,4vw,50px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 16 }}>
+            Você ainda controla seus alunos{' '}
+            <span style={{ textDecoration: 'line-through', textDecorationColor: RED, color: TG }}>em planilha?</span>
+          </h2>
+          <p style={{ fontSize: 17, color: TG, maxWidth: 520, lineHeight: 1.65, marginBottom: 56 }}>
+            A maioria dos personais é excelente no treino. O problema está na gestão — e custa dinheiro real.
+          </p>
+        </FadeIn>
+
+        {/* Caos → Organização */}
+        <FadeIn delay={100}>
+          <div className="chaos-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 24, alignItems: 'center', marginBottom: 56 }}>
+            {/* Antes */}
+            <div style={{ background: 'rgba(224,82,82,0.04)', border: `1px solid rgba(224,82,82,0.15)`, borderRadius: 16, padding: '28px 24px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: RED, marginBottom: 20 }}>📱 HOJE</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+                {[
+                  '📊 Planilha do Excel com fórmulas manuais',
+                  '📝 Bloco de notas no celular',
+                  '💬 Cobrança pelo WhatsApp quando lembra',
+                  '🤯 Fim de mês sem saber quanto ganhou',
+                  '😰 Faltas e reposições perdidas',
+                ].map((item, i) => (
+                  <div key={i} style={{ fontSize: 14, color: TG, lineHeight: 1.5 }}>{item}</div>
+                ))}
+              </div>
+            </div>
+
+            {/* Seta */}
+            <div className="chaos-arrow" style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: 24, color: G, background: `rgba(52,80,43,0.4)`, border: `1px solid rgba(124,185,114,0.3)`,
+                borderRadius: '50%', width: 52, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>→</div>
             </div>
 
             {/* Depois */}
-            <div style={{
-              background: 'rgba(0,230,118,0.04)', border: `1px solid rgba(0,230,118,0.15)`,
-              borderRadius: 16, padding: '32px 28px',
-            }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                background: 'rgba(0,230,118,0.08)', border: `1px solid rgba(0,230,118,0.2)`,
-                borderRadius: 8, padding: '6px 14px', marginBottom: 28,
-              }}>
-                <span style={{ fontSize: 14 }}>💪</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: G }}>COM O PERSONALHUB</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: `rgba(52,80,43,0.15)`, border: `1px solid rgba(124,185,114,0.2)`, borderRadius: 16, padding: '28px 24px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: G, marginBottom: 20 }}>💪 COM O PERSONALHUB</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
                 {[
-                  'Cobrança em dia, dinheiro na conta',
-                  'Previsão de faturamento em tempo real',
-                  'Agenda clara, dia a dia sem estresse',
-                  'Sensação de controle e crescimento',
-                  'Postura profissional que retém alunos',
+                  '📊 Dashboard com faturamento em tempo real',
+                  '📅 Agenda visual semana a semana',
+                  '💰 Cobranças organizadas por aluno',
+                  '✅ Previsão do mês antes de terminar',
+                  '🔄 Reposições com prazo e rastreamento',
                 ].map((item, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <span style={{ color: G, fontSize: 16, flexShrink: 0, marginTop: 1 }}>✓</span>
-                    <span style={{ fontSize: 15, color: TG, lineHeight: 1.5 }}>{item}</span>
-                  </div>
+                  <div key={i} style={{ fontSize: 14, color: TG, lineHeight: 1.5 }}>{item}</div>
                 ))}
               </div>
             </div>
           </div>
         </FadeIn>
 
-        <style>{`@media(max-width:580px){.bvd-grid{grid-template-columns:1fr!important}}`}</style>
+        {/* Pain cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+          {[
+            { icon: '💸', title: 'Dinheiro parado', text: 'Atraso em cobrar = dias sem esse valor na sua conta. Multiplica por 12 meses.' },
+            { icon: '📉', title: 'Perda invisível', text: 'Alunos que faltam e você não registra. Reposição que vence sem cobrar.' },
+            { icon: '😤', title: 'Estresse desnecessário', text: 'Gerenciar tudo na cabeça gasta energia que deveria ir pro treino.' },
+            { icon: '❓', title: 'Fim do mês surpresa', text: 'Trabalhou muito e não sabe quanto sobrou? Isso tem nome: falta de controle.' },
+          ].map((card, i) => (
+            <FadeIn key={i} delay={i * 70}>
+              <div className="fcard" style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '24px 22px' }}>
+                <div style={{ fontSize: 28, marginBottom: 12 }}>{card.icon}</div>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: TW, marginBottom: 8 }}>{card.title}</h3>
+                <p style={{ fontSize: 13, color: TG, lineHeight: 1.6 }}>{card.text}</p>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+
+        <FadeIn delay={200}>
+          <div style={{
+            marginTop: 44, background: `rgba(52,80,43,0.2)`,
+            border: `1px solid rgba(124,185,114,0.25)`, borderLeft: `4px solid ${G}`,
+            borderRadius: 12, padding: '24px 28px',
+          }}>
+            <p style={{ fontSize: 18, fontWeight: 700, color: TW, lineHeight: 1.5 }}>
+              👉 O problema não é falta de aluno.<br />
+              <span style={{ color: G }}>É falta de organização — e isso tem solução.</span>
+            </p>
+          </div>
+        </FadeIn>
       </Section>
 
-      <Divider />
+      {/* ══════════════════════════════════════════════════════════════════════
+          3. BENEFÍCIOS
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Section bg={BG2}>
+        <FadeIn>
+          <Label>Resultados reais</Label>
+          <h2 style={{ fontSize: 'clamp(30px,4vw,50px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 16 }}>
+            Controle total do seu trabalho<br />
+            <span style={{ color: G }}>na palma da mão</span>
+          </h2>
+          <p style={{ fontSize: 17, color: TG, maxWidth: 520, lineHeight: 1.65, marginBottom: 56 }}>
+            Não são features técnicas. São transformações que você sente no bolso e na qualidade de vida.
+          </p>
+        </FadeIn>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+          {[
+            { icon: '💰', tag: 'Financeiro', title: 'Saiba quanto você realmente lucra', text: 'Não só quanto fatura — o PersonalHub separa faturamento de lucro real, incluindo aulas extras, reposições e variações do mês.' },
+            { icon: '📅', tag: 'Agenda', title: 'Agenda visual, dia a dia organizado', text: 'Grade semanal completa com todos os alunos por horário. Sem conflito, sem esquecimento, sem aquela sensação de bagunça.' },
+            { icon: '🔢', tag: 'Automação', title: 'Cálculos automáticos de aula', text: 'Aulas extras são somadas automaticamente ao valor do mês. Reposições têm prazo e são rastreadas. Nada cai no esquecimento.' },
+            { icon: '🔄', tag: 'Faltas', title: 'Reposições facilitadas com prazo', text: 'Cada falta gera uma reposição com data limite e status. Você sabe exatamente quantas estão pendentes, agendadas ou vencidas.' },
+            { icon: '📋', tag: 'Termos', title: 'Termos de serviço digitais', text: 'Envie contratos personalizados para seus alunos pelo WhatsApp. Profissionalismo que gera confiança e fecha mais contratos.' },
+            { icon: '⏸️', tag: 'Gestão', title: 'Suspensões e atestados sob controle', text: 'Gerencie pausas, atestados e retornos sem perder o histórico. Cada aluno tem seu status claro e atualizado.' },
+          ].map((card, i) => (
+            <FadeIn key={i} delay={i * 80}>
+              <div className="fcard" style={{
+                background: CARD, border: `1px solid ${BORDER}`,
+                borderRadius: 16, padding: '28px 24px', height: '100%',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                  <div style={{
+                    width: 50, height: 50, borderRadius: 14,
+                    background: `rgba(52,80,43,0.5)`, border: `1px solid rgba(124,185,114,0.15)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                  }}>{card.icon}</div>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                    padding: '4px 10px', borderRadius: 6,
+                    background: `rgba(52,80,43,0.4)`, color: G, border: `1px solid rgba(124,185,114,0.2)`,
+                  }}>{card.tag}</span>
+                </div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: TW, marginBottom: 10, lineHeight: 1.3 }}>{card.title}</h3>
+                <p style={{ fontSize: 14, color: TG, lineHeight: 1.65 }}>{card.text}</p>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </Section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SEÇÃO 7 — PREÇO
+          4. SCREENSHOTS / DEMO
       ══════════════════════════════════════════════════════════════════════ */}
-      <Section style={{ background: BG2 }}>
+      <Section bg={BG3}>
+        <FadeIn style={{ textAlign: 'center', marginBottom: 60 }}>
+          <Label>Veja na prática</Label>
+          <h2 style={{ fontSize: 'clamp(30px,4vw,50px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 16 }}>
+            O app que você vai usar<br />
+            <span style={{ color: G }}>todo dia no celular</span>
+          </h2>
+          <p style={{ fontSize: 17, color: TG, maxWidth: 480, margin: '0 auto', lineHeight: 1.65 }}>
+            Navegue pelas principais telas e veja como tudo funciona na prática.
+          </p>
+        </FadeIn>
+        <FadeIn delay={150}><ScreensCarousel /></FadeIn>
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          5. MÓDULOS
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Section bg={BG}>
         <FadeIn>
-          <div style={{ textAlign: 'center', marginBottom: 52 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: G, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 }}>
-              Investimento
-            </p>
-            <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 12 }}>
-              Quanto vale ter controle total<br />
-              <span style={{ color: G }}>do seu dinheiro e da sua rotina?</span>
-            </h2>
+          <Label>O que está incluído</Label>
+          <h2 style={{ fontSize: 'clamp(30px,4vw,50px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 16 }}>
+            Tudo que o personal trainer<br />
+            <span style={{ color: G }}>precisa para trabalhar</span>
+          </h2>
+          <p style={{ fontSize: 17, color: TG, maxWidth: 520, lineHeight: 1.65, marginBottom: 52 }}>
+            Sem funcionalidades inúteis. Só o que você realmente usa todo dia.
+          </p>
+        </FadeIn>
+
+        <div className="mod-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+          {[
+            { icon: '🏠', name: 'Dashboard', desc: 'Visão geral do mês: faturamento, alunos e cobranças' },
+            { icon: '👥', name: 'Alunos', desc: 'Cadastro completo com horários, valores e histórico' },
+            { icon: '📅', name: 'Agenda', desc: 'Grade semanal visual com todos os treinos' },
+            { icon: '🔢', name: 'Cálculo Mensal', desc: 'Valor exato de cada aluno incluindo extras' },
+            { icon: '💳', name: 'Cobrança', desc: 'Status de pagamento e envio via WhatsApp' },
+            { icon: '🔄', name: 'Faltas e Reposições', desc: 'Controle de prazo, status e agendamento' },
+            { icon: '📊', name: 'Financeiro', desc: 'Relatório de receitas e visão mensal do negócio' },
+            { icon: '📋', name: 'Termos de Serviço', desc: 'Contratos digitais personalizados via WhatsApp' },
+            { icon: '⏸️', name: 'Suspensão e Atestado', desc: 'Pausas, retornos e histórico de cada aluno' },
+          ].map((mod, i) => (
+            <FadeIn key={i} delay={i * 55}>
+              <div className="fcard" style={{
+                background: CARD, border: `1px solid ${BORDER}`,
+                borderRadius: 14, padding: '22px 18px',
+              }}>
+                <div style={{ fontSize: 26, marginBottom: 10 }}>{mod.icon}</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: TW, marginBottom: 6 }}>{mod.name}</div>
+                <div style={{ fontSize: 12, color: TG, lineHeight: 1.55 }}>{mod.desc}</div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          6. SOCIAL PROOF
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Section bg={BG2}>
+        <FadeIn style={{ textAlign: 'center', marginBottom: 52 }}>
+          <Label>Quem já usa</Label>
+          <h2 style={{ fontSize: 'clamp(30px,4vw,50px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1 }}>
+            O que os personais estão<br />
+            <span style={{ color: G }}>falando do PersonalHub</span>
+          </h2>
+        </FadeIn>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+          {[
+            {
+              text: '"R$29,90. Menos de um real por dia. Não tem como não valer. Antes eu não sabia nem quanto ia faturar no mês. Agora vejo tudo no dashboard."',
+              author: 'Personal trainer — Beta tester',
+            },
+            {
+              text: '"O cálculo automático de aulas extras foi o que mais me surpreendeu. Antes eu esquecia de cobrar, agora vem tudo certinho no mês."',
+              author: 'Personal trainer — Beta tester',
+            },
+            {
+              text: '"A agenda semanal mudou minha rotina. Consigo ver o dia todo num relance sem precisar ficar abrindo conversas de WhatsApp."',
+              author: 'Personal trainer — Beta tester',
+            },
+          ].map((t, i) => (
+            <FadeIn key={i} delay={i * 100}>
+              <div style={{
+                background: CARD, border: `1px solid ${BORDER}`,
+                borderRadius: 16, padding: '28px 24px',
+                display: 'flex', flexDirection: 'column', gap: 20,
+              }}>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {[...Array(5)].map((_, j) => <span key={j} style={{ color: '#f59e0b', fontSize: 14 }}>★</span>)}
+                </div>
+                <p style={{ fontSize: 15, color: TG, lineHeight: 1.7, fontStyle: 'italic', flex: 1 }}>{t.text}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: `rgba(52,80,43,0.5)`, border: `1px solid rgba(124,185,114,0.3)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700, color: G,
+                  }}>PT</div>
+                  <span style={{ fontSize: 13, color: TS, fontWeight: 500 }}>{t.author}</span>
+                </div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          7. COMPARAÇÃO
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Section bg={BG}>
+        <FadeIn>
+          <Label>A escolha óbvia</Label>
+          <h2 style={{ fontSize: 'clamp(30px,4vw,50px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1, marginBottom: 16 }}>
+            PersonalHub vs.<br />
+            <span style={{ color: TG }}>planilha e bloco de notas</span>
+          </h2>
+          <p style={{ fontSize: 17, color: TG, maxWidth: 520, lineHeight: 1.65, marginBottom: 52 }}>
+            Compare e veja por que profissionais estão migrando.
+          </p>
+        </FadeIn>
+
+        <FadeIn delay={100}>
+          <div style={{ overflowX: 'auto', borderRadius: 16, border: `1px solid ${BORDER}` }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '18px 22px', textAlign: 'left', fontSize: 13, color: TS, fontWeight: 600, borderBottom: `1px solid ${BORDER}`, background: BG }}>
+                    Funcionalidade
+                  </th>
+                  <th style={{ padding: '18px 22px', textAlign: 'center', fontSize: 13, color: TS, fontWeight: 600, borderBottom: `1px solid ${BORDER}`, background: BG }}>
+                    Planilha / Caderno
+                  </th>
+                  <th style={{
+                    padding: '18px 22px', textAlign: 'center', fontSize: 14, fontWeight: 800,
+                    borderBottom: `2px solid ${G}`, color: G, background: `rgba(52,80,43,0.25)`,
+                  }}>
+                    PersonalHub ✦
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  'Dashboard financeiro em tempo real',
+                  'Cálculo automático de aulas extras',
+                  'Agenda visual por semana',
+                  'Controle de faltas e reposições',
+                  'Cobranças organizadas por aluno',
+                  'Termos de serviço digitais',
+                  'Suspensão e atestado com histórico',
+                  '100% no celular, sem instalar nada',
+                  'Backup automático dos dados',
+                  'Notificações e lembretes',
+                ].map((feature, i) => (
+                  <tr key={i}>
+                    <td style={{ padding: '14px 22px', fontSize: 14, color: TG, borderBottom: `1px solid ${BORDER}`, background: i % 2 === 0 ? BG : `${BG2}` }}>
+                      {feature}
+                    </td>
+                    <td style={{ padding: '14px 22px', textAlign: 'center', borderBottom: `1px solid ${BORDER}`, background: i % 2 === 0 ? BG : `${BG2}` }}>
+                      <span style={{ color: RED, fontSize: 18, fontWeight: 700 }}>✗</span>
+                    </td>
+                    <td style={{ padding: '14px 22px', textAlign: 'center', borderBottom: `1px solid rgba(124,185,114,0.12)`, background: `rgba(52,80,43,0.12)` }}>
+                      <span style={{ color: G, fontSize: 18, fontWeight: 700 }}>✓</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        </FadeIn>
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          PREÇO
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Section bg={BG2}>
+        <FadeIn style={{ textAlign: 'center', marginBottom: 56 }}>
+          <Label>Investimento</Label>
+          <h2 style={{ fontSize: 'clamp(30px,4vw,50px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1 }}>
+            Quanto vale ter controle<br />
+            <span style={{ color: G }}>total do seu negócio?</span>
+          </h2>
         </FadeIn>
 
         <FadeIn delay={100}>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <div style={{
-              background: CARD, border: `1px solid rgba(0,230,118,0.25)`,
-              borderRadius: 20, padding: '48px 52px',
-              maxWidth: 480, width: '100%', textAlign: 'center',
-              boxShadow: `0 0 60px rgba(0,230,118,0.08)`,
+              background: CARD, border: `1px solid rgba(124,185,114,0.3)`,
+              borderRadius: 24, padding: '56px 56px',
+              maxWidth: 500, width: '100%', textAlign: 'center',
+              boxShadow: `0 0 80px rgba(52,80,43,0.35)`,
+              position: 'relative',
             }}>
               <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                background: 'rgba(0,230,118,0.08)', border: `1px solid rgba(0,230,118,0.2)`,
-                borderRadius: 100, padding: '6px 16px', marginBottom: 28,
+                position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)',
+                background: G, color: '#000', fontWeight: 800, fontSize: 12, letterSpacing: 1,
+                padding: '7px 22px', borderRadius: 100, whiteSpace: 'nowrap',
               }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: G }}>Plano Pro — Acesso completo</span>
+                ✦ ACESSO COMPLETO
               </div>
 
               <div style={{ marginBottom: 8 }}>
                 <span style={{ fontSize: 20, color: TG, fontWeight: 500 }}>R$</span>
-                <span style={{ fontSize: 64, fontWeight: 900, color: TW, lineHeight: 1, letterSpacing: -2 }}>29</span>
-                <span style={{ fontSize: 30, color: TW, fontWeight: 700 }}>,90</span>
+                <span style={{ fontSize: 76, fontWeight: 900, color: TW, lineHeight: 1, letterSpacing: -3 }}>29</span>
+                <span style={{ fontSize: 34, color: TW, fontWeight: 700 }}>,90</span>
               </div>
-              <p style={{ fontSize: 14, color: TS, marginBottom: 36 }}>por mês</p>
+              <p style={{ fontSize: 14, color: TS, marginBottom: 14 }}>por mês</p>
+              <div style={{
+                display: 'inline-block', background: `rgba(52,80,43,0.4)`,
+                border: `1px solid rgba(124,185,114,0.25)`,
+                borderRadius: 8, padding: '7px 18px', marginBottom: 44,
+              }}>
+                <span style={{ fontSize: 14, color: G, fontWeight: 600 }}>= menos de R$1,00 por dia</span>
+              </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 36, textAlign: 'left' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 44, textAlign: 'left' }}>
                 {[
                   'Alunos ilimitados',
-                  'Controle completo de cobranças',
-                  'Agenda e histórico de treinos',
-                  'Relatório financeiro automático',
-                  'Termos digitais por WhatsApp',
-                  'Suporte incluído',
+                  'Agenda semanal visual',
+                  'Controle de faltas e reposições',
+                  'Cálculo automático de aulas',
+                  'Relatório financeiro mensal',
+                  'Cobranças organizadas por aluno',
+                  'Termos digitais via WhatsApp',
+                  'Suspensão e atestado com histórico',
+                  'Suporte incluso',
                 ].map((f, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <div style={{
-                      width: 20, height: 20, borderRadius: '50%',
-                      background: 'rgba(0,230,118,0.12)',
+                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                      background: `rgba(52,80,43,0.6)`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
                     }}>
-                      <span style={{ fontSize: 11, color: G, fontWeight: 700 }}>✓</span>
+                      <span style={{ fontSize: 10, color: G }}>✓</span>
                     </div>
                     <span style={{ fontSize: 14, color: TG }}>{f}</span>
                   </div>
                 ))}
               </div>
 
-              <Link href="/register" style={{
-                display: 'block', textAlign: 'center',
-                background: G, color: '#000',
-                fontWeight: 800, fontSize: 16, padding: '16px',
-                borderRadius: 12, textDecoration: 'none',
-                marginBottom: 16,
+              <Link href="/register" className="cta-btn" style={{
+                display: 'block', fontSize: 17, padding: '18px',
+                marginBottom: 20, boxShadow: '0 0 48px rgba(124,185,114,0.25)',
               }}>
-                Começar agora
+                Comece grátis — 7 dias sem custo
               </Link>
 
               <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
-                {['Menos de R$1/dia', 'Sem contrato', 'Cancele quando quiser'].map(t => (
+                {['Sem cartão no trial', 'Sem contrato', 'Cancele quando quiser'].map(t => (
                   <span key={t} style={{ fontSize: 12, color: TS }}>{t}</span>
                 ))}
               </div>
@@ -810,100 +1089,89 @@ export default function LandingPage() {
         </FadeIn>
       </Section>
 
-      <Divider />
-
       {/* ══════════════════════════════════════════════════════════════════════
-          SEÇÃO 8 — POSICIONAMENTO
+          8. FAQ
       ══════════════════════════════════════════════════════════════════════ */}
-      <Section>
+      <Section bg={BG}>
         <FadeIn>
-          <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
-            <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, lineHeight: 1.15, letterSpacing: -1, marginBottom: 20 }}>
-              Não é sobre trabalhar mais.
-            </h2>
-            <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 900, lineHeight: 1.15, letterSpacing: -1, color: G, marginBottom: 28 }}>
-              É sobre parar de perder dinheiro no que você já faz.
-            </h2>
-            <p style={{ fontSize: 17, color: TG, lineHeight: 1.7 }}>
-              Você já tem os alunos. Você já faz os treinos. O PersonalHub só garante
-              que você receba direito, no prazo, sem se perder no caminho.
-            </p>
+          <div style={{ maxWidth: 680, margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: 56 }}>
+              <Label>Dúvidas frequentes</Label>
+              <h2 style={{ fontSize: 'clamp(28px,4vw,46px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: -1 }}>
+                Perguntas e <span style={{ color: G }}>respostas</span>
+              </h2>
+            </div>
+            {FAQ.map((item, i) => <FAQItem key={i} q={item.q} a={item.a} />)}
           </div>
         </FadeIn>
       </Section>
 
-      <Divider />
-
       {/* ══════════════════════════════════════════════════════════════════════
-          SEÇÃO 9 — CTA FINAL
+          9. CTA FINAL
       ══════════════════════════════════════════════════════════════════════ */}
       <section style={{
-        background: BG3,
-        padding: '100px 24px',
-        textAlign: 'center',
-        position: 'relative', overflow: 'hidden',
+        padding: '120px 24px', background: BG3,
+        textAlign: 'center', position: 'relative', overflow: 'hidden',
       }}>
-        {/* Background glow */}
+        {/* BG radial */}
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: 600, height: 600, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0,230,118,0.06) 0%, transparent 70%)',
+          width: 800, height: 800, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(52,80,43,0.45) 0%, transparent 65%)',
           pointerEvents: 'none',
         }} />
+        {/* Decorative rings */}
+        <div style={{ position: 'absolute', top: 40, right: 60, width: 220, height: 220, borderRadius: '50%', border: `1px solid rgba(124,185,114,0.07)`, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: 80, right: 80, width: 140, height: 140, borderRadius: '50%', border: `1px solid rgba(124,185,114,0.05)`, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: 40, left: 60, width: 160, height: 160, borderRadius: '50%', border: `1px solid rgba(124,185,114,0.06)`, pointerEvents: 'none' }} />
 
-        <div style={{ maxWidth: 580, margin: '0 auto', position: 'relative' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto', position: 'relative' }}>
           <FadeIn>
-            <p style={{ fontSize: 12, fontWeight: 700, color: G, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 }}>
-              Comece agora
-            </p>
-            <h2 style={{ fontSize: 'clamp(32px,5vw,52px)', fontWeight: 900, lineHeight: 1.08, letterSpacing: -1.5, marginBottom: 20 }}>
+            <Label>Comece agora</Label>
+            <h2 style={{
+              fontSize: 'clamp(34px,5vw,58px)', fontWeight: 900,
+              lineHeight: 1.06, letterSpacing: -2, marginBottom: 22,
+            }}>
               Organize sua rotina.<br />
-              <span style={{ color: G }}>Controle seu dinheiro.</span>
+              <span style={{ color: G }}>Controle seu dinheiro.</span><br />
+              Cresça como profissional.
             </h2>
-            <p style={{ fontSize: 17, color: TG, lineHeight: 1.7, marginBottom: 40 }}>
-              Tenha previsibilidade no seu mês e pare de trabalhar no escuro.
+            <p style={{ fontSize: 17, color: TG, lineHeight: 1.7, marginBottom: 48 }}>
+              Tenha clareza financeira, agenda organizada e postura profissional.
+              Por menos de R$1 por dia.
             </p>
 
-            <Link href="/register" style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              background: G, color: '#000',
-              fontWeight: 800, fontSize: 17, padding: '18px 44px',
-              borderRadius: 14, textDecoration: 'none',
-              boxShadow: `0 0 48px rgba(0,230,118,0.4)`,
-              marginBottom: 20,
+            <Link href="/register" className="cta-btn" style={{
+              fontSize: 18, padding: '20px 56px', marginBottom: 24,
+              boxShadow: '0 0 60px rgba(124,185,114,0.35)',
             }}>
-              Quero usar o PersonalHub
+              Comece agora — 7 dias grátis
             </Link>
 
-            <p style={{ fontSize: 13, color: TS }}>
-              7 dias grátis para experimentar · Sem cartão de crédito · R$29,90/mês depois
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 28, flexWrap: 'wrap' }}>
+              {['✓ Sem cartão no período de teste', '✓ Cancele quando quiser', '✓ Sem fidelidade'].map(t => (
+                <span key={t} style={{ fontSize: 13, color: TS }}>{t}</span>
+              ))}
+            </div>
           </FadeIn>
         </div>
       </section>
 
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer style={{
-        borderTop: `1px solid ${BORDER}`,
-        padding: '32px 24px',
-        background: BG,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        flexWrap: 'wrap', gap: 16,
+        borderTop: `1px solid ${BORDER}`, padding: '36px 24px', background: BG,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
       }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: TW }}>
+        <div style={{ fontSize: 16, fontWeight: 800, color: TW }}>
           Personal<span style={{ color: G }}>Hub</span>
         </div>
         <div style={{ display: 'flex', gap: 28 }}>
           {[['Entrar', '/login'], ['Cadastrar', '/register']].map(([label, href]) => (
-            <Link key={href} href={href} style={{ fontSize: 13, color: TS, textDecoration: 'none' }}>
-              {label}
-            </Link>
+            <Link key={href} href={href} style={{ fontSize: 13, color: TS, textDecoration: 'none' }}>{label}</Link>
           ))}
         </div>
-        <p style={{ fontSize: 12, color: TS }}>
-          © {new Date().getFullYear()} PersonalHub
-        </p>
+        <p style={{ fontSize: 12, color: TS }}>© {new Date().getFullYear()} PersonalHub</p>
       </footer>
     </div>
   )
