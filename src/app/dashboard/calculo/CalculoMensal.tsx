@@ -251,13 +251,13 @@ export function CalculoMensal({ alunos }: Props) {
         </div>
 
         <div
-          className="p-5 rounded-2xl"
+          className="min-w-0 p-5 rounded-2xl"
           style={{ background: 'var(--green-muted)', border: '1px solid rgba(0,230,118,0.2)' }}
         >
           <p className="text-xs font-medium mb-1" style={{ color: 'var(--green-primary)', opacity: 0.8 }}>
             Faturamento bruto
           </p>
-          <p className="text-2xl font-bold leading-tight" style={{ color: 'var(--green-primary)' }}>
+          <p className="text-xl font-bold leading-tight break-words" style={{ color: 'var(--green-primary)' }}>
             {formatCurrency(faturamentoBruto)}
           </p>
           <p className="text-xs mt-1" style={{ color: 'var(--green-primary)', opacity: 0.7 }}>

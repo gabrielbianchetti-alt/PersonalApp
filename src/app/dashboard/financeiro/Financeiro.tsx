@@ -468,7 +468,7 @@ export function Financeiro({ alunos, custosIniciais, mesInicial }: Props) {
             </div>
 
             {/* Margem de lucro */}
-            <div className="p-4 rounded-2xl"
+            <div className="col-span-2 p-4 rounded-2xl"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
               <div className="flex items-start justify-between mb-2">
                 <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Margem de lucro</p>
