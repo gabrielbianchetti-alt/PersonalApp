@@ -825,39 +825,23 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
 
           {/* ── Filters + costs list ── */}
           <div className="flex flex-col gap-3">
-            {/* Filter bar */}
-            <div className="flex flex-col gap-2">
-              {/* Tipo tabs — centered */}
-              <div className="flex justify-center">
-                <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-                  {([
-                    { id: 'todos',    label: 'Todos' },
-                    { id: 'fixo',     label: '🔁 Fixos' },
-                    { id: 'variavel', label: '📌 Variáveis' },
-                  ] as const).map(f => (
-                    <button key={f.id} onClick={() => setFilterTipo(f.id)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-                      style={{
-                        background: filterTipo === f.id ? 'var(--green-primary)' : 'transparent',
-                        color: filterTipo === f.id ? '#000' : 'var(--text-secondary)',
-                      }}>
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Category filter + count */}
-              <div className="flex items-center gap-2">
-                <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-                  className="px-3 py-2 rounded-xl text-xs cursor-pointer outline-none"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                  <option value="">Todas categorias</option>
-                  {allCats.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {listCustos.length} item{listCustos.length !== 1 ? 's' : ''}
-                </span>
+            {/* Tipo tabs — centered */}
+            <div className="flex justify-center">
+              <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                {([
+                  { id: 'todos',    label: 'Todos' },
+                  { id: 'fixo',     label: '🔁 Fixos' },
+                  { id: 'variavel', label: '📌 Variáveis' },
+                ] as const).map(f => (
+                  <button key={f.id} onClick={() => setFilterTipo(f.id)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                    style={{
+                      background: filterTipo === f.id ? 'var(--green-primary)' : 'transparent',
+                      color: filterTipo === f.id ? '#000' : 'var(--text-secondary)',
+                    }}>
+                    {f.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -878,6 +862,19 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                 style={{ background: 'rgba(64,196,255,0.1)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}>
                 + Custo variável
               </button>
+            </div>
+
+            {/* Category filter + count — centralized below add buttons */}
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+                className="px-3 py-2 rounded-xl text-xs cursor-pointer outline-none"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                <option value="">Todas categorias</option>
+                {allCats.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {listCustos.length} item{listCustos.length !== 1 ? 's' : ''}
+              </span>
             </div>
 
             {/* Costs list */}
