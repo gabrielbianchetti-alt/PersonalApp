@@ -2,15 +2,16 @@
 
 /* ── Dark mode (default) ──────────────────────────────────────────────────── */
 :root {
-  --green-primary: #00E676;
-  --green-hover: #00C853;
-  --green-muted: rgba(0, 230, 118, 0.08);
-  --bg-base: #080808;
-  --bg-surface: #111111;
-  --bg-card: #171717;
-  --bg-input: #1E1E1E;
-  --border-subtle: #2A2A2A;
-  --border-focus: rgba(0, 230, 118, 0.5);
+  --green-primary: #FC6E20;
+  --green-hover: #E35507;
+  --green-muted: rgba(252, 110, 32, 0.08);
+  --green-border: rgba(252, 110, 32, 0.18);
+  --bg-base: #1B1B1B;
+  --bg-surface: #232323;
+  --bg-card: #323232;
+  --bg-input: #2A2A2A;
+  --border-subtle: #3D3D3D;
+  --border-focus: rgba(252, 110, 32, 0.5);
   --text-primary: #F5F5F5;
   --text-secondary: #A0A0A0;
   --text-muted: #555555;
@@ -28,7 +29,7 @@ html[data-theme="claro"] {
   --bg-card: #FFFFFF;
   --bg-input: #FFFFFF;
   --border-subtle: #E5E7EB;
-  --border-focus: rgba(0, 230, 118, 0.5);
+  --border-focus: rgba(252, 110, 32, 0.5);
   --text-primary: #1A1A2E;
   --text-secondary: #6B7280;
   --text-muted: #9CA3AF;
@@ -46,7 +47,7 @@ html[data-theme="auto"] {
     --bg-card: #FFFFFF;
     --bg-input: #FFFFFF;
     --border-subtle: #E5E7EB;
-    --border-focus: rgba(0, 230, 118, 0.5);
+    --border-focus: rgba(252, 110, 32, 0.5);
     --text-primary: #1A1A2E;
     --text-secondary: #6B7280;
     --text-muted: #9CA3AF;

@@ -46,7 +46,7 @@ export async function getOrCreatePerfilAction(): Promise<{
     .insert({
       professor_id: user.id,
       nome: (user.user_metadata?.full_name as string | undefined) ?? '',
-      cor_tema: '#00E676',
+      cor_tema: '#FC6E20',
       modo_tema: 'escuro',
       codigo_indicacao: codigo,
     })
@@ -61,7 +61,7 @@ export async function getOrCreatePerfilAction(): Promise<{
       .insert({
         professor_id: user.id,
         nome: (user.user_metadata?.full_name as string | undefined) ?? '',
-        cor_tema: '#00E676',
+        cor_tema: '#FC6E20',
         modo_tema: 'escuro',
       })
       .select()

@@ -128,7 +128,7 @@ export default async function AlunoPerfilPage({
           <div className="text-center">
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Enviar Termo</p>
             {ultimoTermo ? (
-              <p className="text-xs mt-0.5" style={{ color: '#00E676' }}>
+              <p className="text-xs mt-0.5" style={{ color: '#FC6E20' }}>
                 ✓ {new Date(ultimoTermo.enviado_em).toLocaleDateString('pt-BR')}
               </p>
             ) : (

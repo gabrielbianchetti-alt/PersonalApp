@@ -30,7 +30,7 @@ Segue sua cobrança referente a *{mes}*:
 const STATUS_CONFIG: Record<CobrancaStatus, { label: string; color: string; bg: string }> = {
   pendente: { label: 'Pendente', color: '#FFAB00', bg: 'rgba(255,171,0,0.12)' },
   enviado:  { label: 'Enviado',  color: '#40C4FF', bg: 'rgba(64,196,255,0.12)' },
-  pago:     { label: 'Pago',     color: '#00E676', bg: 'rgba(0,230,118,0.12)' },
+  pago:     { label: 'Pago',     color: '#FC6E20', bg: 'rgba(252,110,32,0.12)' },
 }
 const STATUS_CYCLE: CobrancaStatus[] = ['pendente', 'enviado', 'pago']
 
@@ -557,7 +557,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
           { label: 'Pago',        value: String(countPago),     suffix: ' cobr.' },
         ].map(({ label, value, suffix, green }) => (
           <div key={label} className="p-4 rounded-xl"
-            style={{ background: green ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${green ? 'rgba(0,230,118,0.2)' : 'var(--border-subtle)'}` }}>
+            style={{ background: green ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${green ? 'rgba(252,110,32,0.2)' : 'var(--border-subtle)'}` }}>
             <p className="text-xs mb-1" style={{ color: green ? 'var(--green-primary)' : 'var(--text-muted)' }}>{label}</p>
             <p className="text-lg font-bold leading-tight" style={{ color: green ? 'var(--green-primary)' : 'var(--text-primary)' }}>
               {value}<span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>{suffix}</span>
@@ -584,7 +584,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                 type="checkbox"
                 checked={selectedIds.size === alunos.length}
                 onChange={toggleAll}
-                className="w-4 h-4 rounded cursor-pointer accent-[#00E676]"
+                className="w-4 h-4 rounded cursor-pointer accent-[#FC6E20]"
               />
               <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
                 Selecionar todos
@@ -633,7 +633,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                   className="rounded-2xl overflow-hidden transition-all duration-150"
                   style={{
                     background: 'var(--bg-card)',
-                    border: `1px solid ${isOverdue ? 'rgba(255,82,82,0.35)' : isSelected ? 'rgba(0,230,118,0.25)' : 'var(--border-subtle)'}`,
+                    border: `1px solid ${isOverdue ? 'rgba(255,82,82,0.35)' : isSelected ? 'rgba(252,110,32,0.25)' : 'var(--border-subtle)'}`,
                   }}
                 >
                   {/* Row header */}
@@ -642,7 +642,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelect(aluno)}
-                      className="w-4 h-4 rounded shrink-0 cursor-pointer accent-[#00E676]"
+                      className="w-4 h-4 rounded shrink-0 cursor-pointer accent-[#FC6E20]"
                     />
 
                     {/* Avatar */}
@@ -754,7 +754,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                           color: 'var(--text-primary)',
                           lineHeight: '1.6',
                         }}
-                        onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,230,118,0.06)' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.06)' }}
                         onBlur={(e)  => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
                       />
 

@@ -31,7 +31,7 @@ export default function AssinarLayout({ children }: { children: React.ReactNode 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <span style={{ color: '#00E676', fontWeight: 800, fontSize: 11 }}>PH</span>
+          <span style={{ color: '#FC6E20', fontWeight: 800, fontSize: 11 }}>PH</span>
         </div>
         <span style={{ fontWeight: 800, fontSize: 16, color: '#f8fafc' }}>PersonalHub</span>
       </header>

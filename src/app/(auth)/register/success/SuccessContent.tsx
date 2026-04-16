@@ -11,7 +11,7 @@ export function SuccessContent() {
         <div className="relative">
           <div
             className="w-20 h-20 rounded-full flex items-center justify-center"
-            style={{ background: 'var(--green-muted)', border: '2px solid rgba(0,230,118,0.2)' }}
+            style={{ background: 'var(--green-muted)', border: '2px solid rgba(252,110,32,0.2)' }}
           >
             <svg
               width="36"

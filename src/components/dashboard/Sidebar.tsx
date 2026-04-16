@@ -136,7 +136,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-100"
               style={
                 isActive
-                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.15)' }
+                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid var(--green-border)' }
                   : { color: 'var(--text-secondary)' }
               }
               onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--bg-card)' }}
@@ -203,7 +203,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
           style={
             isConfiguracoes
-              ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.15)' }
+              ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid var(--green-border)' }
               : { color: 'var(--text-secondary)' }
           }
           onMouseEnter={e => { if (!isConfiguracoes) e.currentTarget.style.background = 'var(--bg-card)' }}

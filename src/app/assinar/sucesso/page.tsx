@@ -88,7 +88,7 @@ export default async function AssinarSucessoPage({
       <div
         style={{
           width: 80, height: 80, borderRadius: '50%',
-          background: 'rgba(0,230,118,0.12)', border: '2px solid #00E676',
+          background: 'rgba(252,110,32,0.12)', border: '2px solid #FC6E20',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 36, marginBottom: 28,
         }}
@@ -110,7 +110,7 @@ export default async function AssinarSucessoPage({
         href="/dashboard"
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
-          background: '#00E676', color: '#000',
+          background: '#FC6E20', color: '#000',
           fontWeight: 700, fontSize: 15, padding: '14px 32px',
           borderRadius: 12, textDecoration: 'none',
         }}
@@ -120,7 +120,7 @@ export default async function AssinarSucessoPage({
 
       <p style={{ marginTop: 20, fontSize: 13, color: '#64748b' }}>
         Gerencie sua assinatura em{' '}
-        <Link href="/dashboard/configuracoes" style={{ color: '#00E676', textDecoration: 'none' }}>
+        <Link href="/dashboard/configuracoes" style={{ color: '#FC6E20', textDecoration: 'none' }}>
           Configurações
         </Link>
       </p>

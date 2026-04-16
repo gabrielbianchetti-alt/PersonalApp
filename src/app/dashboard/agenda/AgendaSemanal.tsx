@@ -40,7 +40,7 @@ const DAY_CFG: Record<DayKey, DayConfig> = {
 }
 
 const TIPO_COLOR: Record<EventoTipo, string> = {
-  aula:       '#00E676',
+  aula:       '#FC6E20',
   reposicao:  '#40C4FF',
   reuniao:    '#FFAB00',
   bloqueado:  '#FF5252',
@@ -301,7 +301,7 @@ function MoveConfirmModal({
                   <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                 </svg>
                 <span className="px-2.5 py-1 rounded-lg text-xs font-semibold"
-                  style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>{toLabel}</span>
+                  style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}>{toLabel}</span>
               </div>
             </div>
             <div className="flex gap-2">
@@ -448,9 +448,9 @@ function AddEventModal({
                   ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum aluno ativo</p>
                   : alunos.map(a => (
                     <label key={a.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer"
-                      style={{ background: alunoId === a.id ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${alunoId === a.id ? 'rgba(0,230,118,0.2)' : 'var(--border-subtle)'}` }}>
+                      style={{ background: alunoId === a.id ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${alunoId === a.id ? 'rgba(252,110,32,0.2)' : 'var(--border-subtle)'}` }}>
                       <input type="radio" name="aluno" value={a.id} checked={alunoId === a.id}
-                        onChange={() => { setAlunoId(a.id); setDuracao(a.duracao) }} className="accent-[#00E676]" />
+                        onChange={() => { setAlunoId(a.id); setDuracao(a.duracao) }} className="accent-[#FC6E20]" />
                       <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{a.nome}</span>
                       <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{a.local}</span>
                     </label>
@@ -816,7 +816,7 @@ function AlunoCardModal({
             <div className="flex flex-col gap-2">
               <button onClick={handleRemarcar} disabled={saving}
                 className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+                style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
@@ -888,7 +888,7 @@ function AlunoCardModal({
         {step === 'done' && (
           <>
             <div className="rounded-xl p-4 text-center flex flex-col gap-2"
-              style={{ background: 'rgba(0,230,118,0.06)', border: '1px solid rgba(0,230,118,0.2)' }}>
+              style={{ background: 'rgba(252,110,32,0.06)', border: '1px solid rgba(252,110,32,0.2)' }}>
               <p className="text-2xl">✅</p>
               <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Registrado!</p>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{doneMsg}</p>
@@ -1070,7 +1070,7 @@ function AvailableSlotsModal({
                     {slots.map(s => (
                       <button key={s} onClick={() => { onClose(); onSlotClick(dayIdx, day, timeToMin(s)) }}
                         className="px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer"
-                        style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+                        style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}>
                         {s}
                       </button>
                     ))}
@@ -1543,8 +1543,8 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
             style={{
               top:    toPx(dropHere.timeMin - GRID_START),
               height: Math.max(toPx(dropHere.duracao), 24),
-              background: dropHere.valid ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)',
-              border: `2px dashed ${dropHere.valid ? '#00E676' : '#FF5252'}`,
+              background: dropHere.valid ? 'rgba(252,110,32,0.15)' : 'rgba(255,82,82,0.15)',
+              border: `2px dashed ${dropHere.valid ? '#FC6E20' : '#FF5252'}`,
             }} />
         )}
 
@@ -1552,7 +1552,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         {isHovered && !activeBlock && (
           <div className="absolute left-0 right-0 pointer-events-none z-10"
             style={{ top: hoverPos!.y }}>
-            <div style={{ borderTop: '1.5px dashed #00E676' }}>
+            <div style={{ borderTop: '1.5px dashed #FC6E20' }}>
               <span className="absolute right-1 text-[10px] font-semibold px-1 rounded-sm"
                 style={{ top: -9, background: 'var(--green-primary)', color: '#000' }}>
                 Disponível · {minToTime(hoverPos!.timeMin)}
@@ -1803,7 +1803,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                 {/* Today tint */}
                 {isToday && (
                   <div className="absolute inset-0 pointer-events-none"
-                    style={{ background: 'rgba(0,230,118,0.03)', zIndex: 0 }} />
+                    style={{ background: 'rgba(252,110,32,0.03)', zIndex: 0 }} />
                 )}
 
                 {/* Current time line (compact) */}
@@ -1835,8 +1835,8 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                     style={{
                       top:    cToPx(dropTarget.timeMin - GRID_START),
                       height: Math.max(cToPx(dropTarget.duracao), 12),
-                      background: dropTarget.valid ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)',
-                      border: `1.5px dashed ${dropTarget.valid ? '#00E676' : '#FF5252'}`,
+                      background: dropTarget.valid ? 'rgba(252,110,32,0.15)' : 'rgba(255,82,82,0.15)',
+                      border: `1.5px dashed ${dropTarget.valid ? '#FC6E20' : '#FF5252'}`,
                     }} />
                 )}
 
@@ -1948,7 +1948,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
           <div className="flex items-center gap-2">
             <button onClick={() => setModal({ type: 'slots' })}
               className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
@@ -1995,7 +1995,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
             <button key={v} onClick={() => changeMobileView(v)}
               className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
               style={mobileView === v
-                ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.3)' }
+                ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.3)' }
                 : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent' }
               }>
               {v === 'dia' ? 'Dia' : 'Semana'}
@@ -2113,7 +2113,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                     fontSize: 9, fontWeight: 700, lineHeight: 1,
                     color: isCurrent ? 'var(--green-primary)' : 'rgba(255,255,255,0.45)',
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0',
-                    textShadow: isCurrent ? '0 0 8px #00E676' : 'none',
+                    textShadow: isCurrent ? '0 0 8px #FC6E20' : 'none',
                   }}>
                   {h}
                 </button>
@@ -2127,7 +2127,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
               right: 34, bottom: 12, fontSize: 10, fontWeight: 700, lineHeight: 1,
               background: 'var(--green-primary)', color: '#000',
               border: 'none', borderRadius: 10, padding: '5px 8px',
-              boxShadow: '0 2px 10px rgba(0,230,118,0.4)',
+              boxShadow: '0 2px 10px rgba(252,110,32,0.4)',
             }}
             onClick={scrollToNow}>
             Agora
@@ -2138,7 +2138,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         <div className="md:hidden p-3 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <button onClick={() => setModal({ type: 'slots' })}
             className="w-full py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}>
             Ver horários disponíveis
           </button>
         </div>

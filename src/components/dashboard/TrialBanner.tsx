@@ -21,8 +21,8 @@ export function TrialBanner({ assinatura, isAdmin }: Props) {
   // Active with no issues — no banner needed
   if (status === 'active') return null
 
-  let bg = 'rgba(0,230,118,0.08)'
-  let border = 'rgba(0,230,118,0.25)'
+  let bg = 'rgba(252,110,32,0.08)'
+  let border = 'rgba(252,110,32,0.25)'
   let textColor = 'var(--green-primary)'
   let icon = '🟢'
   let message = ''

@@ -480,7 +480,7 @@ export function DashboardHome({
               onClick={() => setCobrancaTab(key)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
               style={cobrancaTab === key
-                ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }
+                ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }
                 : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent' }
               }
             >
@@ -488,7 +488,7 @@ export function DashboardHome({
               <span
                 className="text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
                 style={{
-                  background: cobrancaTab === key ? 'rgba(0,230,118,0.2)' : 'var(--bg-input)',
+                  background: cobrancaTab === key ? 'rgba(252,110,32,0.2)' : 'var(--bg-input)',
                   color: cobrancaTab === key ? 'var(--green-primary)' : 'var(--text-muted)',
                 }}
               >
@@ -542,7 +542,7 @@ export function DashboardHome({
                         {whatsUrl !== '#' && (
                           <a href={whatsUrl} target="_blank" rel="noopener noreferrer"
                             className="px-2 py-1.5 rounded-lg text-[11px] font-semibold"
-                            style={{ background: 'rgba(0,230,118,0.1)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+                            style={{ background: 'rgba(252,110,32,0.1)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}>
                             Cobrar
                           </a>
                         )}
@@ -608,7 +608,7 @@ export function DashboardHome({
                   <div key={a.alunoId} className="flex items-center rounded-lg"
                     style={{ gap: 8, padding: '7px 10px', background: 'var(--bg-input)' }}>
                     <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-                      style={{ background: 'rgba(0,230,118,0.12)', color: 'var(--green-primary)' }}>
+                      style={{ background: 'rgba(252,110,32,0.12)', color: 'var(--green-primary)' }}>
                       ✓
                     </span>
                     <span className="flex-1 text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>

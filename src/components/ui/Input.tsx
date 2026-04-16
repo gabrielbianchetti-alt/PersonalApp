@@ -50,7 +50,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               e.target.style.borderColor = error ? '#FF5252' : 'var(--border-focus)'
               e.target.style.boxShadow = error
                 ? '0 0 0 3px rgba(255,82,82,0.1)'
-                : '0 0 0 3px rgba(0,230,118,0.08)'
+                : '0 0 0 3px rgba(252,110,32,0.08)'
             }}
             onBlur={(e) => {
               e.target.style.borderColor = error ? '#FF5252' : 'var(--border-subtle)'

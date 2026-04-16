@@ -39,7 +39,7 @@ export function AlunosGrid({ alunos, diasSemana, duracaoOpcoes }: Props) {
             href={`/dashboard/alunos/${aluno.id}`}
             className="p-5 rounded-2xl flex flex-col gap-4 transition-all duration-150 cursor-pointer"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.3)')}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(252,110,32,0.3)')}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
           >
             {/* Top row */}

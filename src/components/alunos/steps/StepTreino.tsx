@@ -130,7 +130,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
                     border: `1px solid ${errors[errKey] ? '#FF5252' : 'var(--border-subtle)'}`,
                     color: 'var(--text-primary)',
                   }}
-                  onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,230,118,0.08)' }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.08)' }}
                   onBlur={(e) => { e.target.style.borderColor = errors[errKey] ? '#FF5252' : 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
                 />
                 <button
@@ -221,7 +221,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
               border: '1px solid var(--border-subtle)',
               color: 'var(--text-primary)',
             }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,230,118,0.08)' }}
+            onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.08)' }}
             onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
           />
         </div>
@@ -271,7 +271,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
               border: `1px solid ${errors.valor ? '#FF5252' : 'var(--border-subtle)'}`,
               color: 'var(--text-primary)',
             }}
-            onFocus={(e) => { e.target.style.borderColor = errors.valor ? '#FF5252' : 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,230,118,0.08)' }}
+            onFocus={(e) => { e.target.style.borderColor = errors.valor ? '#FF5252' : 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.08)' }}
             onBlur={(e) => { e.target.style.borderColor = errors.valor ? '#FF5252' : 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
           />
         </div>
@@ -282,7 +282,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
       {data.valor && parseFloat(data.valor) > 0 && data.horarios.length > 0 && (
         <div
           className="flex items-center justify-between px-4 py-3 rounded-xl"
-          style={{ background: 'var(--green-muted)', border: '1px solid rgba(0,230,118,0.2)' }}
+          style={{ background: 'var(--green-muted)', border: '1px solid rgba(252,110,32,0.2)' }}
         >
           <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             {data.modelo_cobranca === 'mensalidade' ? 'Valor fixo mensal' : `Previsão mensal (${data.horarios.length} dias × 4,3 semanas)`}
@@ -334,7 +334,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
             border: '1px solid var(--border-subtle)',
             color: 'var(--text-primary)',
           }}
-          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,230,118,0.08)' }}
+          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.08)' }}
           onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
         />
       </div>

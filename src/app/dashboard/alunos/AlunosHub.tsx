@@ -69,7 +69,7 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
       className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl"
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid rgba(0,230,118,0.3)',
+        border: '1px solid rgba(252,110,32,0.3)',
         color: 'var(--text-primary)',
         animation: 'slideUp 0.25s ease-out',
       }}

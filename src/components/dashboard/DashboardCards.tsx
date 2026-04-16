@@ -9,7 +9,7 @@ export function DashboardCards() {
         href="/dashboard/alunos"
         className="p-5 rounded-2xl flex flex-col gap-3 transition-all duration-150"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
-        onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.3)')}
+        onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(252,110,32,0.3)')}
         onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
       >
         <div

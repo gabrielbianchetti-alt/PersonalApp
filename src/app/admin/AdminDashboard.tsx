@@ -72,7 +72,7 @@ function assStatusBadge(ass: AssinaturaInfo | null): { label: string; bg: string
   if (!ass) return { label: 'Sem ass.', bg: 'var(--bg-input)', color: 'var(--text-muted)' }
   switch (ass.status) {
     case 'trial':    return { label: 'Trial',    bg: 'rgba(255,171,0,0.12)',  color: '#FFAB00' }
-    case 'active':   return { label: 'Ativo',    bg: 'rgba(0,230,118,0.12)',  color: '#00E676' }
+    case 'active':   return { label: 'Ativo',    bg: 'rgba(252,110,32,0.12)',  color: '#FC6E20' }
     case 'past_due': return { label: 'Atrasado', bg: 'rgba(255,82,82,0.12)',  color: '#FF5252' }
     case 'canceled': return { label: 'Cancelado',bg: 'rgba(255,82,82,0.10)',  color: '#FF5252' }
     case 'expired':  return { label: 'Expirado', bg: 'rgba(100,100,100,0.15)',color: '#6B7280' }
@@ -112,7 +112,7 @@ function StatCard({ label, value, sub, color, icon }: {
 
 // ─── BarChart ─────────────────────────────────────────────────────────────────
 
-function BarChart({ data, labels, color = 'rgba(0,230,118,0.4)', accentColor = '#00E676' }: {
+function BarChart({ data, labels, color = 'rgba(252,110,32,0.4)', accentColor = '#FC6E20' }: {
   data: number[]; labels: string[]; color?: string; accentColor?: string
 }) {
   const max = Math.max(...data, 1)
@@ -477,14 +477,14 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
             label="Assinantes ativos"
             value={stats.assinantes}
             sub="pagantes"
-            color="#00E676"
+            color="#FC6E20"
             icon="✅"
           />
           <StatCard
             label="MRR"
             value={`R$\u00A0${stats.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
             sub="receita mensal recorrente"
-            color="#00E676"
+            color="#FC6E20"
             icon="💰"
           />
           <StatCard
@@ -498,7 +498,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
             label="Conversão"
             value={`${stats.conversao}%`}
             sub="trial → assinante"
-            color={stats.conversao >= 20 ? '#00E676' : stats.conversao >= 10 ? '#FFAB00' : '#FF5252'}
+            color={stats.conversao >= 20 ? '#FC6E20' : stats.conversao >= 10 ? '#FFAB00' : '#FF5252'}
             icon="📈"
           />
         </div>
@@ -706,7 +706,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
               <BarChart data={stats.weekly_signups} labels={chartLabels} />
               <div className="mt-3 flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
                 <span>Total: <strong style={{ color: 'var(--text-primary)' }}>{stats.weekly_signups.reduce((a,b)=>a+b,0)}</strong></span>
-                <span>Essa semana: <strong style={{ color: '#00E676' }}>{stats.weekly_signups[7]}</strong></span>
+                <span>Essa semana: <strong style={{ color: '#FC6E20' }}>{stats.weekly_signups[7]}</strong></span>
               </div>
             </div>
 
@@ -728,7 +728,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
               {[
                 { label: 'Sem registro',      count: stats.sem_assinatura, color: 'var(--text-muted)' },
                 { label: 'Trial ativo',       count: stats.trials,         color: '#FFAB00' },
-                { label: 'Assinante ativo',   count: stats.assinantes,     color: '#00E676' },
+                { label: 'Assinante ativo',   count: stats.assinantes,     color: '#FC6E20' },
                 { label: 'Expirado/Cancelado',count: stats.expirados,      color: '#FF5252' },
               ].map(({ label, count, color }) => {
                 const pct = stats.total_professors > 0 ? Math.round((count / stats.total_professors) * 100) : 0
@@ -749,9 +749,9 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
               <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--text-primary)' }}>⚡ Métricas de Receita</p>
               <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Dados financeiros em tempo real</p>
               {[
-                { label: 'MRR atual',          value: `R$ ${stats.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,  color: '#00E676' },
-                { label: 'ARR projetado',      value: `R$ ${(stats.mrr * 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, color: '#00E676' },
-                { label: 'Assinantes ativos',  value: stats.assinantes,   color: '#00E676' },
+                { label: 'MRR atual',          value: `R$ ${stats.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,  color: '#FC6E20' },
+                { label: 'ARR projetado',      value: `R$ ${(stats.mrr * 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, color: '#FC6E20' },
+                { label: 'Assinantes ativos',  value: stats.assinantes,   color: '#FC6E20' },
                 { label: 'Em trial',           value: stats.trials,       color: '#FFAB00' },
                 { label: 'Expirados',          value: stats.expirados,    color: '#FF5252' },
                 { label: 'Professores ativos (30d)', value: stats.active_professors, color: 'var(--text-secondary)' },

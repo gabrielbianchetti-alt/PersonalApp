@@ -13,11 +13,11 @@ export interface ProfessorPerfil {
 }
 
 export const COR_PRESETS = [
+  { label: 'Laranja', value: '#FC6E20' },  // padrão
   { label: 'Verde',   value: '#00E676' },
   { label: 'Azul',    value: '#2196F3' },
   { label: 'Roxo',    value: '#9C27B0' },
   { label: 'Rosa',    value: '#E91E63' },
-  { label: 'Laranja', value: '#FF9800' },
   { label: 'Vermelho',value: '#F44336' },
   { label: 'Ciano',   value: '#00BCD4' },
   { label: 'Amarelo', value: '#FFEB3B' },

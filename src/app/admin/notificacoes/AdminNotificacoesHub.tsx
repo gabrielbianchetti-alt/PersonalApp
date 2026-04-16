@@ -176,7 +176,7 @@ export function AdminNotificacoesHub() {
                   onClick={() => setDestinatarios(d.value as typeof destinatarios)}
                   className="px-3 py-1.5 rounded-lg text-sm cursor-pointer transition-all"
                   style={destinatarios === d.value
-                    ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.3)' }
+                    ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.3)' }
                     : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
                   }
                 >
@@ -226,7 +226,7 @@ export function AdminNotificacoesHub() {
           )}
           {successMsg && (
             <p className="text-sm px-3 py-2 rounded-lg"
-              style={{ background: 'rgba(0,230,118,0.1)', color: 'var(--green-primary)', border: '1px solid rgba(0,230,118,0.2)' }}>
+              style={{ background: 'rgba(252,110,32,0.1)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}>
               ✅ {successMsg}
             </p>
           )}
