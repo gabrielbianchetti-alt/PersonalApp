@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/types/aluno'
 import { upsertCobrancaPagoAction, desfazerPagoAction } from './actions'
+import { FaltaQuickActionModal } from './faltas/FaltaQuickActionModal'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ interface Props {
 const MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
 const TIPO_COLOR: Record<AulaHoje['tipo'], string> = {
-  regular:    'var(--green-primary)',
+  regular:    '#00E676',
   reposicao:  '#40C4FF',
   aula_extra: '#FFEB3B',
 }
@@ -182,6 +183,9 @@ export function DashboardHome({
 }: Props) {
   const [alunosCobranca, setAlunosCobranca] = useState<AlunoCobranca[]>(todosAlunosInit)
   const [cobrancaTab, setCobrancaTab]       = useState<CobrancaTab>('pendente')
+  const [faltaModal, setFaltaModal]         = useState<AulaHoje | null>(null)
+
+  const router = useRouter()
 
   // ── real-time clock ───────────────────────────────────────────────────────
   const [clock, setClock] = useState(() => {
@@ -346,10 +350,11 @@ export function DashboardHome({
               const cor        = TIPO_COLOR[aula.tipo]
 
               return (
-                <Link
+                <button
                   key={`${aula.alunoId}-${i}`}
-                  href="/dashboard/agenda"
-                  className="flex items-center rounded-xl transition-all"
+                  type="button"
+                  onClick={() => setFaltaModal(aula)}
+                  className="flex items-center rounded-xl transition-all w-full text-left cursor-pointer"
                   style={{
                     gap: 12,
                     padding: isProxima ? '12px 14px' : '8px 12px',
@@ -421,7 +426,7 @@ export function DashboardHome({
                         style={{ background: 'rgba(255,235,59,0.12)', color: '#FFEB3B' }}>Extra</span>
                     )}
                   </div>
-                </Link>
+                </button>
               )
             })}
           </div>
@@ -630,6 +635,24 @@ export function DashboardHome({
 
         </div>
       </div>
+
+      {/* ╔══════════════════════════════════════════════════════════════╗
+          ║  MODAL — Registrar falta / cancelamento a partir da timeline  ║
+          ╚══════════════════════════════════════════════════════════════╝ */}
+      {faltaModal && (
+        <FaltaQuickActionModal
+          alunoId={faltaModal.alunoId}
+          alunoNome={faltaModal.alunoNome}
+          dataFalta={(() => {
+            const n = new Date()
+            return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+          })()}
+          horario={faltaModal.horario}
+          contextLabel="Hoje"
+          onClose={() => setFaltaModal(null)}
+          onGoToFaltas={() => { setFaltaModal(null); router.push('/dashboard/agenda?tab=faltas') }}
+        />
+      )}
 
     </div>
   )

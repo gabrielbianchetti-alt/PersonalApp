@@ -1,5 +1,6 @@
 'use server'
 
+import { randomUUID } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 
 export type EventoTipo = 'aula' | 'reposicao' | 'reuniao' | 'bloqueado' | 'refeicao' | 'outro' | 'aula_extra'
@@ -17,6 +18,7 @@ export interface EventoAgendaRow {
   cor: string | null
   observacao: string | null
   valor: number | null
+  serie_id: string | null
   created_at: string
   updated_at: string
 }
@@ -32,6 +34,7 @@ type CreateInput = {
   cor?: string | null
   observacao?: string | null
   valor?: number | null
+  serie_id?: string | null
 }
 
 export async function createEventoAction(
@@ -129,4 +132,58 @@ export async function deleteEventoAction(
 
   if (error) { console.error('deleteEvento:', error); return { error: 'Erro ao remover evento.' } }
   return {}
+}
+
+/**
+ * Creates multiple events sharing the same `serie_id` (a recurrence series).
+ * Used for "Outros" events that repeat on selected weekdays.
+ * Returns all inserted rows.
+ */
+export async function createEventoSerieAction(
+  events: CreateInput[]
+): Promise<{ data?: EventoAgendaRow[]; serieId?: string; error?: string }> {
+  if (!events.length) return { error: 'Nenhum evento para criar.' }
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const serieId = randomUUID()
+
+  const rows = events.map(e => ({
+    professor_id: user.id,
+    ...e,
+    serie_id: serieId,
+  }))
+
+  const { data, error } = await supabase
+    .from('eventos_agenda')
+    .insert(rows)
+    .select()
+
+  if (error) {
+    console.error('createEventoSerie:', error.code, error.message, error.details, error.hint)
+    return { error: `Erro ao criar série: ${error.message ?? error.code}` }
+  }
+  return { data: data as EventoAgendaRow[], serieId }
+}
+
+/**
+ * Deletes all events in a recurrence series.
+ */
+export async function deleteEventoSerieAction(
+  serieId: string
+): Promise<{ deletedIds?: string[]; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { data, error } = await supabase
+    .from('eventos_agenda')
+    .delete()
+    .eq('serie_id', serieId)
+    .eq('professor_id', user.id)
+    .select('id')
+
+  if (error) { console.error('deleteEventoSerie:', error); return { error: 'Erro ao remover série.' } }
+  return { deletedIds: (data ?? []).map(r => r.id as string) }
 }

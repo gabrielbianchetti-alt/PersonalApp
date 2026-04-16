@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   createEventoAction,
+  createEventoSerieAction,
   updateEventoAction,
   deleteEventoAction,
+  deleteEventoSerieAction,
   updateAlunoScheduleAction,
   type EventoTipo,
   type EventoAgendaRow,
@@ -40,7 +42,7 @@ const DAY_CFG: Record<DayKey, DayConfig> = {
 }
 
 const TIPO_COLOR: Record<EventoTipo, string> = {
-  aula:       '#FC6E20',
+  aula:       '#00E676',
   reposicao:  '#40C4FF',
   reuniao:    '#FFAB00',
   bloqueado:  '#FF5252',
@@ -214,6 +216,7 @@ function DraggableBlock({
 
 function DroppableDay({
   colRef, children, style, className, onClick, onMouseMove, onMouseLeave,
+  onPointerDown, onPointerMove, onPointerUp, onPointerCancel,
 }: {
   colRef?: (el: HTMLDivElement | null) => void
   children: React.ReactNode
@@ -222,6 +225,10 @@ function DroppableDay({
   onClick?: (e: React.MouseEvent<HTMLDivElement>) => void
   onMouseMove?: (e: React.MouseEvent<HTMLDivElement>) => void
   onMouseLeave?: () => void
+  onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void
+  onPointerMove?: (e: React.PointerEvent<HTMLDivElement>) => void
+  onPointerUp?: (e: React.PointerEvent<HTMLDivElement>) => void
+  onPointerCancel?: (e: React.PointerEvent<HTMLDivElement>) => void
 }) {
   return (
     <div
@@ -231,6 +238,10 @@ function DroppableDay({
       onClick={onClick}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
     >
       {children}
     </div>
@@ -379,10 +390,22 @@ function AddEventModal({
   const [saving, setSaving]     = useState(false)
   const [err, setErr]           = useState('')
 
+  // ── recurrence + free time (for "outro" step only) ─────────────────────────
+  const [repetir, setRepetir] = useState(false)
+  const defaultStart = minToTime(timeMin)
+  const defaultEnd   = minToTime(Math.min(GRID_END, timeMin + 60))
+  const [horaInicio, setHoraInicio] = useState<string>(defaultStart)
+  const [horaFim,    setHoraFim]    = useState<string>(defaultEnd)
+  const [diasSemana, setDiasSemana] = useState<DayKey[]>([WEEK_KEYS[dayIdx]])
+
   const dateStr  = toDateStr(date)
   const timeStr  = minToTime(timeMin)
   const dayLabel = `${WEEK_LABELS[dayIdx]} ${formatDay(date)}`
   const DURACAO_OPTS = [30, 45, 60, 90, 120]
+
+  function toggleDia(k: DayKey) {
+    setDiasSemana(prev => prev.includes(k) ? prev.filter(d => d !== k) : [...prev, k])
+  }
 
   async function save() {
     setSaving(true); setErr('')
@@ -407,8 +430,41 @@ function AddEventModal({
         cor: TIPO_COLOR.aula_extra, valor: valorNum,
       }
     } else {
+      // ── "outros" step — supports free start/end time + weekly recurrence ─────
       if (!titulo.trim()) { setErr('Informe um título.'); setSaving(false); return }
-      payload = { tipo, titulo: titulo.trim(), data_especifica: dateStr, horario_inicio: timeStr, duracao, cor, observacao: obs.trim() || null }
+      const iniMin = timeToMin(horaInicio)
+      const fimMin = timeToMin(horaFim)
+      const dur    = fimMin - iniMin
+      if (!horaInicio || !horaFim || dur <= 0) {
+        setErr('O horário de término deve ser maior que o de início.'); setSaving(false); return
+      }
+
+      if (repetir) {
+        if (diasSemana.length === 0) {
+          setErr('Selecione pelo menos um dia da semana.'); setSaving(false); return
+        }
+        const events = diasSemana.map(k => ({
+          tipo,
+          titulo: titulo.trim(),
+          dia_semana: k,
+          data_especifica: null,
+          horario_inicio: horaInicio,
+          duracao: dur,
+          cor,
+          observacao: obs.trim() || null,
+        }))
+        const res = await createEventoSerieAction(events)
+        setSaving(false)
+        if (res.error) { setErr(res.error); return }
+        res.data!.forEach(onSaved)
+        return
+      }
+
+      payload = {
+        tipo, titulo: titulo.trim(),
+        data_especifica: dateStr, horario_inicio: horaInicio, duracao: dur,
+        cor, observacao: obs.trim() || null,
+      }
     }
     const res = await createEventoAction(payload)
     setSaving(false)
@@ -493,55 +549,119 @@ function AddEventModal({
           </>
         )}
 
-        {step === 'outro' && (
-          <>
-            <div>
-              <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Título</label>
-              <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex: Reunião, Almoço..."
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
-                onFocus={e => e.target.style.borderColor = 'var(--border-focus)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'} />
-            </div>
-            <div>
-              <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Tipo</label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {(['reuniao','bloqueado','refeicao','outro'] as EventoTipo[]).map(t => (
-                  <button key={t} onClick={() => { setTipo(t); setCor(TIPO_COLOR[t]) }}
-                    className="py-2 rounded-lg text-xs font-semibold cursor-pointer"
-                    style={{ background: tipo === t ? TIPO_COLOR[t] + '22' : 'var(--bg-card)', color: TIPO_COLOR[t], border: `1px solid ${tipo === t ? TIPO_COLOR[t] : 'var(--border-subtle)'}` }}>
-                    {TIPO_LABEL[t]}
-                  </button>
-                ))}
+        {step === 'outro' && (() => {
+          const iniMin = timeToMin(horaInicio)
+          const fimMin = timeToMin(horaFim)
+          const durMin = fimMin - iniMin
+          const durLabel = durMin > 0
+            ? `${Math.floor(durMin / 60)}h${durMin % 60 ? String(durMin % 60).padStart(2, '0') : ''}`
+            : '—'
+          return (
+            <>
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Título</label>
+                <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex: Faculdade, Academia, Reunião..."
+                  className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                  onFocus={e => e.target.style.borderColor = 'var(--border-focus)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'} />
               </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Cor</label>
-              <div className="flex gap-2">
-                {OUTRO_CORES.map(c => (
-                  <button key={c} onClick={() => setCor(c)}
-                    className="w-7 h-7 rounded-full cursor-pointer transition-transform hover:scale-110"
-                    style={{ background: c, outline: cor === c ? `3px solid ${c}` : 'none', outlineOffset: 2 }} />
-                ))}
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Tipo</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(['reuniao','bloqueado','refeicao','outro'] as EventoTipo[]).map(t => (
+                    <button key={t} onClick={() => { setTipo(t); setCor(TIPO_COLOR[t]) }}
+                      className="py-2 rounded-lg text-xs font-semibold cursor-pointer"
+                      style={{ background: tipo === t ? TIPO_COLOR[t] + '22' : 'var(--bg-card)', color: TIPO_COLOR[t], border: `1px solid ${tipo === t ? TIPO_COLOR[t] : 'var(--border-subtle)'}` }}>
+                      {TIPO_LABEL[t]}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="flex gap-1.5">
-              {DURACAO_OPTS.map(d => (
-                <button key={d} onClick={() => setDuracao(d)}
-                  className="flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer"
-                  style={{ background: duracao === d ? 'var(--green-primary)' : 'var(--bg-card)', color: duracao === d ? '#000' : 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
-                  {d < 60 ? `${d}m` : d === 60 ? '1h' : d === 90 ? '1h30' : '2h'}
-                </button>
-              ))}
-            </div>
-            <div>
-              <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Observação (opcional)</label>
-              <textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} placeholder="..."
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }} />
-            </div>
-          </>
-        )}
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Cor</label>
+                <div className="flex gap-2">
+                  {OUTRO_CORES.map(c => (
+                    <button key={c} onClick={() => setCor(c)}
+                      className="w-7 h-7 rounded-full cursor-pointer transition-transform hover:scale-110"
+                      style={{ background: c, outline: cor === c ? `3px solid ${c}` : 'none', outlineOffset: 2 }} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Free start / end time + computed duration */}
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Horário</label>
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <input type="time" value={horaInicio} onChange={e => setHoraInicio(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }} />
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>até</span>
+                  <input type="time" value={horaFim} onChange={e => setHoraFim(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }} />
+                </div>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Duração: <span style={{ color: durMin > 0 ? 'var(--text-primary)' : '#FF5252', fontWeight: 600 }}>{durLabel}</span>
+                </p>
+              </div>
+
+              {/* Repetir toda semana — toggle + day picker */}
+              <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Repetir toda semana</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Bloqueia o mesmo horário nos dias selecionados, semana após semana.
+                    </p>
+                  </div>
+                  <input type="checkbox" checked={repetir} onChange={e => setRepetir(e.target.checked)}
+                    className="w-4 h-4 cursor-pointer accent-[#FC6E20] shrink-0 ml-3" />
+                </label>
+
+                {repetir && (
+                  <>
+                    <div className="grid grid-cols-7 gap-1 mt-3">
+                      {WEEK_KEYS.map((k, i) => {
+                        const active = diasSemana.includes(k)
+                        return (
+                          <button key={k} type="button" onClick={() => toggleDia(k)}
+                            className="py-2 rounded-lg text-[11px] font-bold cursor-pointer"
+                            style={{
+                              background: active ? cor + '22' : 'var(--bg-input)',
+                              color: active ? cor : 'var(--text-secondary)',
+                              border: `1px solid ${active ? cor : 'var(--border-subtle)'}`,
+                            }}>
+                            {WEEK_LABELS[i]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="mt-3 rounded-lg px-3 py-2 text-[11px] leading-relaxed flex gap-2"
+                      style={{ background: 'rgba(64,196,255,0.08)', border: '1px solid rgba(64,196,255,0.2)', color: '#40C4FF' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                      <span>
+                        O evento permanecerá ocorrendo nos dias e horários selecionados
+                        até que você apague manualmente.
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Observação (opcional)</label>
+                <textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} placeholder="..."
+                  className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }} />
+              </div>
+            </>
+          )
+        })()}
 
         {err && <p className="text-xs text-center" style={{ color: '#FF5252' }}>{err}</p>}
 
@@ -908,19 +1028,39 @@ function AlunoCardModal({
 // ─── EventoCardModal ───────────────────────────────────────────────────────────
 
 function EventoCardModal({
-  evento, alunoNome, onClose, onDeleted, onEditar,
+  evento, alunoNome, onClose, onDeleted, onDeletedSerie, onEditar,
 }: {
   evento: EventoAgendaRow; alunoNome?: string
-  onClose: () => void; onDeleted: (id: string) => void; onEditar: () => void
+  onClose: () => void
+  onDeleted: (id: string) => void
+  onDeletedSerie: (ids: string[]) => void
+  onEditar: () => void
 }) {
   const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const color = evento.cor ?? TIPO_COLOR[evento.tipo]
+  const isSerie = !!evento.serie_id
 
-  async function handleDelete() {
-    if (!confirm('Remover este evento?')) return
+  async function handleDeleteSingle() {
     setSaving(true)
     await deleteEventoAction(evento.id)
     setSaving(false); onDeleted(evento.id); onClose()
+  }
+
+  async function handleDeleteSerie() {
+    if (!evento.serie_id) return
+    setSaving(true)
+    const res = await deleteEventoSerieAction(evento.serie_id)
+    setSaving(false)
+    if (res.error) return
+    onDeletedSerie(res.deletedIds ?? [])
+    onClose()
+  }
+
+  function triggerDelete() {
+    if (isSerie) { setConfirmDelete(true); return }
+    if (!confirm('Remover este evento?')) return
+    handleDeleteSingle()
   }
 
   return (
@@ -928,39 +1068,94 @@ function EventoCardModal({
       <div className="h-1.5 rounded-t-2xl" style={{ background: color }} />
       <ModalHeader title={evento.titulo} onClose={onClose} />
       <div className="p-5 flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: 'Tipo',     value: TIPO_LABEL[evento.tipo] },
-            { label: 'Horário',  value: `${evento.horario_inicio} (${evento.duracao}min)` },
-            evento.data_especifica
-              ? { label: 'Data',     value: evento.data_especifica.split('-').reverse().join('/') }
-              : { label: 'Dia fixo', value: WEEK_LABELS[WEEK_KEYS.indexOf(evento.dia_semana as DayKey)] ?? evento.dia_semana ?? '—' },
-            { label: 'Aluno',    value: alunoNome ?? '—' },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-              <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</p>
+
+        {!confirmDelete && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Tipo',     value: TIPO_LABEL[evento.tipo] },
+                { label: 'Horário',  value: `${evento.horario_inicio} (${evento.duracao}min)` },
+                evento.data_especifica
+                  ? { label: 'Data',     value: evento.data_especifica.split('-').reverse().join('/') }
+                  : { label: 'Dia fixo', value: WEEK_LABELS[WEEK_KEYS.indexOf(evento.dia_semana as DayKey)] ?? evento.dia_semana ?? '—' },
+                { label: 'Aluno',    value: alunoNome ?? '—' },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                  <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        {evento.observacao && (
-          <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-            <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Observação</p>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{evento.observacao}</p>
-          </div>
+
+            {isSerie && (
+              <div className="rounded-xl px-3 py-2.5 text-xs flex gap-2"
+                style={{ background: 'rgba(64,196,255,0.08)', border: '1px solid rgba(64,196,255,0.2)', color: '#40C4FF' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5">
+                  <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                <span>Evento recorrente — repete toda semana</span>
+              </div>
+            )}
+
+            {evento.observacao && (
+              <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Observação</p>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{evento.observacao}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button onClick={onEditar}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                ✏ Editar
+              </button>
+              <button onClick={triggerDelete} disabled={saving}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+                style={{ background: 'rgba(255,82,82,0.1)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.2)' }}>
+                {saving ? '...' : '🗑 Remover'}
+              </button>
+            </div>
+          </>
         )}
-        <div className="flex gap-2">
-          <button onClick={onEditar}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-            style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
-            ✏ Editar
-          </button>
-          <button onClick={handleDelete} disabled={saving}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
-            style={{ background: 'rgba(255,82,82,0.1)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.2)' }}>
-            {saving ? '...' : '🗑 Remover'}
-          </button>
-        </div>
+
+        {/* ─── Confirm delete for recurring series ──────────────────────── */}
+        {confirmDelete && (
+          <>
+            <div className="rounded-xl p-3" style={{ background: 'rgba(255,82,82,0.06)', border: '1px solid rgba(255,82,82,0.2)' }}>
+              <p className="text-sm font-semibold" style={{ color: '#FF5252' }}>Remover evento recorrente</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                Este evento faz parte de uma série que se repete toda semana.
+                O que você deseja remover?
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button onClick={handleDeleteSingle} disabled={saving}
+                className="w-full py-3 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 text-left px-4"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                <div>Apenas este</div>
+                <div className="text-xs font-normal mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Remove só este evento; os demais dias continuam.
+                </div>
+              </button>
+              <button onClick={handleDeleteSerie} disabled={saving}
+                className="w-full py-3 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 text-left px-4"
+                style={{ background: 'rgba(255,82,82,0.08)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.25)' }}>
+                <div>Todos os seguintes (iguais)</div>
+                <div className="text-xs font-normal mt-0.5 opacity-80">
+                  Remove todos os dias desta série — o bloqueio deixa de acontecer.
+                </div>
+              </button>
+            </div>
+            <button onClick={() => setConfirmDelete(false)} disabled={saving}
+              className="py-2 rounded-xl text-sm cursor-pointer"
+              style={{ background: 'transparent', color: 'var(--text-muted)' }}>
+              ← Voltar
+            </button>
+          </>
+        )}
+
       </div>
     </Overlay>
   )
@@ -1442,24 +1637,65 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
 
   // ── column click / hover (non-drag interactions) ─────────────────────────────
 
+  // Press state — used to show the placement indicator while the user holds
+  // their finger/mouse on an empty column cell (mobile-friendly snap preview).
+  const pressTrackingRef = useRef<{ dayIdx: number; pxScale: number } | null>(null)
+
+  function snapTimeFromEvent(clientY: number, rectTop: number, pxScale: number): number {
+    const raw = GRID_START + (clientY - rectTop) / pxScale
+    return Math.round(raw / 30) * 30
+  }
+
   function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, dayIdx: number) {
     if ((e.target as HTMLElement).closest('[data-block]')) return
     const rect    = e.currentTarget.getBoundingClientRect()
-    const raw     = GRID_START + (e.clientY - rect.top) / MIN_PX
-    const snapped = Math.round(raw / 30) * 30
+    const snapped = snapTimeFromEvent(e.clientY, rect.top, MIN_PX)
     const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
     if (snapped < cfg.start || snapped >= cfg.end) return
+    setHoverPos(null)
     setModal({ type: 'add', dayIdx, date: weekDays[dayIdx], timeMin: snapped })
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>, dayIdx: number) {
     if ((e.target as HTMLElement).closest('[data-block]') || activeBlock) { setHoverPos(null); return }
     const rect    = e.currentTarget.getBoundingClientRect()
-    const raw     = GRID_START + (e.clientY - rect.top) / MIN_PX
-    const snapped = Math.round(raw / 30) * 30
+    const snapped = snapTimeFromEvent(e.clientY, rect.top, MIN_PX)
     const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
     if (snapped < cfg.start || snapped >= cfg.end) { setHoverPos(null); return }
     setHoverPos({ dayIdx, y: toPx(snapped - GRID_START), timeMin: snapped })
+  }
+
+  // Pointer handlers — provide press-to-preview (essential for touch devices,
+  // where the user can't hover to see which 30-min slot they'll land on).
+  function handleColumnPointerDown(e: React.PointerEvent<HTMLDivElement>, dayIdx: number, pxScale: number) {
+    if ((e.target as HTMLElement).closest('[data-block]') || activeBlock) return
+    const rect    = e.currentTarget.getBoundingClientRect()
+    const snapped = snapTimeFromEvent(e.clientY, rect.top, pxScale)
+    const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
+    if (snapped < cfg.start || snapped >= cfg.end) { setHoverPos(null); return }
+    pressTrackingRef.current = { dayIdx, pxScale }
+    setHoverPos({ dayIdx, y: (snapped - GRID_START) * pxScale, timeMin: snapped })
+  }
+
+  function handleColumnPointerMove(e: React.PointerEvent<HTMLDivElement>, dayIdx: number, pxScale: number) {
+    // Only update during an active press — otherwise desktop's onMouseMove handles it.
+    if (!pressTrackingRef.current || pressTrackingRef.current.dayIdx !== dayIdx) return
+    if ((e.target as HTMLElement).closest('[data-block]') || activeBlock) return
+    const rect    = e.currentTarget.getBoundingClientRect()
+    const snapped = snapTimeFromEvent(e.clientY, rect.top, pxScale)
+    const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
+    if (snapped < cfg.start || snapped >= cfg.end) return
+    setHoverPos({ dayIdx, y: (snapped - GRID_START) * pxScale, timeMin: snapped })
+  }
+
+  function handleColumnPointerUp() {
+    pressTrackingRef.current = null
+    // keep hoverPos until onClick fires (which clears it) or mouseleave hits
+  }
+
+  function handleColumnPointerCancel() {
+    pressTrackingRef.current = null
+    setHoverPos(null)
   }
 
   // ── grid rendering ─────────────────────────────────────────────────────────
@@ -1515,7 +1751,11 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         style={{ height: gridHeight, borderColor: 'var(--border-subtle)', minWidth: 120 }}
         onClick={(e) => handleColumnClick(e, dayIdx)}
         onMouseMove={(e) => handleMouseMove(e, dayIdx)}
-        onMouseLeave={() => setHoverPos(null)}
+        onMouseLeave={() => { if (!pressTrackingRef.current) setHoverPos(null) }}
+        onPointerDown={(e) => handleColumnPointerDown(e, dayIdx, MIN_PX)}
+        onPointerMove={(e) => handleColumnPointerMove(e, dayIdx, MIN_PX)}
+        onPointerUp={handleColumnPointerUp}
+        onPointerCancel={handleColumnPointerCancel}
       >
         {/* Hour lines */}
         {hourLabels.map(({ top }, i) => (
@@ -1548,17 +1788,25 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
             }} />
         )}
 
-        {/* Hover indicator (no drag active) */}
+        {/* Hover indicator (no drag active) — shows a 30-min preview block so
+            the user can clearly see which :00/:30 slot they'll snap to. */}
         {isHovered && !activeBlock && (
-          <div className="absolute left-0 right-0 pointer-events-none z-10"
-            style={{ top: hoverPos!.y }}>
-            <div style={{ borderTop: '1.5px dashed #FC6E20' }}>
-              <span className="absolute right-1 text-[10px] font-semibold px-1 rounded-sm"
-                style={{ top: -9, background: 'var(--green-primary)', color: '#000' }}>
-                Disponível · {minToTime(hoverPos!.timeMin)}
+          <>
+            <div className="absolute left-1 right-1 pointer-events-none z-10 rounded-md"
+              style={{
+                top:    hoverPos!.y,
+                height: toPx(30),
+                background: 'rgba(252,110,32,0.16)',
+                border: '1.5px dashed var(--green-primary)',
+              }} />
+            <div className="absolute pointer-events-none z-20"
+              style={{ top: hoverPos!.y - 9, left: 4 }}>
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md tabular-nums"
+                style={{ background: 'var(--green-primary)', color: '#000', boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>
+                {minToTime(hoverPos!.timeMin)}
               </span>
             </div>
-          </div>
+          </>
         )}
 
         {/* Current time line */}
@@ -1692,10 +1940,10 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     function handleCompactClick(e: React.MouseEvent<HTMLDivElement>, dayIdx: number) {
       if ((e.target as HTMLElement).closest('[data-block]')) return
       const rect    = e.currentTarget.getBoundingClientRect()
-      const raw     = GRID_START + (e.clientY - rect.top) / COMPACT_MIN_PX
-      const snapped = Math.round(raw / 30) * 30
+      const snapped = snapTimeFromEvent(e.clientY, rect.top, COMPACT_MIN_PX)
       const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
       if (snapped < cfg.start || snapped >= cfg.end) return
+      setHoverPos(null)
       setModal({ type: 'add', dayIdx, date: weekDays[dayIdx], timeMin: snapped })
     }
 
@@ -1783,12 +2031,18 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
             const closedBottom = cToPx(GRID_END - cfg.end)
             const isToday      = toDateStr(weekDays[dayIdx]) === todayStr
 
+            const isHoveredCompact = hoverPos?.dayIdx === dayIdx
+
             return (
               <div key={dayIdx}
                 ref={(el) => { compactColRefs.current[dayIdx] = el }}
                 className="relative flex-1 border-l cursor-crosshair"
-                style={{ height: COMPACT_GRID_H, borderColor: 'var(--border-subtle)', minWidth: 78 }}
-                onClick={(e) => handleCompactClick(e, dayIdx)}>
+                style={{ height: COMPACT_GRID_H, borderColor: 'var(--border-subtle)', minWidth: 78, touchAction: 'pan-y' }}
+                onClick={(e) => handleCompactClick(e, dayIdx)}
+                onPointerDown={(e) => handleColumnPointerDown(e, dayIdx, COMPACT_MIN_PX)}
+                onPointerMove={(e) => handleColumnPointerMove(e, dayIdx, COMPACT_MIN_PX)}
+                onPointerUp={handleColumnPointerUp}
+                onPointerCancel={handleColumnPointerCancel}>
 
                 {/* Hour lines */}
                 {cHourLabels.map(({ top }, i) => (
@@ -1799,6 +2053,26 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                   <div key={`h-${i}`} className="absolute left-0 right-0 pointer-events-none"
                     style={{ top: top + cToPx(30), borderTop: '1px dashed var(--border-subtle)', opacity: 0.18 }} />
                 ))}
+
+                {/* Press-to-preview indicator (compact / mobile) */}
+                {isHoveredCompact && !activeBlock && (
+                  <>
+                    <div className="absolute left-px right-px pointer-events-none rounded z-10"
+                      style={{
+                        top:    hoverPos!.y,
+                        height: cToPx(30),
+                        background: 'rgba(252,110,32,0.2)',
+                        border: '1.5px dashed var(--green-primary)',
+                      }} />
+                    <div className="absolute pointer-events-none z-20"
+                      style={{ top: hoverPos!.y - 10, left: 2 }}>
+                      <span className="text-[9px] font-black px-1 py-0.5 rounded tabular-nums"
+                        style={{ background: 'var(--green-primary)', color: '#000', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+                        {minToTime(hoverPos!.timeMin)}
+                      </span>
+                    </div>
+                  </>
+                )}
 
                 {/* Today tint */}
                 {isToday && (
@@ -2179,6 +2453,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         {modal?.type === 'evento-card' && (
           <EventoCardModal evento={modal.evento} alunoNome={modal.alunoNome}
             onClose={() => setModal(null)} onDeleted={removeEvento}
+            onDeletedSerie={(ids) => setEventos(p => p.filter(e => !ids.includes(e.id)))}
             onEditar={() => setModal({ type: 'edit', evento: modal.evento })} />
         )}
         {modal?.type === 'edit' && (
