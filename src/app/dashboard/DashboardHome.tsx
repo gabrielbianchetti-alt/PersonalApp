@@ -9,9 +9,13 @@ import { FaltaQuickActionModal } from './faltas/FaltaQuickActionModal'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
+type AlertIconId =
+  | 'calendar' | 'clock' | 'check-circle' | 'clipboard'
+  | 'book-open' | 'cake' | 'party' | 'trending-up'
+
 interface AlertaItem {
   id:   string
-  icon: string
+  icon: AlertIconId
   text: string
   href: string
 }
@@ -55,6 +59,8 @@ interface Props {
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+// getDay(): 0 = Dom, 1 = Seg, ... 6 = Sáb
+const DIAS_ABR  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 
 const TIPO_COLOR: Record<AulaHoje['tipo'], string> = {
   regular:    '#10B981',
@@ -77,6 +83,78 @@ function timeToMin(t: string): number {
 }
 
 // ─── AlertaCarrossel ──────────────────────────────────────────────────────────
+
+// Line-style icon for alert carousel — monochromatic, 2px stroke, uses currentColor.
+function AlertIcon({ id, size = 22 }: { id: AlertIconId; size?: number }) {
+  const common = {
+    width: size, height: size,
+    viewBox: '0 0 24 24', fill: 'none',
+    stroke: 'currentColor', strokeWidth: 1.75,
+    strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+  }
+  switch (id) {
+    case 'calendar':
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M16 3v4M8 3v4M3 10h18" />
+        </svg>
+      )
+    case 'clock':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      )
+    case 'check-circle':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M8.5 12.5l2.5 2.5 4.5-5" />
+        </svg>
+      )
+    case 'clipboard':
+      return (
+        <svg {...common}>
+          <rect x="5" y="4" width="14" height="17" rx="2" />
+          <rect x="9" y="2" width="6" height="4" rx="1" />
+          <path d="M9 12h6M9 16h4" />
+        </svg>
+      )
+    case 'book-open':
+      return (
+        <svg {...common}>
+          <path d="M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3z" />
+          <path d="M21 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z" />
+        </svg>
+      )
+    case 'cake':
+      return (
+        <svg {...common}>
+          <path d="M4 21V12a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9" />
+          <path d="M3 21h18" />
+          <path d="M4 15c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1" />
+          <path d="M12 6v4M12 3l1 2-1 1-1-1z" />
+        </svg>
+      )
+    case 'party':
+      return (
+        <svg {...common}>
+          <path d="M4 20l4-12 9 9z" />
+          <path d="M14 5l1 1M18 3l-1 2M20 7l-2 1M17 10l1 2" />
+          <circle cx="14" cy="5" r="0.5" />
+        </svg>
+      )
+    case 'trending-up':
+      return (
+        <svg {...common}>
+          <polyline points="3 17 9 11 13 15 21 7" />
+          <polyline points="15 7 21 7 21 13" />
+        </svg>
+      )
+  }
+}
 
 function AlertaCarrossel({ alertas }: { alertas: AlertaItem[] }) {
   const router = useRouter()
@@ -125,7 +203,9 @@ function AlertaCarrossel({ alertas }: { alertas: AlertaItem[] }) {
         }}
       >
         {/* Icon */}
-        <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{alerta.icon}</span>
+        <span style={{ flexShrink: 0, color: 'var(--green-primary)', display: 'inline-flex' }}>
+          <AlertIcon id={alerta.icon} size={22} />
+        </span>
 
         {/* Text */}
         <p className="flex-1 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -205,10 +285,11 @@ export function DashboardHome({
   const pagosTab     = alunosCobranca.filter(a => a.status === 'pago')
 
   // ── date / time display ───────────────────────────────────────────────────
-  const today   = new Date()
-  const dayNum  = today.getDate()
-  const mesAbr  = MESES_ABR[today.getMonth()]
-  const timeStr = `${String(clock.h).padStart(2, '0')}:${String(clock.m).padStart(2, '0')}`
+  const today    = new Date()
+  const dayNum   = today.getDate()
+  const mesAbr   = MESES_ABR[today.getMonth()]
+  const diaAbr   = DIAS_ABR[today.getDay()]
+  const timeStr  = `${String(clock.h).padStart(2, '0')}:${String(clock.m).padStart(2, '0')}`
   const [, mesMesStr] = mesRef.split('-')
   const mesMes  = parseInt(mesMesStr)
 
@@ -222,43 +303,43 @@ export function DashboardHome({
 
   // b) Novo mês (primeiros 3 dias)
   if (today.getDate() <= 3) {
-    alertas.push({ id: 'novo-mes', icon: '📅', text: 'Novo mês! Hora de gerar as cobranças', href: '/dashboard/financeiro?tab=cobranca' })
+    alertas.push({ id: 'novo-mes', icon: 'calendar', text: 'Novo mês! Hora de gerar as cobranças', href: '/dashboard/financeiro?tab=cobranca' })
   }
 
   // a) Pagamentos pendentes
   if (pendentesCount > 0) {
-    alertas.push({ id: 'pendentes', icon: '⏰', text: `${pendentesCount} aluno${pendentesCount !== 1 ? 's' : ''} com pagamento pendente`, href: '/dashboard/financeiro?tab=cobranca' })
+    alertas.push({ id: 'pendentes', icon: 'clock', text: `${pendentesCount} aluno${pendentesCount !== 1 ? 's' : ''} com pagamento pendente`, href: '/dashboard/financeiro?tab=cobranca' })
   }
 
   // c) Todos pagaram
   if (pendentesCount === 0 && alunosCobranca.length > 0 && enviadasTab.length === 0) {
-    alertas.push({ id: 'todos-pagos', icon: '✅', text: 'Todos os alunos pagos este mês!', href: '' })
+    alertas.push({ id: 'todos-pagos', icon: 'check-circle', text: 'Todos os alunos pagos este mês!', href: '' })
   }
 
   // d) Remarcações urgentes
   if (remarcacoesUrgentes > 0) {
-    alertas.push({ id: 'remarcacoes', icon: '📋', text: `${remarcacoesUrgentes} remarcaç${remarcacoesUrgentes === 1 ? 'ão vence' : 'ões vencem'} esta semana`, href: '/dashboard/agenda?tab=faltas' })
+    alertas.push({ id: 'remarcacoes', icon: 'clipboard', text: `${remarcacoesUrgentes} remarcaç${remarcacoesUrgentes === 1 ? 'ão vence' : 'ões vencem'} esta semana`, href: '/dashboard/agenda?tab=faltas' })
   }
 
   // e) Aulas amanhã
   if (aulasAmanha > 0) {
-    alertas.push({ id: 'amanha', icon: '📚', text: `Amanhã você tem ${aulasAmanha} aula${aulasAmanha !== 1 ? 's' : ''}`, href: '/dashboard/agenda' })
+    alertas.push({ id: 'amanha', icon: 'book-open', text: `Amanhã você tem ${aulasAmanha} aula${aulasAmanha !== 1 ? 's' : ''}`, href: '/dashboard/agenda' })
   }
 
   // f) Aniversário amanhã
   aniversariosAmanha.forEach(nome => {
-    alertas.push({ id: `aniv-amanha-${nome}`, icon: '🎂', text: `Aniversário de ${nome} amanhã`, href: '' })
+    alertas.push({ id: `aniv-amanha-${nome}`, icon: 'cake', text: `Aniversário de ${nome} amanhã`, href: '' })
   })
 
   // g) Aniversariantes do mês (se nenhum é amanhã)
   if (aniversariosAmanha.length === 0 && aniversariosMes.length > 0) {
     const nomes = aniversariosMes.slice(0, 3).join(', ') + (aniversariosMes.length > 3 ? `…` : '')
-    alertas.push({ id: 'aniv-mes', icon: '🎉', text: `Aniversariantes do mês: ${nomes}`, href: '' })
+    alertas.push({ id: 'aniv-mes', icon: 'party', text: `Aniversariantes do mês: ${nomes}`, href: '' })
   }
 
   // h) Novos alunos
   if (novosAlunosMes > 0) {
-    alertas.push({ id: 'novos', icon: '📈', text: `${novosAlunosMes} aluno${novosAlunosMes !== 1 ? 's' : ''} novo${novosAlunosMes !== 1 ? 's' : ''} este mês`, href: '/dashboard/alunos' })
+    alertas.push({ id: 'novos', icon: 'trending-up', text: `${novosAlunosMes} aluno${novosAlunosMes !== 1 ? 's' : ''} novo${novosAlunosMes !== 1 ? 's' : ''} este mês`, href: '/dashboard/alunos' })
   }
 
   // limit 5
@@ -305,12 +386,12 @@ export function DashboardHome({
           ║  BLOCO 1 — DATA + HORA                                       ║
           ╚══════════════════════════════════════════════════════════════╝ */}
       <div className="flex items-end justify-between px-1">
-        <p className="font-black leading-none"
-          style={{ fontSize: 'clamp(2.2rem, 7vw, 3rem)', color: 'var(--green-primary)', letterSpacing: '-0.03em' }}>
-          {dayNum} {mesAbr}
+        <p className="leading-none"
+          style={{ fontSize: 'clamp(2rem, 6.5vw, 2.75rem)', fontWeight: 300, color: 'var(--green-primary)', letterSpacing: '-0.02em' }}>
+          {diaAbr} {dayNum} {mesAbr}
         </p>
-        <p className="font-black leading-none"
-          style={{ fontSize: 'clamp(2.2rem, 7vw, 3rem)', color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>
+        <p className="leading-none tabular-nums"
+          style={{ fontSize: 'clamp(2rem, 6.5vw, 2.75rem)', fontWeight: 300, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
           {timeStr}
         </p>
       </div>
