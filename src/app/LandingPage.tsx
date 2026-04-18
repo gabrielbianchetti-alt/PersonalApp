@@ -147,19 +147,7 @@ function Navbar() {
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36,
-            height: 36,
-            background: ACC,
-            color: WHITE,
-            borderRadius: 10,
-            fontSize: 14,
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}>PH</div>
+          <img src="/personalhub-icon.svg" alt="PH" style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0 }} />
           <span style={{ color: WHITE, fontSize: 16, fontWeight: 700 }}>PersonalHub</span>
         </div>
 
@@ -1448,13 +1436,7 @@ function FooterSection() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 24 }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 36, height: 36,
-              background: ACC, color: WHITE,
-              borderRadius: 10, fontSize: 14,
-              fontWeight: 800, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-            }}>PH</div>
+            <img src="/personalhub-icon.svg" alt="PH" style={{ width: 36, height: 36, borderRadius: 10 }} />
             <span style={{ color: WHITE, fontSize: 16, fontWeight: 700 }}>PersonalHub</span>
           </div>
 
