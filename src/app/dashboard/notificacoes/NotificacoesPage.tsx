@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Calendar, DollarSign, RefreshCw, Cake, AlertTriangle, BarChart3, Info, Zap, Siren, Bell } from 'lucide-react'
 import { fetchNotificacoesAction, marcarLidaAction, marcarTodasLidasAction } from './actions'
 import type { NotificacaoComLeitura } from '@/types/notificacao'
 
@@ -24,9 +25,20 @@ const CATEGORIA_LABELS: Record<string, string> = {
   info: 'Info', importante: 'Importante', urgente: 'Urgente',
 }
 
-const CATEGORIA_ICONS: Record<string, string> = {
-  aula: '📅', cobranca: '💰', reposicao: '🔄', aniversario: '🎂',
-  churn: '⚠️', custo: '📊', info: 'ℹ️', importante: '⚡', urgente: '🚨',
+function NotifIcon({ tipo }: { tipo: string }) {
+  const props = { size: 16, strokeWidth: 1.75, 'aria-hidden': true } as const
+  switch (tipo) {
+    case 'aula': return <Calendar {...props} />
+    case 'cobranca': return <DollarSign {...props} />
+    case 'reposicao': return <RefreshCw {...props} />
+    case 'aniversario': return <Cake {...props} />
+    case 'churn': return <AlertTriangle {...props} />
+    case 'custo': return <BarChart3 {...props} />
+    case 'info': return <Info {...props} />
+    case 'importante': return <Zap {...props} />
+    case 'urgente': return <Siren {...props} />
+    default: return <Bell {...props} />
+  }
 }
 
 const CATEGORIA_COLORS: Record<string, string> = {
@@ -143,9 +155,9 @@ export function NotificacoesPage() {
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1' }}
             >
               {/* Icon */}
-              <div className="shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center text-xl"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
-                {CATEGORIA_ICONS[n.notificacao?.categoria] ?? '🔔'}
+              <div className="shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: CATEGORIA_COLORS[n.notificacao?.categoria] ?? 'var(--text-secondary)' }}>
+                <NotifIcon tipo={n.notificacao?.categoria ?? ''} />
               </div>
               {/* Content */}
               <div className="flex-1 min-w-0">

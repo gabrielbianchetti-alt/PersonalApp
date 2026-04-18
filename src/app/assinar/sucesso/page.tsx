@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import type Stripe from 'stripe'
+import { PartyPopper } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStripe } from '@/lib/stripe'
@@ -90,10 +91,10 @@ export default async function AssinarSucessoPage({
           width: 80, height: 80, borderRadius: '50%',
           background: 'rgba(16, 185, 129,0.12)', border: '2px solid #10B981',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 36, marginBottom: 28,
+          color: '#10B981', marginBottom: 28,
         }}
       >
-        🎉
+        <PartyPopper size={48} strokeWidth={1.5} aria-hidden />
       </div>
 
       <h1 style={{ fontSize: 28, fontWeight: 800, color: '#f8fafc', marginBottom: 12 }}>

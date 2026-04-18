@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Hand, CheckCircle2 } from 'lucide-react'
 import { formatCurrency } from '@/types/aluno'
 import { upsertCobrancaPagoAction, desfazerPagoAction } from './actions'
 import { FaltaQuickActionModal } from './faltas/FaltaQuickActionModal'
@@ -445,9 +446,10 @@ export function DashboardHome({
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 20, padding: '18px 20px' }}>
 
         {/* Saudação */}
-        <div className="flex items-baseline gap-1.5 mb-4 flex-wrap">
-          <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-            {getGreeting()}, {professorNome.split(' ')[0]}! 👋
+        <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+          <p className="text-base font-bold flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+            {getGreeting()}, {professorNome.split(' ')[0]}
+            <Hand size={16} strokeWidth={1.75} style={{ color: 'var(--green-primary)' }} aria-hidden />
           </p>
           <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>·</p>
           <p className="text-sm font-semibold" style={{ color: 'var(--green-primary)' }}>
@@ -457,7 +459,7 @@ export function DashboardHome({
 
         {aulasHoje.length === 0 ? (
           <p className="text-sm py-2" style={{ color: 'var(--text-muted)' }}>
-            Nenhum compromisso hoje. Aproveite! 😎
+            Nenhum compromisso hoje. Aproveite!
           </p>
         ) : (
           <div className="flex flex-col" style={{ gap: 5 }}>
@@ -629,7 +631,7 @@ export function DashboardHome({
           {cobrancaTab === 'pendente' && (
             pendentesTab.length === 0 ? (
               <div className="flex items-center gap-2 py-4 justify-center">
-                <span className="text-lg">🎉</span>
+                <CheckCircle2 size={18} strokeWidth={1.75} style={{ color: 'var(--green-primary)' }} aria-hidden />
                 <p className="text-sm font-semibold" style={{ color: 'var(--green-primary)' }}>
                   Nenhuma pendência!
                 </p>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Wallet, CheckCircle2 } from 'lucide-react'
 import { createFaltaAction, resolveFaltaAction, type FaltaRow } from './actions'
 
 // ─── shared constants ─────────────────────────────────────────────────────────
@@ -12,10 +13,10 @@ const PROFESSOR_COLOR    = '#8B5CF6'
 type SelectedFaltaTipo = 'aluno-faltou' | 'cancelamento' | 'professor-cancelou'
 type Step              = 'menu' | 'options' | 'credito' | 'done'
 
-const FALTA_TIPO_CFG: Record<SelectedFaltaTipo, { label: string; emoji: string; color: string; bg: string; border: string }> = {
-  'aluno-faltou':       { label: 'Aluno faltou',                  emoji: '🔴', color: FALTA_COLOR,        bg: 'rgba(239, 68, 68,0.06)',  border: 'rgba(239, 68, 68,0.25)' },
-  'cancelamento':       { label: 'Cancelamento com antecedência', emoji: '🟠', color: CANCELAMENTO_COLOR, bg: 'rgba(245, 158, 11,0.06)',  border: 'rgba(245, 158, 11,0.25)' },
-  'professor-cancelou': { label: 'Professor cancelou',            emoji: '🟣', color: PROFESSOR_COLOR,    bg: 'rgba(139, 92, 246,0.06)', border: 'rgba(139, 92, 246,0.25)' },
+const FALTA_TIPO_CFG: Record<SelectedFaltaTipo, { label: string; color: string; bg: string; border: string }> = {
+  'aluno-faltou':       { label: 'Aluno faltou',                  color: FALTA_COLOR,        bg: 'rgba(239, 68, 68,0.06)',  border: 'rgba(239, 68, 68,0.25)' },
+  'cancelamento':       { label: 'Cancelamento com antecedência', color: CANCELAMENTO_COLOR, bg: 'rgba(245, 158, 11,0.06)',  border: 'rgba(245, 158, 11,0.25)' },
+  'professor-cancelou': { label: 'Professor cancelou',            color: PROFESSOR_COLOR,    bg: 'rgba(139, 92, 246,0.06)', border: 'rgba(139, 92, 246,0.25)' },
 }
 
 function faltaCreateParams(t: SelectedFaltaTipo): { culpa: 'aluno' | 'professor'; tipo: 'falta' | 'cancelamento' } {
@@ -94,9 +95,6 @@ export function FaltaQuickActionModal({
   const existingColor = existingFalta
     ? (existingFalta.tipo === 'cancelamento' ? CANCELAMENTO_COLOR : existingFalta.culpa === 'professor' ? PROFESSOR_COLOR : FALTA_COLOR)
     : null
-  const existingEmoji = existingFalta
-    ? (existingFalta.tipo === 'cancelamento' ? '🟠' : existingFalta.culpa === 'professor' ? '🟣' : '🔴')
-    : null
   const existingLabel = existingFalta
     ? (existingFalta.tipo === 'cancelamento' ? 'Cancelamento antecipado' : existingFalta.culpa === 'professor' ? 'Professor cancelou' : 'Aluno faltou')
     : null
@@ -163,7 +161,10 @@ export function FaltaQuickActionModal({
     const cfg = FALTA_TIPO_CFG[faltaTipo]
     return (
       <div className="rounded-xl px-4 py-3 text-sm" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-        <p className="font-semibold" style={{ color: cfg.color }}>{cfg.emoji} {cfg.label}</p>
+        <p className="font-semibold flex items-center gap-2" style={{ color: cfg.color }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.color, display: 'inline-block' }} />
+          {cfg.label}
+        </p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
           {alunoNome.split(' ')[0]}{contextLabel ? ` · ${contextLabel}` : ''}{horario ? ` · ${horario}` : ''}
         </p>
@@ -189,7 +190,6 @@ export function FaltaQuickActionModal({
             {existingFalta ? (
               <div className="rounded-xl px-3 py-2.5 text-xs font-medium flex items-center gap-2"
                 style={{ background: `${existingColor}1A`, color: existingColor!, border: `1px solid ${existingColor}40` }}>
-                <span>{existingEmoji}</span>
                 <span>{existingLabel} já registrado neste dia</span>
               </div>
             ) : (
@@ -197,7 +197,7 @@ export function FaltaQuickActionModal({
                 <button onClick={() => handleSelectTipo('aluno-faltou')}
                   className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
                   style={{ background: 'rgba(239, 68, 68,0.08)', color: FALTA_COLOR, border: '1px solid rgba(239, 68, 68,0.25)' }}>
-                  <span className="text-base">🔴</span>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: FALTA_COLOR, display: 'inline-block' }} />
                   <div>
                     <div>Aluno faltou</div>
                     <div className="text-xs font-normal opacity-70">Não compareceu sem avisar</div>
@@ -206,7 +206,7 @@ export function FaltaQuickActionModal({
                 <button onClick={() => handleSelectTipo('cancelamento')}
                   className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
                   style={{ background: 'rgba(245, 158, 11,0.08)', color: CANCELAMENTO_COLOR, border: '1px solid rgba(245, 158, 11,0.25)' }}>
-                  <span className="text-base">🟠</span>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: CANCELAMENTO_COLOR, display: 'inline-block' }} />
                   <div>
                     <div>Cancelamento com antecedência</div>
                     <div className="text-xs font-normal opacity-70">Aluno avisou com antecedência</div>
@@ -215,7 +215,7 @@ export function FaltaQuickActionModal({
                 <button onClick={() => handleSelectTipo('professor-cancelou')}
                   className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
                   style={{ background: 'rgba(139, 92, 246,0.08)', color: PROFESSOR_COLOR, border: '1px solid rgba(139, 92, 246,0.25)' }}>
-                  <span className="text-base">🟣</span>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: PROFESSOR_COLOR, display: 'inline-block' }} />
                   <div>
                     <div>Professor cancelou</div>
                     <div className="text-xs font-normal opacity-70">O professor não pôde dar a aula</div>
@@ -252,7 +252,7 @@ export function FaltaQuickActionModal({
                 style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
-                💵 Manter Cobrança
+                <Wallet size={14} strokeWidth={1.75} aria-hidden /> Manter Cobrança
               </button>
             </div>
             {err && <p className="text-xs" style={{ color: '#EF4444' }}>{err}</p>}
@@ -304,9 +304,9 @@ export function FaltaQuickActionModal({
         {/* STEP: done */}
         {step === 'done' && (
           <>
-            <div className="rounded-xl p-4 text-center flex flex-col gap-2"
+            <div className="rounded-xl p-4 text-center flex flex-col items-center gap-2"
               style={{ background: 'rgba(16, 185, 129,0.06)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
-              <p className="text-2xl">✅</p>
+              <CheckCircle2 size={28} strokeWidth={1.75} style={{ color: 'var(--green-primary)' }} aria-hidden />
               <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Registrado!</p>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{doneMsg}</p>
             </div>

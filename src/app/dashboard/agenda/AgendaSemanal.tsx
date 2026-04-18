@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
+  Calendar, RefreshCw, Zap, Plus, FileText, Wallet, CheckCircle2,
+} from 'lucide-react'
+import {
   createEventoAction,
   createEventoSerieAction,
   updateEventoAction,
@@ -351,7 +354,9 @@ function MoveConfirmModal({
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-focus)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>📅 Apenas esta semana</p>
+              <p className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <Calendar size={14} strokeWidth={1.75} aria-hidden /> Apenas esta semana
+              </p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Cria uma reposição no novo horário só para esta semana</p>
             </button>
             <button onClick={onPermanent} disabled={saving}
@@ -359,7 +364,7 @@ function MoveConfirmModal({
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--green-primary)'; e.currentTarget.style.background = 'var(--green-muted)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'var(--bg-card)' }}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--green-primary)' }}>🔄 Permanentemente</p>
+              <p className="text-sm font-semibold inline-flex items-center gap-2" style={{ color: 'var(--green-primary)' }}><RefreshCw size={14} strokeWidth={1.75} aria-hidden /> Permanentemente</p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Altera o horário fixo do aluno no cadastro</p>
             </button>
             {saving && (
@@ -489,16 +494,17 @@ function AddEventModal({
         {step === 'choose' && (
           <div className="grid grid-cols-2 gap-2">
             {([
-              { id: 'aula',       label: '📅 Marcar aula', color: TIPO_COLOR.aula },
-              { id: 'reposicao',  label: '🔁 Reposição',   color: TIPO_COLOR.reposicao },
-              { id: 'aula_extra', label: '⚡ Aula Extra',  color: TIPO_COLOR.aula_extra },
-              { id: 'outro',      label: '➕ Outros',      color: TIPO_COLOR.outro },
+              { id: 'aula',       label: 'Marcar aula', Icon: Calendar,  color: TIPO_COLOR.aula },
+              { id: 'reposicao',  label: 'Reposição',   Icon: RefreshCw, color: TIPO_COLOR.reposicao },
+              { id: 'aula_extra', label: 'Aula Extra',  Icon: Zap,       color: TIPO_COLOR.aula_extra },
+              { id: 'outro',      label: 'Outros',      Icon: Plus,      color: TIPO_COLOR.outro },
             ] as const).map(opt => (
               <button key={opt.id} onClick={() => setStep(opt.id)}
                 className="flex flex-col items-center gap-2 py-4 rounded-xl cursor-pointer transition-colors text-xs font-semibold"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: opt.color }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = opt.color}
                 onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}>
+                <opt.Icon size={20} strokeWidth={1.75} aria-hidden />
                 {opt.label}
               </button>
             ))}
@@ -683,9 +689,11 @@ function AddEventModal({
               ← Voltar
             </button>
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
               style={{ background: step === 'aula_extra' ? TIPO_COLOR.aula_extra : 'var(--green-primary)', color: '#000' }}>
-              {saving ? 'Salvando...' : step === 'aula_extra' ? '⚡ Salvar Aula Extra' : 'Salvar'}
+              {saving ? 'Salvando...' : step === 'aula_extra' ? (
+                <><Zap size={14} strokeWidth={2} aria-hidden /> Salvar Aula Extra</>
+              ) : 'Salvar'}
             </button>
           </div>
         )}
@@ -699,10 +707,10 @@ function AddEventModal({
 type SelectedFaltaTipo = 'aluno-faltou' | 'cancelamento' | 'professor-cancelou'
 type AlunoModalStep    = 'menu' | 'obs' | 'options' | 'credito' | 'cobranca-confirm' | 'done'
 
-const FALTA_TIPO_CFG: Record<SelectedFaltaTipo, { label: string; emoji: string; color: string; bg: string; border: string }> = {
-  'aluno-faltou':       { label: 'Aluno faltou',                 emoji: '🔴', color: FALTA_COLOR,        bg: 'rgba(239, 68, 68,0.06)',   border: 'rgba(239, 68, 68,0.25)' },
-  'cancelamento':       { label: 'Cancelamento com antecedência', emoji: '🟠', color: CANCELAMENTO_COLOR, bg: 'rgba(245, 158, 11,0.06)',   border: 'rgba(245, 158, 11,0.25)' },
-  'professor-cancelou': { label: 'Professor cancelou',            emoji: '🟣', color: PROFESSOR_COLOR,    bg: 'rgba(139, 92, 246,0.06)', border: 'rgba(139, 92, 246,0.25)' },
+const FALTA_TIPO_CFG: Record<SelectedFaltaTipo, { label: string; color: string; bg: string; border: string }> = {
+  'aluno-faltou':       { label: 'Aluno faltou',                 color: FALTA_COLOR,        bg: 'rgba(239, 68, 68,0.06)',   border: 'rgba(239, 68, 68,0.25)' },
+  'cancelamento':       { label: 'Cancelamento com antecedência', color: CANCELAMENTO_COLOR, bg: 'rgba(245, 158, 11,0.06)',   border: 'rgba(245, 158, 11,0.25)' },
+  'professor-cancelou': { label: 'Professor cancelou',            color: PROFESSOR_COLOR,    bg: 'rgba(139, 92, 246,0.06)', border: 'rgba(139, 92, 246,0.25)' },
 }
 
 function faltaCreateParams(t: SelectedFaltaTipo): { culpa: 'aluno' | 'professor'; tipo: 'falta' | 'cancelamento' } {
@@ -740,9 +748,6 @@ function AlunoCardModal({
   const existingFalta = faltasData.find(f => f.aluno_id === aluno.id && f.data_falta === dateStr)
   const existingColor = existingFalta
     ? (existingFalta.tipo === 'cancelamento' ? CANCELAMENTO_COLOR : existingFalta.culpa === 'professor' ? PROFESSOR_COLOR : FALTA_COLOR)
-    : null
-  const existingEmoji = existingFalta
-    ? (existingFalta.tipo === 'cancelamento' ? '🟠' : existingFalta.culpa === 'professor' ? '🟣' : '🔴')
     : null
   const existingLabel = existingFalta
     ? (existingFalta.tipo === 'cancelamento' ? 'Cancelamento antecipado' : existingFalta.culpa === 'professor' ? 'Professor cancelou' : 'Aluno faltou')
@@ -838,7 +843,10 @@ function AlunoCardModal({
     const cfg = FALTA_TIPO_CFG[faltaTipo]
     return (
       <div className="rounded-xl px-4 py-3 text-sm" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-        <p className="font-semibold" style={{ color: cfg.color }}>{cfg.emoji} {cfg.label}</p>
+        <p className="font-semibold flex items-center gap-2" style={{ color: cfg.color }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.color, display: 'inline-block' }} />
+          {cfg.label}
+        </p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
           {aluno.nome.split(' ')[0]} · {WEEK_LABELS[dayIdx]} {formatDay(date)} · {alunoHorario}
         </p>
@@ -865,7 +873,7 @@ function AlunoCardModal({
             {existingFalta ? (
               <div className="rounded-xl px-3 py-2.5 text-xs font-medium flex items-center gap-2"
                 style={{ background: `${existingColor}1A`, color: existingColor!, border: `1px solid ${existingColor}40` }}>
-                <span>{existingEmoji}</span>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: existingColor!, display: 'inline-block' }} />
                 <span>{existingLabel} já registrado neste dia</span>
               </div>
             ) : (
@@ -873,7 +881,7 @@ function AlunoCardModal({
                 <button onClick={() => handleSelectTipo('aluno-faltou')}
                   className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
                   style={{ background: 'rgba(239, 68, 68,0.08)', color: FALTA_COLOR, border: '1px solid rgba(239, 68, 68,0.25)' }}>
-                  <span className="text-base">🔴</span>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: FALTA_COLOR, display: 'inline-block' }} />
                   <div>
                     <div>Aluno faltou</div>
                     <div className="text-xs font-normal opacity-70">Não compareceu sem avisar</div>
@@ -882,7 +890,7 @@ function AlunoCardModal({
                 <button onClick={() => handleSelectTipo('cancelamento')}
                   className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
                   style={{ background: 'rgba(245, 158, 11,0.08)', color: CANCELAMENTO_COLOR, border: '1px solid rgba(245, 158, 11,0.25)' }}>
-                  <span className="text-base">🟠</span>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: CANCELAMENTO_COLOR, display: 'inline-block' }} />
                   <div>
                     <div>Cancelamento com antecedência</div>
                     <div className="text-xs font-normal opacity-70">Aluno avisou com antecedência</div>
@@ -891,7 +899,7 @@ function AlunoCardModal({
                 <button onClick={() => handleSelectTipo('professor-cancelou')}
                   className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
                   style={{ background: 'rgba(139, 92, 246,0.08)', color: PROFESSOR_COLOR, border: '1px solid rgba(139, 92, 246,0.25)' }}>
-                  <span className="text-base">🟣</span>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: PROFESSOR_COLOR, display: 'inline-block' }} />
                   <div>
                     <div>Professor cancelou</div>
                     <div className="text-xs font-normal opacity-70">O professor não pôde dar a aula</div>
@@ -908,7 +916,7 @@ function AlunoCardModal({
               <button onClick={() => setStep('obs')}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
                 style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
-                📝 Observação
+                <span className="inline-flex items-center gap-1.5"><FileText size={13} strokeWidth={1.75} aria-hidden /> Observação</span>
               </button>
             </div>
           </>
@@ -965,7 +973,7 @@ function AlunoCardModal({
                 style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
-                💵 Manter Cobrança
+                <Wallet size={14} strokeWidth={1.75} aria-hidden /> Manter Cobrança
               </button>
             </div>
             {err && <p className="text-xs" style={{ color: '#EF4444' }}>{err}</p>}
@@ -1017,9 +1025,9 @@ function AlunoCardModal({
         {/* STEP: done */}
         {step === 'done' && (
           <>
-            <div className="rounded-xl p-4 text-center flex flex-col gap-2"
+            <div className="rounded-xl p-4 text-center flex flex-col items-center gap-2"
               style={{ background: 'rgba(16, 185, 129,0.06)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
-              <p className="text-2xl">✅</p>
+              <CheckCircle2 size={28} strokeWidth={1.75} style={{ color: 'var(--green-primary)' }} aria-hidden />
               <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Registrado!</p>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{doneMsg}</p>
             </div>
@@ -1390,9 +1398,9 @@ function SlotSelectionBottomSheet({
           {/* 3 option buttons */}
           <div className="flex flex-col gap-2 mt-4">
             {([
-              { id: 'aula' as const,      label: '📅 Marcar aula', color: TIPO_COLOR.aula },
-              { id: 'reposicao' as const, label: '🔁 Reposição',   color: TIPO_COLOR.reposicao },
-              { id: 'outro' as const,     label: '➕ Outros',      color: TIPO_COLOR.outro },
+              { id: 'aula' as const,      label: 'Marcar aula', Icon: Calendar,  color: TIPO_COLOR.aula },
+              { id: 'reposicao' as const, label: 'Reposição',   Icon: RefreshCw, color: TIPO_COLOR.reposicao },
+              { id: 'outro' as const,     label: 'Outros',      Icon: Plus,      color: TIPO_COLOR.outro },
             ]).map(opt => (
               <button key={opt.id} onClick={() => onChoose(opt.id)}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors"
@@ -1401,7 +1409,7 @@ function SlotSelectionBottomSheet({
                   border: `1px solid var(--border-subtle)`,
                   color: opt.color,
                 }}>
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: opt.color }} />
+                <opt.Icon size={16} strokeWidth={1.75} aria-hidden />
                 <span className="flex-1 text-left">{opt.label}</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="9 18 15 12 9 6"/>

@@ -146,7 +146,7 @@ export async function gerarNotificacoesAutomaticasAction(): Promise<void> {
     if (bm === tomorrowMonth && bd === tomorrowDay) {
       maybeAdd({
         categoria: 'aniversario',
-        titulo:    `🎂 Aniversário de ${aluno.nome} amanhã!`,
+        titulo:    `Aniversário de ${aluno.nome} amanhã!`,
         mensagem:  `${aluno.nome} faz aniversário amanhã. Que tal mandar uma mensagem especial?`,
         link:      '/dashboard/alunos',
         dedup_key: `aniversario_${aluno.id}_${year}_${tomorrowMonth}_${tomorrowDay}`,

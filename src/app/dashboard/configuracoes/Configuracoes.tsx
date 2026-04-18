@@ -117,7 +117,7 @@ function AssinaturaSection({ assinatura }: { assinatura: AssinaturaData }) {
             className="flex-1 h-11 rounded-xl text-sm font-bold flex items-center justify-center"
             style={{ background: 'var(--green-primary)', color: '#000', textDecoration: 'none' }}
           >
-            {assinatura.status === 'trial' ? '🚀 Assinar agora' : 'Reativar assinatura'}
+            {assinatura.status === 'trial' ? 'Assinar agora' : 'Reativar assinatura'}
           </a>
         )}
 

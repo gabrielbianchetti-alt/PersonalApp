@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
+import { CheckCircle2 } from 'lucide-react'
 import {
   criarNotificacaoAdminAction,
   fetchAdminNotificacoesAction,
@@ -13,7 +14,7 @@ import {
 const TIPO_OPTIONS = [
   { value: 'info', label: '🔵 Informativo', color: '#2196F3' },
   { value: 'importante', label: '🟡 Importante', color: '#FFB300' },
-  { value: 'urgente', label: '🔴 Urgente', color: '#EF4444' },
+  { value: 'urgente', label: 'Urgente', color: '#EF4444' },
 ]
 
 const DEST_OPTIONS = [
@@ -225,9 +226,9 @@ export function AdminNotificacoesHub() {
             </p>
           )}
           {successMsg && (
-            <p className="text-sm px-3 py-2 rounded-lg"
+            <p className="text-sm px-3 py-2 rounded-lg inline-flex items-center gap-2"
               style={{ background: 'rgba(16, 185, 129,0.1)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
-              ✅ {successMsg}
+              <CheckCircle2 size={14} strokeWidth={1.75} aria-hidden /> {successMsg}
             </p>
           )}
 

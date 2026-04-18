@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import type { ReactNode } from 'react'
+import { AlertCircle, CheckCircle2, Clock } from 'lucide-react'
 import type { AssinaturaData } from '@/app/dashboard/configuracoes/assinatura-actions'
 
 function daysUntil(iso: string | null): number {
@@ -24,28 +26,28 @@ export function TrialBanner({ assinatura, isAdmin }: Props) {
   let bg = 'rgba(16, 185, 129,0.08)'
   let border = 'rgba(16, 185, 129,0.25)'
   let textColor = 'var(--green-primary)'
-  let icon = '🟢'
+  let icon: ReactNode = <CheckCircle2 size={14} strokeWidth={1.75} aria-hidden />
   let message = ''
   let urgent = false
 
   if (status === 'trial') {
     const days = daysUntil(trial_fim)
     if (days === 0) {
-      icon = '🔴'
+      icon = <AlertCircle size={14} strokeWidth={1.75} aria-hidden />
       bg = 'rgba(239, 68, 68,0.08)'
       border = 'rgba(239, 68, 68,0.25)'
       textColor = '#EF4444'
       message = 'Seu período de teste expirou. Assine para continuar.'
       urgent = true
     } else if (days <= 2) {
-      icon = '🔴'
+      icon = <AlertCircle size={14} strokeWidth={1.75} aria-hidden />
       bg = 'rgba(239, 68, 68,0.08)'
       border = 'rgba(239, 68, 68,0.25)'
       textColor = '#EF4444'
       message = `Teste grátis: ${days} dia${days > 1 ? 's' : ''} restante${days > 1 ? 's' : ''}. Assine agora para não perder o acesso.`
       urgent = true
     } else if (days <= 4) {
-      icon = '🟡'
+      icon = <Clock size={14} strokeWidth={1.75} aria-hidden />
       bg = 'rgba(245, 158, 11,0.08)'
       border = 'rgba(245, 158, 11,0.25)'
       textColor = '#F59E0B'
@@ -54,7 +56,7 @@ export function TrialBanner({ assinatura, isAdmin }: Props) {
       message = `Teste grátis: ${days} dias restantes.`
     }
   } else if (status === 'past_due') {
-    icon = '🔴'
+    icon = <AlertCircle size={14} strokeWidth={1.75} aria-hidden />
     bg = 'rgba(239, 68, 68,0.08)'
     border = 'rgba(239, 68, 68,0.25)'
     textColor = '#EF4444'
@@ -62,7 +64,7 @@ export function TrialBanner({ assinatura, isAdmin }: Props) {
     urgent = true
   } else if (status === 'canceled') {
     const days = daysUntil(periodo_fim)
-    icon = '🟡'
+    icon = <Clock size={14} strokeWidth={1.75} aria-hidden />
     bg = 'rgba(245, 158, 11,0.08)'
     border = 'rgba(245, 158, 11,0.25)'
     textColor = '#F59E0B'
@@ -83,7 +85,7 @@ export function TrialBanner({ assinatura, isAdmin }: Props) {
       }}
     >
       <span className="flex items-center gap-2">
-        <span>{icon}</span>
+        {icon}
         <span>{message}</span>
       </span>
       <Link

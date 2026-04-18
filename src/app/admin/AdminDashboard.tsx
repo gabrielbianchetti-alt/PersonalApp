@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useTransition, type ReactNode } from 'react'
 import Link from 'next/link'
+import { CheckCircle2, DollarSign, XCircle, TrendingUp, RefreshCw, Zap, Users, Clock } from 'lucide-react'
 import { toggleBlockAction, cancelarAssinaturaAdminAction } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -96,13 +97,13 @@ function assExpira(ass: AssinaturaInfo | null): string {
 // ─── StatCard ─────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, color, icon }: {
-  label: string; value: string | number; sub?: string; color?: string; icon?: string
+  label: string; value: string | number; sub?: string; color?: string; icon?: ReactNode
 }) {
   return (
     <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
       <div className="flex items-start justify-between mb-2">
         <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{label}</p>
-        {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
+        {icon && <span style={{ color: color ?? 'var(--text-muted)' }}>{icon}</span>}
       </div>
       <p className="text-2xl font-bold leading-tight" style={{ color: color ?? 'var(--text-primary)' }}>{value}</p>
       {sub && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
@@ -464,42 +465,42 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
             label="Total de professores"
             value={stats.total_professors}
             sub="cadastrados"
-            icon="👤"
+            icon={<Users size={16} strokeWidth={1.75} aria-hidden />}
           />
           <StatCard
             label="Em trial"
             value={stats.trials}
             sub="período de teste"
             color="#F59E0B"
-            icon="⏳"
+            icon={<Clock size={16} strokeWidth={1.75} aria-hidden />}
           />
           <StatCard
             label="Assinantes ativos"
             value={stats.assinantes}
             sub="pagantes"
             color="#10B981"
-            icon="✅"
+            icon={<CheckCircle2 size={16} strokeWidth={1.75} aria-hidden />}
           />
           <StatCard
             label="MRR"
             value={`R$\u00A0${stats.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
             sub="receita mensal recorrente"
             color="#10B981"
-            icon="💰"
+            icon={<DollarSign size={16} strokeWidth={1.75} aria-hidden />}
           />
           <StatCard
             label="Expirados / Cancelados"
             value={stats.expirados}
             sub="sem renovação"
             color="#EF4444"
-            icon="❌"
+            icon={<XCircle size={16} strokeWidth={1.75} aria-hidden />}
           />
           <StatCard
             label="Conversão"
             value={`${stats.conversao}%`}
             sub="trial → assinante"
             color={stats.conversao >= 20 ? '#10B981' : stats.conversao >= 10 ? '#F59E0B' : '#EF4444'}
-            icon="📈"
+            icon={<TrendingUp size={16} strokeWidth={1.75} aria-hidden />}
           />
         </div>
 
@@ -701,7 +702,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
 
             {/* Novos cadastros */}
             <div className="rounded-2xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-              <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--text-primary)' }}>📈 Novos cadastros por semana</p>
+              <p className="text-sm font-semibold mb-0.5 inline-flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><TrendingUp size={16} strokeWidth={1.75} aria-hidden /> Novos cadastros por semana</p>
               <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Últimas 8 semanas</p>
               <BarChart data={stats.weekly_signups} labels={chartLabels} />
               <div className="mt-3 flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -712,7 +713,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
 
             {/* Conversão trial → assinante */}
             <div className="rounded-2xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-              <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--text-primary)' }}>🔄 Conversão Trial → Assinante</p>
+              <p className="text-sm font-semibold mb-0.5 inline-flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><RefreshCw size={16} strokeWidth={1.75} aria-hidden /> Conversão Trial → Assinante</p>
               <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Assinantes ativos por semana de cadastro</p>
               <BarChart data={stats.conversion_data} labels={chartLabels} color="rgba(139,92,246,0.35)" accentColor="#8B5CF6" />
               <div className="mt-3 flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -746,7 +747,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
 
             {/* Engajamento + MRR */}
             <div className="rounded-2xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-              <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--text-primary)' }}>⚡ Métricas de Receita</p>
+              <p className="text-sm font-semibold mb-0.5 inline-flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Zap size={16} strokeWidth={1.75} aria-hidden /> Métricas de Receita</p>
               <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Dados financeiros em tempo real</p>
               {[
                 { label: 'MRR atual',          value: `R$ ${stats.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,  color: '#10B981' },

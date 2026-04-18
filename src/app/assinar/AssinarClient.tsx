@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { BarChart3 } from 'lucide-react'
 import type { Plano } from '@/lib/stripe'
 
 interface Props {
@@ -79,7 +80,7 @@ export function AssinarClient({ alunosCount, aulasCount }: Props) {
             display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
           }}
         >
-          <span style={{ fontSize: 24 }}>📊</span>
+          <BarChart3 size={24} strokeWidth={1.75} aria-hidden />
           <div>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc', marginBottom: 4 }}>
               Você já construiu no PersonalHub:

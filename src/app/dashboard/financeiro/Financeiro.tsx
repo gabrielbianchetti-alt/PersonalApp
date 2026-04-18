@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { RefreshCw, Pin } from 'lucide-react'
 import {
   createCustoAction,
   updateCustoAction,
@@ -312,7 +313,10 @@ function CustoFormModal({
                     color: tipo === t ? (t === 'fixo' ? 'var(--green-primary)' : '#38BDF8') : 'var(--text-secondary)',
                     border: `1px solid ${tipo === t ? (t === 'fixo' ? 'rgba(16, 185, 129,0.25)' : 'rgba(56, 189, 248,0.25)') : 'var(--border-subtle)'}`,
                   }}>
-                  {t === 'fixo' ? '🔁 Fixo' : '📌 Variável'}
+                  <span className="inline-flex items-center gap-1.5">
+                    {t === 'fixo' ? <RefreshCw size={11} strokeWidth={1.75} aria-hidden /> : <Pin size={11} strokeWidth={1.75} aria-hidden />}
+                    {t === 'fixo' ? 'Fixo' : 'Variável'}
+                  </span>
                 </button>
               ))}
             </div>
@@ -385,8 +389,8 @@ function CustoFormModal({
           )}
 
           {tipo === 'fixo' && !editing && (
-            <p className="text-xs px-3 py-2.5 rounded-xl" style={{ background: 'var(--green-muted)', color: 'var(--green-primary)' }}>
-              🔁 Este custo será replicado automaticamente para os próximos meses.
+            <p className="text-xs px-3 py-2.5 rounded-xl inline-flex items-center gap-2" style={{ background: 'var(--green-muted)', color: 'var(--green-primary)' }}>
+              <RefreshCw size={12} strokeWidth={1.75} aria-hidden /> Este custo será replicado automaticamente para os próximos meses.
             </p>
           )}
 
@@ -830,8 +834,8 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
               <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
                 {([
                   { id: 'todos',    label: 'Todos' },
-                  { id: 'fixo',     label: '🔁 Fixos' },
-                  { id: 'variavel', label: '📌 Variáveis' },
+                  { id: 'fixo',     label: 'Fixos' },
+                  { id: 'variavel', label: 'Variáveis' },
                 ] as const).map(f => (
                   <button key={f.id} onClick={() => setFilterTipo(f.id)}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"

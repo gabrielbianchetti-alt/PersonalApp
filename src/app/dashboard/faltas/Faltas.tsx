@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Calendar, CreditCard, AlertTriangle, Wallet, CheckCircle2 } from 'lucide-react'
 import {
   createFaltaAction,
   resolveFaltaAction,
@@ -275,7 +276,10 @@ function ResolverModal({
                   : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
                 }
               >
-                {t === 'reposta' ? '📅 Repor Aula' : '💳 Gerar Crédito'}
+                <span className="inline-flex items-center gap-1.5">
+                  {t === 'reposta' ? <Calendar size={14} strokeWidth={1.75} aria-hidden /> : <CreditCard size={14} strokeWidth={1.75} aria-hidden />}
+                  {t === 'reposta' ? 'Repor Aula' : 'Gerar Crédito'}
+                </span>
               </button>
             ))}
           </div>
@@ -311,7 +315,7 @@ function ResolverModal({
               {conflictAlunos.length > 0 && (
                 <div className="rounded-lg px-3 py-2.5 flex items-start gap-2"
                   style={{ background: 'rgba(245, 158, 11,0.08)', border: '1px solid rgba(245, 158, 11,0.25)' }}>
-                  <span style={{ color: '#F59E0B', fontSize: 14, lineHeight: 1.4 }}>⚠️</span>
+                  <AlertTriangle size={14} strokeWidth={1.75} style={{ color: '#F59E0B' }} aria-hidden />
                   <div>
                     <p className="text-xs font-semibold" style={{ color: '#F59E0B' }}>Conflito de horário</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
@@ -852,7 +856,7 @@ function PendenciaCard({
         onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
       >
-        💵 Manter Cobrança
+        <Wallet size={14} strokeWidth={1.75} aria-hidden /> Manter Cobrança
       </button>
     </div>
   )
@@ -1119,7 +1123,7 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
 
           {pendentesFiltered.length === 0 ? (
             <div className="rounded-2xl py-10 text-center" style={{ background: 'rgba(16, 185, 129,0.05)', border: '1.5px solid rgba(16, 185, 129,0.15)' }}>
-              <p className="text-3xl mb-2">✅</p>
+              <CheckCircle2 size={40} strokeWidth={1.75} className="mb-2 mx-auto" style={{ color: 'var(--green-primary)' }} aria-hidden />
               <p className="text-sm font-bold" style={{ color: 'var(--green-primary)' }}>Tudo resolvido!</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Nenhuma falta pendente no momento.</p>
             </div>

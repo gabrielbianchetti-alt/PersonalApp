@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Cake } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { AlunoFormData } from '@/types/aluno'
 
@@ -40,9 +41,9 @@ export function StepDadosPessoais({ data, errors, onChange }: Props) {
     const proximoAniv = new Date(hoje.getFullYear(), nasc.getMonth(), nasc.getDate())
     if (proximoAniv < hoje) proximoAniv.setFullYear(hoje.getFullYear() + 1)
     const diff = Math.ceil((proximoAniv.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
-    if (diff === 0) return '🎂 Hoje é o aniversário!'
-    if (diff === 1) return '🎂 Aniversário amanhã!'
-    return `🎂 Aniversário em ${diff} dias`
+    if (diff === 0) return 'Hoje é o aniversário!'
+    if (diff === 1) return 'Aniversário amanhã!'
+    return `Aniversário em ${diff} dias`
   }
 
   const aniversarioInfo = calcularAniversario(data.data_nascimento)
@@ -102,8 +103,8 @@ export function StepDadosPessoais({ data, errors, onChange }: Props) {
             error={errors.data_nascimento}
           />
           {aniversarioInfo && (
-            <p className="text-xs px-1" style={{ color: 'var(--green-primary)' }}>
-              {aniversarioInfo}
+            <p className="text-xs px-1 inline-flex items-center gap-1.5" style={{ color: 'var(--green-primary)' }}>
+              <Cake size={14} strokeWidth={1.75} aria-hidden /> {aniversarioInfo}
             </p>
           )}
         </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Lightbulb } from 'lucide-react'
 import {
   getFinanceiroReportData,
   getProdutividadeReportData,
@@ -892,8 +893,8 @@ export function RelatoriosHub({ mesAtual }: { mesAtual: string }) {
       </div>
 
       {/* Info note */}
-      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        💡 Os PDFs são gerados localmente no seu dispositivo e não são armazenados nos servidores do PersonalHub.
+      <p className="text-xs inline-flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+        <Lightbulb size={14} strokeWidth={1.75} aria-hidden /> Os PDFs são gerados localmente no seu dispositivo e não são armazenados nos servidores do PersonalHub.
       </p>
     </div>
   )

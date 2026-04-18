@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Calendar, CheckCircle2, AlertTriangle } from 'lucide-react'
 import {
   criarSuspensaoAction,
   reativarAlunoAction,
@@ -114,8 +115,8 @@ function NovaSuspensaoModal({
               {alunos.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
             </select>
             {alunoSel && (
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                📅 {alunoSel.horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(', ')}
+              <p className="text-xs mt-0.5 inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                <Calendar size={13} strokeWidth={1.75} aria-hidden /> {alunoSel.horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(', ')}
               </p>
             )}
           </div>
@@ -177,9 +178,9 @@ function NovaSuspensaoModal({
             <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Horário liberado — o que fazer?</label>
             <div className="flex flex-col gap-1.5">
               {([
-                { value: 'disponivel', icon: '🟢', label: 'Disponível',       desc: 'Aceitar novos alunos neste horário' },
-                { value: 'bloqueado',  icon: '🔴', label: 'Bloqueado',        desc: 'Reservar para o retorno deste aluno' },
-                { value: 'reposicoes', icon: '🔵', label: 'Para reposições',  desc: 'Usar apenas para aulas de reposição' },
+                { value: 'disponivel', color: '#10B981', label: 'Disponível',       desc: 'Aceitar novos alunos neste horário' },
+                { value: 'bloqueado',  color: '#EF4444', label: 'Bloqueado',        desc: 'Reservar para o retorno deste aluno' },
+                { value: 'reposicoes', color: '#38BDF8', label: 'Para reposições',  desc: 'Usar apenas para aulas de reposição' },
               ] as const).map(op => (
                 <button
                   key={op.value}
@@ -191,7 +192,7 @@ function NovaSuspensaoModal({
                     : { background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }
                   }
                 >
-                  <span className="text-base shrink-0">{op.icon}</span>
+                  <span className="shrink-0" aria-hidden style={{ width: 10, height: 10, borderRadius: '50%', background: op.color, display: 'inline-block' }} />
                   <div>
                     <p className="text-sm font-medium" style={{ color: acaoHorario === op.value ? 'var(--green-primary)' : 'var(--text-primary)' }}>{op.label}</p>
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{op.desc}</p>
@@ -311,7 +312,7 @@ function ReativarModal({
         {step.type === 'livre' && (
           <>
             <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: 'var(--green-muted)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
-              <span className="text-lg">✅</span>
+              <CheckCircle2 size={20} strokeWidth={1.75} style={{ color: 'var(--green-primary)' }} aria-hidden />
               <div>
                 <p className="text-sm font-semibold" style={{ color: 'var(--green-primary)' }}>Horário disponível!</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -340,7 +341,7 @@ function ReativarModal({
         {step.type === 'conflito' && (
           <>
             <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: 'rgba(245, 158, 11,0.1)', border: '1px solid rgba(245, 158, 11,0.25)' }}>
-              <span className="text-lg">⚠️</span>
+              <AlertTriangle size={20} strokeWidth={1.75} style={{ color: '#F59E0B' }} aria-hidden />
               <div>
                 <p className="text-sm font-semibold" style={{ color: '#F59E0B' }}>Conflito de horário</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -361,7 +362,7 @@ function ReativarModal({
                 className="flex items-start gap-3 p-3 rounded-xl text-left"
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
               >
-                <span className="text-base mt-0.5">📅</span>
+                <Calendar size={16} strokeWidth={1.75} className="mt-0.5 shrink-0" aria-hidden />
                 <div>
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Reagendar {nome}</p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Reativar o aluno e atualizar o horário dele na tela de Alunos</p>
@@ -406,7 +407,7 @@ function ReativarModal({
           <>
             {step.opcao === 'reagendar' && (
               <div className="p-3 rounded-xl" style={{ background: 'rgba(56, 189, 248,0.1)', border: '1px solid rgba(56, 189, 248,0.2)' }}>
-                <p className="text-sm font-semibold" style={{ color: '#38BDF8' }}>📅 Próximo passo</p>
+                <p className="text-sm font-semibold inline-flex items-center gap-2" style={{ color: '#38BDF8' }}><Calendar size={14} strokeWidth={1.75} aria-hidden /> Próximo passo</p>
                 <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
                   Após reativar, acesse o perfil de <strong>{nome}</strong> em <em>Alunos</em> e atualize os dias e horário para evitar sobreposição.
                 </p>
@@ -617,7 +618,7 @@ function LimparHistoricoModal({
         ) : (
           <>
             <div className="text-center">
-              <p className="text-2xl mb-3">⚠️</p>
+              <AlertTriangle size={32} strokeWidth={1.75} className="mb-3 mx-auto" style={{ color: '#F59E0B' }} aria-hidden />
               <h2 className="text-base font-bold mb-1" style={{ color: '#EF4444' }}>
                 Tem certeza?
               </h2>
@@ -883,7 +884,7 @@ export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }:
           <div className="flex flex-col gap-3">
             {ativas.length === 0 ? (
               <div className="text-center py-16 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-subtle)' }}>
-                <p className="text-2xl mb-2">✅</p>
+                <CheckCircle2 size={32} strokeWidth={1.75} className="mb-2 mx-auto" style={{ color: 'var(--green-primary)' }} aria-hidden />
                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Nenhum aluno suspenso</p>
                 <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Todos os alunos estão ativos</p>
               </div>

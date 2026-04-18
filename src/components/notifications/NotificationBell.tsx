@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useTransition, useCallback, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { Calendar, DollarSign, RefreshCw, Cake, AlertTriangle, BarChart3, Info, Zap, Siren, Bell } from 'lucide-react'
 import { fetchNotificacoesAction, marcarLidaAction, marcarTodasLidasAction, fetchUnreadCountAction } from '@/app/dashboard/notificacoes/actions'
 import type { NotificacaoComLeitura } from '@/types/notificacao'
 
@@ -18,19 +19,20 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 }
 
-function getCategoriaIcon(categoria: string): string {
-  const icons: Record<string, string> = {
-    aula: '📅',
-    cobranca: '💰',
-    reposicao: '🔄',
-    aniversario: '🎂',
-    churn: '⚠️',
-    custo: '📊',
-    info: 'ℹ️',
-    importante: '⚡',
-    urgente: '🚨',
+function NotifIcon({ tipo }: { tipo: string }) {
+  const props = { size: 16, strokeWidth: 1.75, 'aria-hidden': true } as const
+  switch (tipo) {
+    case 'aula': return <Calendar {...props} />
+    case 'cobranca': return <DollarSign {...props} />
+    case 'reposicao': return <RefreshCw {...props} />
+    case 'aniversario': return <Cake {...props} />
+    case 'churn': return <AlertTriangle {...props} />
+    case 'custo': return <BarChart3 {...props} />
+    case 'info': return <Info {...props} />
+    case 'importante': return <Zap {...props} />
+    case 'urgente': return <Siren {...props} />
+    default: return <Bell {...props} />
   }
-  return icons[categoria] ?? '🔔'
 }
 
 function getCategoriaColor(categoria: string): string {
@@ -291,9 +293,9 @@ const NotificationPanel = forwardRef<HTMLDivElement, PanelProps>(
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = !n.lida ? 'rgba(16, 185, 129,0.04)' : 'transparent' }}
               >
                 {/* Icon */}
-                <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
-                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
-                  {getCategoriaIcon(n.notificacao?.categoria)}
+                <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: getCategoriaColor(n.notificacao?.categoria) }}>
+                  <NotifIcon tipo={n.notificacao?.categoria ?? ''} />
                 </div>
                 {/* Content */}
                 <div className="flex-1 min-w-0">
