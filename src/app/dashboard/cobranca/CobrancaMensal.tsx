@@ -28,9 +28,9 @@ Segue sua cobrança referente a *{mes}*:
 {pagamento}`
 
 const STATUS_CONFIG: Record<CobrancaStatus, { label: string; color: string; bg: string }> = {
-  pendente: { label: 'Pendente', color: '#FFAB00', bg: 'rgba(255,171,0,0.12)' },
-  enviado:  { label: 'Enviado',  color: '#40C4FF', bg: 'rgba(64,196,255,0.12)' },
-  pago:     { label: 'Pago',     color: '#e0b066', bg: 'rgba(224, 176, 102,0.12)' },
+  pendente: { label: 'Pendente', color: '#F59E0B', bg: 'rgba(245, 158, 11,0.12)' },
+  enviado:  { label: 'Enviado',  color: '#38BDF8', bg: 'rgba(56, 189, 248,0.12)' },
+  pago:     { label: 'Pago',     color: '#10B981', bg: 'rgba(16, 185, 129,0.12)' },
 }
 const STATUS_CYCLE: CobrancaStatus[] = ['pendente', 'enviado', 'pago']
 
@@ -557,7 +557,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
           { label: 'Pago',        value: String(countPago),     suffix: ' cobr.' },
         ].map(({ label, value, suffix, green }) => (
           <div key={label} className="p-4 rounded-xl"
-            style={{ background: green ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${green ? 'rgba(224, 176, 102,0.2)' : 'var(--border-subtle)'}` }}>
+            style={{ background: green ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${green ? 'rgba(16, 185, 129,0.2)' : 'var(--border-subtle)'}` }}>
             <p className="text-xs mb-1" style={{ color: green ? 'var(--green-primary)' : 'var(--text-muted)' }}>{label}</p>
             <p className="text-lg font-bold leading-tight" style={{ color: green ? 'var(--green-primary)' : 'var(--text-primary)' }}>
               {value}<span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>{suffix}</span>
@@ -584,7 +584,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                 type="checkbox"
                 checked={selectedIds.size === alunos.length}
                 onChange={toggleAll}
-                className="w-4 h-4 rounded cursor-pointer accent-[#e0b066]"
+                className="w-4 h-4 rounded cursor-pointer accent-[#10B981]"
               />
               <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
                 Selecionar todos
@@ -633,7 +633,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                   className="rounded-2xl overflow-hidden transition-all duration-150"
                   style={{
                     background: 'var(--bg-card)',
-                    border: `1px solid ${isOverdue ? 'rgba(255,82,82,0.35)' : isSelected ? 'rgba(224, 176, 102,0.25)' : 'var(--border-subtle)'}`,
+                    border: `1px solid ${isOverdue ? 'rgba(239, 68, 68,0.35)' : isSelected ? 'rgba(16, 185, 129,0.25)' : 'var(--border-subtle)'}`,
                   }}
                 >
                   {/* Row header */}
@@ -642,7 +642,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelect(aluno)}
-                      className="w-4 h-4 rounded shrink-0 cursor-pointer accent-[#e0b066]"
+                      className="w-4 h-4 rounded shrink-0 cursor-pointer accent-[#10B981]"
                     />
 
                     {/* Avatar */}
@@ -659,19 +659,19 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                         </p>
                         {isOverdue && (
                           <span className="text-xs px-1.5 py-px rounded-full font-semibold shrink-0"
-                            style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252' }}>
+                            style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444' }}>
                             Atrasado {Math.abs(dueDiff!)}d
                           </span>
                         )}
                         {isDueToday && (
                           <span className="text-xs px-1.5 py-px rounded-full font-semibold shrink-0"
-                            style={{ background: 'rgba(255,171,0,0.15)', color: '#FFAB00' }}>
+                            style={{ background: 'rgba(245, 158, 11,0.15)', color: '#F59E0B' }}>
                             Vence hoje
                           </span>
                         )}
                         {isDueSoon && (
                           <span className="text-xs px-1.5 py-px rounded-full font-semibold shrink-0"
-                            style={{ background: 'rgba(64,196,255,0.12)', color: '#40C4FF' }}>
+                            style={{ background: 'rgba(56, 189, 248,0.12)', color: '#38BDF8' }}>
                             Vence em {dueDiff}d
                           </span>
                         )}
@@ -689,21 +689,21 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                       {aulas !== null ? (
                         extraCount > 0 ? (
                           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {dates.length} fixas + <span style={{ color: '#40C4FF' }}>{extraCount} extras</span>
+                            {dates.length} fixas + <span style={{ color: '#38BDF8' }}>{extraCount} extras</span>
                           </p>
                         ) : (
                           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{aulas} aula{aulas !== 1 ? 's' : ''}</p>
                         )
                       ) : (
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                          Mensalidade{extraCount > 0 && <span style={{ color: '#40C4FF' }}> + {extraCount} extras</span>}
+                          Mensalidade{extraCount > 0 && <span style={{ color: '#38BDF8' }}> + {extraCount} extras</span>}
                         </p>
                       )}
                       <p className="text-sm font-bold" style={{ color: 'var(--green-primary)' }}>
                         {formatCurrency(total)}
                       </p>
                       {credito > 0 && (
-                        <p className="text-xs font-medium" style={{ color: '#40C4FF' }}>
+                        <p className="text-xs font-medium" style={{ color: '#38BDF8' }}>
                           -{formatCurrency(credito)} crédito
                         </p>
                       )}
@@ -730,7 +730,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                         {formatCurrency(total)}
                       </span>
                       {credito > 0 && (
-                        <p className="text-xs font-medium" style={{ color: '#40C4FF' }}>
+                        <p className="text-xs font-medium" style={{ color: '#38BDF8' }}>
                           -{formatCurrency(credito)} crédito
                         </p>
                       )}
@@ -754,7 +754,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                           color: 'var(--text-primary)',
                           lineHeight: '1.6',
                         }}
-                        onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(224, 176, 102,0.06)' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129,0.06)' }}
                         onBlur={(e)  => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
                       />
 

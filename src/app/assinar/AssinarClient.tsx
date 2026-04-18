@@ -56,8 +56,8 @@ export function AssinarClient({ alunosCount, aulasCount }: Props) {
         <div
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 16,
-            background: 'rgba(224, 176, 102,0.08)', border: '1px solid rgba(224, 176, 102,0.2)',
-            borderRadius: 24, padding: '5px 16px', fontSize: 12, fontWeight: 700, color: '#e0b066',
+            background: 'rgba(16, 185, 129,0.08)', border: '1px solid rgba(16, 185, 129,0.2)',
+            borderRadius: 24, padding: '5px 16px', fontSize: 12, fontWeight: 700, color: '#10B981',
           }}
         >
           🔒 Acesso ao PersonalHub
@@ -74,7 +74,7 @@ export function AssinarClient({ alunosCount, aulasCount }: Props) {
       {(alunosCount > 0 || aulasCount > 0) && (
         <div
           style={{
-            background: 'rgba(224, 176, 102,0.06)', border: '1px solid rgba(224, 176, 102,0.15)',
+            background: 'rgba(16, 185, 129,0.06)', border: '1px solid rgba(16, 185, 129,0.15)',
             borderRadius: 16, padding: '16px 20px', marginBottom: 32,
             display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
           }}
@@ -103,7 +103,7 @@ export function AssinarClient({ alunosCount, aulasCount }: Props) {
             key={p.id}
             style={{
               background: p.destaque ? '#0f172a' : '#1e293b',
-              border: `1.5px solid ${p.destaque ? '#e0b066' : 'rgba(255,255,255,0.08)'}`,
+              border: `1.5px solid ${p.destaque ? '#10B981' : 'rgba(255,255,255,0.08)'}`,
               borderRadius: 20,
               padding: '28px 24px',
               position: 'relative',
@@ -114,7 +114,7 @@ export function AssinarClient({ alunosCount, aulasCount }: Props) {
               <div
                 style={{
                   position: 'absolute', top: 14, right: 14,
-                  background: '#e0b066', color: '#000',
+                  background: '#10B981', color: '#000',
                   borderRadius: 20, padding: '3px 12px',
                   fontSize: 10, fontWeight: 800,
                 }}
@@ -131,7 +131,7 @@ export function AssinarClient({ alunosCount, aulasCount }: Props) {
               </span>
               <span style={{ fontSize: 13, color: '#64748b', paddingBottom: 4 }}>{p.periodo}</span>
             </div>
-            <p style={{ fontSize: 11, color: p.destaque ? '#e0b066' : '#64748b', marginBottom: 20 }}>
+            <p style={{ fontSize: 11, color: p.destaque ? '#10B981' : '#64748b', marginBottom: 20 }}>
               {p.detalhe}
             </p>
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -144,7 +144,7 @@ export function AssinarClient({ alunosCount, aulasCount }: Props) {
                 'Suporte por WhatsApp',
               ].map(f => (
                 <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#cbd5e1' }}>
-                  <span style={{ color: '#e0b066', fontWeight: 700, fontSize: 12 }}>✓</span>
+                  <span style={{ color: '#10B981', fontWeight: 700, fontSize: 12 }}>✓</span>
                   {f}
                 </li>
               ))}
@@ -154,7 +154,7 @@ export function AssinarClient({ alunosCount, aulasCount }: Props) {
               disabled={loading !== null}
               style={{
                 width: '100%', padding: '12px 0', borderRadius: 12,
-                background: p.destaque ? '#e0b066' : 'rgba(255,255,255,0.08)',
+                background: p.destaque ? '#10B981' : 'rgba(255,255,255,0.08)',
                 color: p.destaque ? '#000' : '#f8fafc',
                 fontWeight: 700, fontSize: 14, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
                 opacity: loading && loading !== p.id ? 0.5 : 1,
@@ -171,9 +171,9 @@ export function AssinarClient({ alunosCount, aulasCount }: Props) {
       {error && (
         <div
           style={{
-            background: 'rgba(255,82,82,0.08)', border: '1px solid rgba(255,82,82,0.25)',
+            background: 'rgba(239, 68, 68,0.08)', border: '1px solid rgba(239, 68, 68,0.25)',
             borderRadius: 12, padding: '12px 16px', marginBottom: 16,
-            fontSize: 13, color: '#FF5252', textAlign: 'center',
+            fontSize: 13, color: '#EF4444', textAlign: 'center',
           }}
         >
           {error}

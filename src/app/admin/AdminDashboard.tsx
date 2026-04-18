@@ -71,10 +71,10 @@ function isActive(lastSignIn: string | null): boolean {
 function assStatusBadge(ass: AssinaturaInfo | null): { label: string; bg: string; color: string } {
   if (!ass) return { label: 'Sem ass.', bg: 'var(--bg-input)', color: 'var(--text-muted)' }
   switch (ass.status) {
-    case 'trial':    return { label: 'Trial',    bg: 'rgba(255,171,0,0.12)',  color: '#FFAB00' }
-    case 'active':   return { label: 'Ativo',    bg: 'rgba(224, 176, 102,0.12)',  color: '#e0b066' }
-    case 'past_due': return { label: 'Atrasado', bg: 'rgba(255,82,82,0.12)',  color: '#FF5252' }
-    case 'canceled': return { label: 'Cancelado',bg: 'rgba(255,82,82,0.10)',  color: '#FF5252' }
+    case 'trial':    return { label: 'Trial',    bg: 'rgba(245, 158, 11,0.12)',  color: '#F59E0B' }
+    case 'active':   return { label: 'Ativo',    bg: 'rgba(16, 185, 129,0.12)',  color: '#10B981' }
+    case 'past_due': return { label: 'Atrasado', bg: 'rgba(239, 68, 68,0.12)',  color: '#EF4444' }
+    case 'canceled': return { label: 'Cancelado',bg: 'rgba(239, 68, 68,0.10)',  color: '#EF4444' }
     case 'expired':  return { label: 'Expirado', bg: 'rgba(100,100,100,0.15)',color: '#6B7280' }
     default:         return { label: ass.status,  bg: 'var(--bg-input)',       color: 'var(--text-muted)' }
   }
@@ -112,7 +112,7 @@ function StatCard({ label, value, sub, color, icon }: {
 
 // ─── BarChart ─────────────────────────────────────────────────────────────────
 
-function BarChart({ data, labels, color = 'rgba(224, 176, 102,0.4)', accentColor = '#e0b066' }: {
+function BarChart({ data, labels, color = 'rgba(16, 185, 129,0.4)', accentColor = '#10B981' }: {
   data: number[]; labels: string[]; color?: string; accentColor?: string
 }) {
   const max = Math.max(...data, 1)
@@ -207,7 +207,7 @@ function ProfessorDetailModal({
             </div>
             <div className="flex flex-col items-end gap-1">
               {professor.is_blocked ? (
-                <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252' }}>Bloqueado</span>
+                <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444' }}>Bloqueado</span>
               ) : active ? (
                 <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--green-muted)', color: 'var(--green-primary)' }}>Ativo</span>
               ) : (
@@ -293,8 +293,8 @@ function ProfessorDetailModal({
                   {/* Cancel button */}
                   {ass.status === 'active' && (
                     confirmCanc ? (
-                      <div className="rounded-lg p-3 flex flex-col gap-2" style={{ background: 'rgba(255,82,82,0.06)', border: '1px solid rgba(255,82,82,0.2)' }}>
-                        <p className="text-xs font-semibold" style={{ color: '#FF5252' }}>Cancelar assinatura?</p>
+                      <div className="rounded-lg p-3 flex flex-col gap-2" style={{ background: 'rgba(239, 68, 68,0.06)', border: '1px solid rgba(239, 68, 68,0.2)' }}>
+                        <p className="text-xs font-semibold" style={{ color: '#EF4444' }}>Cancelar assinatura?</p>
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                           Isso cancelará no Stripe e marcará como &apos;canceled&apos; no banco. Ação irreversível.
                         </p>
@@ -304,7 +304,7 @@ function ProfessorDetailModal({
                             Voltar
                           </button>
                           <button onClick={handleCancelar} disabled={canceling} className="flex-1 py-2 rounded-lg text-xs font-bold cursor-pointer"
-                            style={{ background: '#FF5252', color: '#fff', opacity: canceling ? 0.6 : 1 }}>
+                            style={{ background: '#EF4444', color: '#fff', opacity: canceling ? 0.6 : 1 }}>
                             {canceling ? 'Cancelando…' : 'Confirmar cancelamento'}
                           </button>
                         </div>
@@ -313,7 +313,7 @@ function ProfessorDetailModal({
                       <button
                         onClick={() => setConfirmCanc(true)}
                         className="py-2 rounded-lg text-xs font-medium cursor-pointer"
-                        style={{ background: 'rgba(255,82,82,0.08)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.18)' }}
+                        style={{ background: 'rgba(239, 68, 68,0.08)', color: '#EF4444', border: '1px solid rgba(239, 68, 68,0.18)' }}
                       >
                         Cancelar assinatura manualmente
                       </button>
@@ -340,7 +340,7 @@ function ProfessorDetailModal({
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
               style={professor.is_blocked
                 ? { background: 'var(--green-muted)', color: 'var(--green-primary)' }
-                : { background: 'rgba(255,82,82,0.15)', color: '#FF5252' }}
+                : { background: 'rgba(239, 68, 68,0.15)', color: '#EF4444' }}
             >
               {blocking ? '...' : professor.is_blocked ? '✓ Desbloquear' : '⊘ Bloquear'}
             </button>
@@ -470,35 +470,35 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
             label="Em trial"
             value={stats.trials}
             sub="período de teste"
-            color="#FFAB00"
+            color="#F59E0B"
             icon="⏳"
           />
           <StatCard
             label="Assinantes ativos"
             value={stats.assinantes}
             sub="pagantes"
-            color="#e0b066"
+            color="#10B981"
             icon="✅"
           />
           <StatCard
             label="MRR"
             value={`R$\u00A0${stats.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
             sub="receita mensal recorrente"
-            color="#e0b066"
+            color="#10B981"
             icon="💰"
           />
           <StatCard
             label="Expirados / Cancelados"
             value={stats.expirados}
             sub="sem renovação"
-            color="#FF5252"
+            color="#EF4444"
             icon="❌"
           />
           <StatCard
             label="Conversão"
             value={`${stats.conversao}%`}
             sub="trial → assinante"
-            color={stats.conversao >= 20 ? '#e0b066' : stats.conversao >= 10 ? '#FFAB00' : '#FF5252'}
+            color={stats.conversao >= 20 ? '#10B981' : stats.conversao >= 10 ? '#F59E0B' : '#EF4444'}
             icon="📈"
           />
         </div>
@@ -625,7 +625,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
                         </td>
                         <td className="px-4 py-3">
                           {p.is_blocked ? (
-                            <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252' }}>Bloqueado</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444' }}>Bloqueado</span>
                           ) : active ? (
                             <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--green-muted)', color: 'var(--green-primary)' }}>Ativo</span>
                           ) : (
@@ -639,7 +639,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
                             className="text-xs px-3 py-1 rounded-lg cursor-pointer disabled:opacity-40"
                             style={p.is_blocked
                               ? { background: 'var(--green-muted)', color: 'var(--green-primary)' }
-                              : { background: 'rgba(255,82,82,0.1)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.2)' }}>
+                              : { background: 'rgba(239, 68, 68,0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68,0.2)' }}>
                             {p.is_blocked ? 'Desbloquear' : 'Bloquear'}
                           </button>
                         </td>
@@ -676,7 +676,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
                         {badge.label}
                       </span>
                       {p.is_blocked ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252' }}>Bloq.</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444' }}>Bloq.</span>
                       ) : active ? (
                         <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--green-muted)', color: 'var(--green-primary)' }}>Ativo</span>
                       ) : (
@@ -706,7 +706,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
               <BarChart data={stats.weekly_signups} labels={chartLabels} />
               <div className="mt-3 flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
                 <span>Total: <strong style={{ color: 'var(--text-primary)' }}>{stats.weekly_signups.reduce((a,b)=>a+b,0)}</strong></span>
-                <span>Essa semana: <strong style={{ color: '#e0b066' }}>{stats.weekly_signups[7]}</strong></span>
+                <span>Essa semana: <strong style={{ color: '#10B981' }}>{stats.weekly_signups[7]}</strong></span>
               </div>
             </div>
 
@@ -727,9 +727,9 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
               <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Distribuição por status</p>
               {[
                 { label: 'Sem registro',      count: stats.sem_assinatura, color: 'var(--text-muted)' },
-                { label: 'Trial ativo',       count: stats.trials,         color: '#FFAB00' },
-                { label: 'Assinante ativo',   count: stats.assinantes,     color: '#e0b066' },
-                { label: 'Expirado/Cancelado',count: stats.expirados,      color: '#FF5252' },
+                { label: 'Trial ativo',       count: stats.trials,         color: '#F59E0B' },
+                { label: 'Assinante ativo',   count: stats.assinantes,     color: '#10B981' },
+                { label: 'Expirado/Cancelado',count: stats.expirados,      color: '#EF4444' },
               ].map(({ label, count, color }) => {
                 const pct = stats.total_professors > 0 ? Math.round((count / stats.total_professors) * 100) : 0
                 return (
@@ -749,14 +749,14 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
               <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--text-primary)' }}>⚡ Métricas de Receita</p>
               <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Dados financeiros em tempo real</p>
               {[
-                { label: 'MRR atual',          value: `R$ ${stats.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,  color: '#e0b066' },
-                { label: 'ARR projetado',      value: `R$ ${(stats.mrr * 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, color: '#e0b066' },
-                { label: 'Assinantes ativos',  value: stats.assinantes,   color: '#e0b066' },
-                { label: 'Em trial',           value: stats.trials,       color: '#FFAB00' },
-                { label: 'Expirados',          value: stats.expirados,    color: '#FF5252' },
+                { label: 'MRR atual',          value: `R$ ${stats.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,  color: '#10B981' },
+                { label: 'ARR projetado',      value: `R$ ${(stats.mrr * 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, color: '#10B981' },
+                { label: 'Assinantes ativos',  value: stats.assinantes,   color: '#10B981' },
+                { label: 'Em trial',           value: stats.trials,       color: '#F59E0B' },
+                { label: 'Expirados',          value: stats.expirados,    color: '#EF4444' },
                 { label: 'Professores ativos (30d)', value: stats.active_professors, color: 'var(--text-secondary)' },
-                { label: 'Com alunos',         value: professors.filter(p => p.aluno_count > 0).length, color: '#40C4FF' },
-                { label: 'Bloqueados',         value: professors.filter(p => p.is_blocked).length, color: '#FF5252' },
+                { label: 'Com alunos',         value: professors.filter(p => p.aluno_count > 0).length, color: '#38BDF8' },
+                { label: 'Bloqueados',         value: professors.filter(p => p.is_blocked).length, color: '#EF4444' },
               ].map(({ label, value, color }) => (
                 <div key={label} className="flex items-center justify-between py-2.5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>

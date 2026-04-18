@@ -21,9 +21,9 @@ import {
 const CATEGORIAS_PADRAO = ['Academia', 'Transporte', 'Alimentação', 'Equipamentos', 'Outros']
 
 const CAT_COLOR: Record<string, string> = {
-  Academia:     '#e0b066',
-  Transporte:   '#40C4FF',
-  Alimentação:  '#FFAB00',
+  Academia:     '#10B981',
+  Transporte:   '#38BDF8',
+  Alimentação:  '#F59E0B',
   Equipamentos: '#CE93D8',
   Outros:       '#9E9E9E',
 }
@@ -95,9 +95,9 @@ function getCatColor(cat: string): string {
 }
 
 function marginColor(pct: number): string {
-  if (pct >= 50) return '#e0b066'
-  if (pct >= 30) return '#FFAB00'
-  return '#FF5252'
+  if (pct >= 50) return '#10B981'
+  if (pct >= 30) return '#F59E0B'
+  return '#EF4444'
 }
 
 /** Returns the last N months ending at (and including) endMes, oldest first. */
@@ -175,28 +175,28 @@ function HistoricoChart({
       })}
 
       {/* Area fills */}
-      <path d={areaPath(p => p.receita)} fill="rgba(224, 176, 102,0.07)" />
-      <path d={areaPath(p => p.custos)}  fill="rgba(255,171,0,0.07)" />
+      <path d={areaPath(p => p.receita)} fill="rgba(16, 185, 129,0.07)" />
+      <path d={areaPath(p => p.custos)}  fill="rgba(245, 158, 11,0.07)" />
 
       {/* Lines */}
       <path
         d={linePath(p => p.receita)}
-        fill="none" stroke="#e0b066" strokeWidth="2.5"
+        fill="none" stroke="#10B981" strokeWidth="2.5"
         strokeLinejoin="round" strokeLinecap="round"
       />
       <path
         d={linePath(p => p.custos)}
-        fill="none" stroke="#FFAB00" strokeWidth="2.5"
+        fill="none" stroke="#F59E0B" strokeWidth="2.5"
         strokeLinejoin="round" strokeLinecap="round"
       />
 
       {/* Dots + tooltips */}
       {points.map((p, i) => (
         <g key={p.mes}>
-          <circle cx={xOf(i)} cy={yOf(p.receita)} r="4" fill="#e0b066" stroke="var(--bg-card)" strokeWidth="2">
+          <circle cx={xOf(i)} cy={yOf(p.receita)} r="4" fill="#10B981" stroke="var(--bg-card)" strokeWidth="2">
             <title>{`Receita ${p.label}: ${fmtCurrency(p.receita)}`}</title>
           </circle>
-          <circle cx={xOf(i)} cy={yOf(p.custos)} r="4" fill="#FFAB00" stroke="var(--bg-card)" strokeWidth="2">
+          <circle cx={xOf(i)} cy={yOf(p.custos)} r="4" fill="#F59E0B" stroke="var(--bg-card)" strokeWidth="2">
             <title>{`Custos ${p.label}: ${fmtCurrency(p.custos)}`}</title>
           </circle>
         </g>
@@ -308,9 +308,9 @@ function CustoFormModal({
                 <button key={t} onClick={() => setTipo(t)}
                   className="py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
                   style={{
-                    background: tipo === t ? (t === 'fixo' ? 'var(--green-muted)' : 'rgba(64,196,255,0.1)') : 'var(--bg-card)',
-                    color: tipo === t ? (t === 'fixo' ? 'var(--green-primary)' : '#40C4FF') : 'var(--text-secondary)',
-                    border: `1px solid ${tipo === t ? (t === 'fixo' ? 'rgba(224, 176, 102,0.25)' : 'rgba(64,196,255,0.25)') : 'var(--border-subtle)'}`,
+                    background: tipo === t ? (t === 'fixo' ? 'var(--green-muted)' : 'rgba(56, 189, 248,0.1)') : 'var(--bg-card)',
+                    color: tipo === t ? (t === 'fixo' ? 'var(--green-primary)' : '#38BDF8') : 'var(--text-secondary)',
+                    border: `1px solid ${tipo === t ? (t === 'fixo' ? 'rgba(16, 185, 129,0.25)' : 'rgba(56, 189, 248,0.25)') : 'var(--border-subtle)'}`,
                   }}>
                   {t === 'fixo' ? '🔁 Fixo' : '📌 Variável'}
                 </button>
@@ -390,7 +390,7 @@ function CustoFormModal({
             </p>
           )}
 
-          {err && <p className="text-xs text-center" style={{ color: '#FF5252' }}>{err}</p>}
+          {err && <p className="text-xs text-center" style={{ color: '#EF4444' }}>{err}</p>}
 
           <button onClick={save} disabled={saving}
             className="w-full py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
@@ -499,11 +499,11 @@ function ReceitaExtraFormModal({
               onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'} />
           </div>
 
-          {err && <p className="text-xs text-center" style={{ color: '#FF5252' }}>{err}</p>}
+          {err && <p className="text-xs text-center" style={{ color: '#EF4444' }}>{err}</p>}
 
           <button onClick={save} disabled={saving}
             className="w-full py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
-            style={{ background: 'rgba(224, 176, 102,0.15)', color: '#e0b066', border: '1px solid rgba(224, 176, 102,0.25)' }}>
+            style={{ background: 'rgba(16, 185, 129,0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129,0.25)' }}>
             {saving ? 'Salvando...' : 'Adicionar receita'}
           </button>
         </div>
@@ -648,17 +648,17 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
         <div className="flex gap-2">
           <button onClick={() => setShowReceitaModal(true)}
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-            style={{ background: 'rgba(224, 176, 102,0.12)', color: '#e0b066', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+            style={{ background: 'rgba(16, 185, 129,0.12)', color: '#10B981', border: '1px solid rgba(16, 185, 129,0.2)' }}>
             + Receita extra
           </button>
           <button onClick={() => setModal({ type: 'add-fixo' })}
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
             + Fixo
           </button>
           <button onClick={() => setModal({ type: 'add-variavel' })}
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-            style={{ background: 'rgba(64,196,255,0.1)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}>
+            style={{ background: 'rgba(56, 189, 248,0.1)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248,0.2)' }}>
             + Variável
           </button>
         </div>
@@ -703,7 +703,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
 
             {/* Faturamento total */}
             <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl"
-              style={{ background: 'var(--green-muted)', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+              style={{ background: 'var(--green-muted)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
               <p className="text-xs font-medium mb-1" style={{ color: 'var(--green-primary)' }}>Faturamento total</p>
               <p className="text-lg font-bold leading-tight whitespace-nowrap overflow-hidden" style={{ color: 'var(--green-primary)' }}>
                 {fmtCurrency(faturamento)}
@@ -727,15 +727,15 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
               <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: 'var(--text-primary)' }}>{fmtCurrency(totalCustos)}</p>
               <div className="flex gap-2 mt-1 flex-wrap">
                 <span className="text-xs" style={{ color: 'var(--green-primary)' }}>F: {fmtCurrency(totalFixo)}</span>
-                <span className="text-xs" style={{ color: '#40C4FF' }}>V: {fmtCurrency(totalVariavel)}</span>
+                <span className="text-xs" style={{ color: '#38BDF8' }}>V: {fmtCurrency(totalVariavel)}</span>
               </div>
             </div>
 
             {/* Lucro líquido */}
             <div className="p-4 rounded-2xl"
-              style={{ background: 'var(--bg-card)', border: `1px solid ${lucro >= 0 ? 'var(--border-subtle)' : 'rgba(255,82,82,0.2)'}` }}>
+              style={{ background: 'var(--bg-card)', border: `1px solid ${lucro >= 0 ? 'var(--border-subtle)' : 'rgba(239, 68, 68,0.2)'}` }}>
               <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Lucro líquido</p>
-              <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: lucro >= 0 ? 'var(--text-primary)' : '#FF5252' }}>
+              <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: lucro >= 0 ? 'var(--text-primary)' : '#EF4444' }}>
                 {fmtCurrency(lucro)}
               </p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
@@ -757,9 +757,9 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                   style={{ width: `${Math.min(100, Math.max(0, margem))}%`, background: mColor }} />
               </div>
               <div className="flex justify-between mt-1.5">
-                <span className="text-[10px]" style={{ color: '#FF5252' }}>0%</span>
-                <span className="text-[10px]" style={{ color: '#FFAB00' }}>30%</span>
-                <span className="text-[10px]" style={{ color: '#e0b066' }}>50%+</span>
+                <span className="text-[10px]" style={{ color: '#EF4444' }}>0%</span>
+                <span className="text-[10px]" style={{ color: '#F59E0B' }}>30%</span>
+                <span className="text-[10px]" style={{ color: '#10B981' }}>50%+</span>
               </div>
             </div>
           </div>
@@ -774,11 +774,11 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                 </p>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#e0b066' }} />
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#10B981' }} />
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Receita</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#FFAB00' }} />
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#F59E0B' }} />
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Custos</span>
                   </div>
                 </div>
@@ -849,17 +849,17 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
             <div className="sm:hidden flex gap-2 flex-wrap">
               <button onClick={() => setShowReceitaModal(true)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-                style={{ background: 'rgba(224, 176, 102,0.12)', color: '#e0b066', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+                style={{ background: 'rgba(16, 185, 129,0.12)', color: '#10B981', border: '1px solid rgba(16, 185, 129,0.2)' }}>
                 + Receita extra
               </button>
               <button onClick={() => setModal({ type: 'add-fixo' })}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-                style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+                style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
                 + Custo fixo
               </button>
               <button onClick={() => setModal({ type: 'add-variavel' })}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-                style={{ background: 'rgba(64,196,255,0.1)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}>
+                style={{ background: 'rgba(56, 189, 248,0.1)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248,0.2)' }}>
                 + Custo variável
               </button>
             </div>
@@ -902,8 +902,8 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                           </p>
                           <span className="text-[10px] px-1.5 py-px rounded-full font-semibold shrink-0"
                             style={{
-                              background: custo.tipo === 'fixo' ? 'var(--green-muted)' : 'rgba(64,196,255,0.1)',
-                              color: custo.tipo === 'fixo' ? 'var(--green-primary)' : '#40C4FF',
+                              background: custo.tipo === 'fixo' ? 'var(--green-muted)' : 'rgba(56, 189, 248,0.1)',
+                              color: custo.tipo === 'fixo' ? 'var(--green-primary)' : '#38BDF8',
                             }}>
                             {custo.tipo === 'fixo' ? 'Fixo' : 'Variável'}
                           </span>
@@ -935,7 +935,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                         <button onClick={() => requestDelete(custo)}
                           className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors"
                           style={{ color: 'var(--text-muted)' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,82,82,0.1)'; e.currentTarget.style.color = '#FF5252' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68,0.1)'; e.currentTarget.style.color = '#EF4444' }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -958,7 +958,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Outras fontes de renda neste mês</p>
               </div>
               {faturamentoExtras > 0 && (
-                <span className="text-sm font-bold" style={{ color: '#e0b066' }}>{fmtCurrency(faturamentoExtras)}</span>
+                <span className="text-sm font-bold" style={{ color: '#10B981' }}>{fmtCurrency(faturamentoExtras)}</span>
               )}
             </div>
 
@@ -972,7 +972,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                 <button
                   onClick={() => setShowReceitaModal(true)}
                   className="px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-                  style={{ background: 'rgba(224, 176, 102,0.12)', color: '#e0b066', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+                  style={{ background: 'rgba(16, 185, 129,0.12)', color: '#10B981', border: '1px solid rgba(16, 185, 129,0.2)' }}>
                   + Adicionar receita extra
                 </button>
               </div>
@@ -982,21 +982,21 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                   <div key={r.id}
                     className="flex items-center gap-3 px-4 py-3 rounded-2xl"
                     style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: '#e0b066' }} />
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: '#10B981' }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{r.descricao}</p>
                       {r.data && (
                         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmtDate(r.data)}</p>
                       )}
                     </div>
-                    <p className="text-sm font-bold shrink-0" style={{ color: '#e0b066' }}>
+                    <p className="text-sm font-bold shrink-0" style={{ color: '#10B981' }}>
                       + {fmtCurrency(Number(r.valor))}
                     </p>
                     <button
                       onClick={() => setDeleteReceitaConfirm(r)}
                       className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors shrink-0"
                       style={{ color: 'var(--text-muted)' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,82,82,0.1)'; e.currentTarget.style.color = '#FF5252' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68,0.1)'; e.currentTarget.style.color = '#EF4444' }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -1042,8 +1042,8 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
             </div>
             {deleteConfirm.tipo === 'fixo' && (
               <div className="mx-5 mb-4 px-4 py-3 rounded-xl"
-                style={{ background: 'rgba(255,82,82,0.08)', border: '1px solid rgba(255,82,82,0.2)' }}>
-                <p className="text-sm" style={{ color: '#FF5252' }}>Este é um custo fixo recorrente. Ao excluir:</p>
+                style={{ background: 'rgba(239, 68, 68,0.08)', border: '1px solid rgba(239, 68, 68,0.2)' }}>
+                <p className="text-sm" style={{ color: '#EF4444' }}>Este é um custo fixo recorrente. Ao excluir:</p>
                 <ul className="mt-1.5 space-y-0.5">
                   <li className="text-xs flex gap-1.5" style={{ color: '#FF8A80' }}>
                     <span>✗</span><span>Não aparecerá mais em nenhum mês futuro</span>
@@ -1062,7 +1062,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
               </button>
               <button onClick={executeDelete} disabled={deleting}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
-                style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.3)' }}>
+                style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68,0.3)' }}>
                 {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
@@ -1081,7 +1081,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
             <div className="px-5 pt-5 pb-4">
               <p className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Excluir receita extra?</p>
               <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>{deleteReceitaConfirm.descricao}</p>
-              <p className="text-sm mt-1" style={{ color: '#e0b066' }}>{fmtCurrency(Number(deleteReceitaConfirm.valor))}</p>
+              <p className="text-sm mt-1" style={{ color: '#10B981' }}>{fmtCurrency(Number(deleteReceitaConfirm.valor))}</p>
             </div>
             <div className="flex gap-2 px-5 pb-5">
               <button onClick={() => setDeleteReceitaConfirm(null)}
@@ -1091,7 +1091,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
               </button>
               <button onClick={executeDeleteReceita} disabled={deleting}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
-                style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.3)' }}>
+                style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68,0.3)' }}>
                 {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>

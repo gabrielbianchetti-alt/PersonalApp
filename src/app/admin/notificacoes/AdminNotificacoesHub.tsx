@@ -13,7 +13,7 @@ import {
 const TIPO_OPTIONS = [
   { value: 'info', label: '🔵 Informativo', color: '#2196F3' },
   { value: 'importante', label: '🟡 Importante', color: '#FFB300' },
-  { value: 'urgente', label: '🔴 Urgente', color: '#FF5252' },
+  { value: 'urgente', label: '🔴 Urgente', color: '#EF4444' },
 ]
 
 const DEST_OPTIONS = [
@@ -176,7 +176,7 @@ export function AdminNotificacoesHub() {
                   onClick={() => setDestinatarios(d.value as typeof destinatarios)}
                   className="px-3 py-1.5 rounded-lg text-sm cursor-pointer transition-all"
                   style={destinatarios === d.value
-                    ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.3)' }
+                    ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.3)' }
                     : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
                   }
                 >
@@ -220,13 +220,13 @@ export function AdminNotificacoesHub() {
           {/* Error / Success */}
           {errorMsg && (
             <p className="text-sm px-3 py-2 rounded-lg"
-              style={{ background: 'rgba(255,82,82,0.1)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.2)' }}>
+              style={{ background: 'rgba(239, 68, 68,0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68,0.2)' }}>
               {errorMsg}
             </p>
           )}
           {successMsg && (
             <p className="text-sm px-3 py-2 rounded-lg"
-              style={{ background: 'rgba(224, 176, 102,0.1)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+              style={{ background: 'rgba(16, 185, 129,0.1)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
               ✅ {successMsg}
             </p>
           )}
@@ -290,8 +290,8 @@ export function AdminNotificacoesHub() {
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium"
                         style={{
-                          background: n.categoria === 'urgente' ? 'rgba(255,82,82,0.15)' : n.categoria === 'importante' ? 'rgba(255,179,0,0.15)' : 'rgba(33,150,243,0.15)',
-                          color: n.categoria === 'urgente' ? '#FF5252' : n.categoria === 'importante' ? '#FFB300' : '#2196F3',
+                          background: n.categoria === 'urgente' ? 'rgba(239, 68, 68,0.15)' : n.categoria === 'importante' ? 'rgba(255,179,0,0.15)' : 'rgba(33,150,243,0.15)',
+                          color: n.categoria === 'urgente' ? '#EF4444' : n.categoria === 'importante' ? '#FFB300' : '#2196F3',
                         }}>
                         {n.categoria}
                       </span>
@@ -305,8 +305,8 @@ export function AdminNotificacoesHub() {
                       <button
                         onClick={() => handleDelete(n.id)}
                         className="text-xs px-3 py-1 rounded-lg cursor-pointer transition-colors"
-                        style={{ color: '#FF5252', border: '1px solid rgba(255,82,82,0.3)' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,82,82,0.1)' }}
+                        style={{ color: '#EF4444', border: '1px solid rgba(239, 68, 68,0.3)' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239, 68, 68,0.1)' }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                       >
                         Excluir

@@ -27,7 +27,7 @@ export function darkenHex(hex: string, amount = 25): string {
  * Returns null when accent is the default green (nothing to inject).
  */
 export function themeStyle(cor: string): string | null {
-  if (cor === '#e0b066') return null          // default accent — nothing to inject
+  if (cor === '#10B981') return null          // default accent — nothing to inject
   const [r, g, b] = hexToRgb(cor)
   return `:root{--green-primary:${cor};--green-hover:${darkenHex(cor, 25)};--green-muted:rgba(${r},${g},${b},0.15);--green-border:rgba(${r},${g},${b},0.25);--border-focus:rgba(${r},${g},${b},0.5)}`
 }

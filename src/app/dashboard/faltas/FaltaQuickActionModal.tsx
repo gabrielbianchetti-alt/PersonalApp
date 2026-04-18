@@ -5,17 +5,17 @@ import { createFaltaAction, resolveFaltaAction, type FaltaRow } from './actions'
 
 // ─── shared constants ─────────────────────────────────────────────────────────
 
-const FALTA_COLOR        = '#FF5252'
-const CANCELAMENTO_COLOR = '#FF9800'
-const PROFESSOR_COLOR    = '#7C4DFF'
+const FALTA_COLOR        = '#EF4444'
+const CANCELAMENTO_COLOR = '#F59E0B'
+const PROFESSOR_COLOR    = '#8B5CF6'
 
 type SelectedFaltaTipo = 'aluno-faltou' | 'cancelamento' | 'professor-cancelou'
 type Step              = 'menu' | 'options' | 'credito' | 'done'
 
 const FALTA_TIPO_CFG: Record<SelectedFaltaTipo, { label: string; emoji: string; color: string; bg: string; border: string }> = {
-  'aluno-faltou':       { label: 'Aluno faltou',                  emoji: '🔴', color: FALTA_COLOR,        bg: 'rgba(255,82,82,0.06)',  border: 'rgba(255,82,82,0.25)' },
-  'cancelamento':       { label: 'Cancelamento com antecedência', emoji: '🟠', color: CANCELAMENTO_COLOR, bg: 'rgba(255,152,0,0.06)',  border: 'rgba(255,152,0,0.25)' },
-  'professor-cancelou': { label: 'Professor cancelou',            emoji: '🟣', color: PROFESSOR_COLOR,    bg: 'rgba(124,77,255,0.06)', border: 'rgba(124,77,255,0.25)' },
+  'aluno-faltou':       { label: 'Aluno faltou',                  emoji: '🔴', color: FALTA_COLOR,        bg: 'rgba(239, 68, 68,0.06)',  border: 'rgba(239, 68, 68,0.25)' },
+  'cancelamento':       { label: 'Cancelamento com antecedência', emoji: '🟠', color: CANCELAMENTO_COLOR, bg: 'rgba(245, 158, 11,0.06)',  border: 'rgba(245, 158, 11,0.25)' },
+  'professor-cancelou': { label: 'Professor cancelou',            emoji: '🟣', color: PROFESSOR_COLOR,    bg: 'rgba(139, 92, 246,0.06)', border: 'rgba(139, 92, 246,0.25)' },
 }
 
 function faltaCreateParams(t: SelectedFaltaTipo): { culpa: 'aluno' | 'professor'; tipo: 'falta' | 'cancelamento' } {
@@ -196,7 +196,7 @@ export function FaltaQuickActionModal({
               <div className="flex flex-col gap-2">
                 <button onClick={() => handleSelectTipo('aluno-faltou')}
                   className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
-                  style={{ background: 'rgba(255,82,82,0.08)', color: FALTA_COLOR, border: '1px solid rgba(255,82,82,0.25)' }}>
+                  style={{ background: 'rgba(239, 68, 68,0.08)', color: FALTA_COLOR, border: '1px solid rgba(239, 68, 68,0.25)' }}>
                   <span className="text-base">🔴</span>
                   <div>
                     <div>Aluno faltou</div>
@@ -205,7 +205,7 @@ export function FaltaQuickActionModal({
                 </button>
                 <button onClick={() => handleSelectTipo('cancelamento')}
                   className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
-                  style={{ background: 'rgba(255,152,0,0.08)', color: CANCELAMENTO_COLOR, border: '1px solid rgba(255,152,0,0.25)' }}>
+                  style={{ background: 'rgba(245, 158, 11,0.08)', color: CANCELAMENTO_COLOR, border: '1px solid rgba(245, 158, 11,0.25)' }}>
                   <span className="text-base">🟠</span>
                   <div>
                     <div>Cancelamento com antecedência</div>
@@ -214,7 +214,7 @@ export function FaltaQuickActionModal({
                 </button>
                 <button onClick={() => handleSelectTipo('professor-cancelou')}
                   className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer text-left px-4 flex items-center gap-3"
-                  style={{ background: 'rgba(124,77,255,0.08)', color: PROFESSOR_COLOR, border: '1px solid rgba(124,77,255,0.25)' }}>
+                  style={{ background: 'rgba(139, 92, 246,0.08)', color: PROFESSOR_COLOR, border: '1px solid rgba(139, 92, 246,0.25)' }}>
                   <span className="text-base">🟣</span>
                   <div>
                     <div>Professor cancelou</div>
@@ -233,7 +233,7 @@ export function FaltaQuickActionModal({
             <div className="flex flex-col gap-2">
               <button onClick={handleRemarcar} disabled={saving}
                 className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+                style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
@@ -241,7 +241,7 @@ export function FaltaQuickActionModal({
               </button>
               <button onClick={() => setStep('credito')} disabled={saving}
                 className="w-full py-3.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{ background: 'rgba(64,196,255,0.1)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}>
+                style={{ background: 'rgba(56, 189, 248,0.1)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248,0.2)' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
                 </svg>
@@ -255,7 +255,7 @@ export function FaltaQuickActionModal({
                 💵 Manter Cobrança
               </button>
             </div>
-            {err && <p className="text-xs" style={{ color: '#FF5252' }}>{err}</p>}
+            {err && <p className="text-xs" style={{ color: '#EF4444' }}>{err}</p>}
             <button onClick={() => setStep('menu')} className="py-2 rounded-xl text-sm cursor-pointer"
               style={{ background: 'transparent', color: 'var(--text-muted)' }}>
               ← Voltar
@@ -285,7 +285,7 @@ export function FaltaQuickActionModal({
                 O crédito será descontado na cobrança do próximo mês.
               </p>
             </div>
-            {err && <p className="text-xs" style={{ color: '#FF5252' }}>{err}</p>}
+            {err && <p className="text-xs" style={{ color: '#EF4444' }}>{err}</p>}
             <div className="flex gap-2">
               <button onClick={() => { setStep('options'); setErr('') }}
                 className="px-4 py-2.5 rounded-xl text-sm cursor-pointer"
@@ -294,7 +294,7 @@ export function FaltaQuickActionModal({
               </button>
               <button onClick={handleConfirmCredito} disabled={saving}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
-                style={{ background: '#40C4FF22', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.3)' }}>
+                style={{ background: '#38BDF822', color: '#38BDF8', border: '1px solid rgba(56, 189, 248,0.3)' }}>
                 {saving ? 'Salvando...' : '💳 Confirmar Crédito'}
               </button>
             </div>
@@ -305,7 +305,7 @@ export function FaltaQuickActionModal({
         {step === 'done' && (
           <>
             <div className="rounded-xl p-4 text-center flex flex-col gap-2"
-              style={{ background: 'rgba(224, 176, 102,0.06)', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+              style={{ background: 'rgba(16, 185, 129,0.06)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
               <p className="text-2xl">✅</p>
               <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Registrado!</p>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{doneMsg}</p>

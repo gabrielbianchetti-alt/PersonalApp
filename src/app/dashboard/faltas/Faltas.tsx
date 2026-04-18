@@ -32,25 +32,25 @@ function diasRestantes(prazo: string): number {
 function urgencyColor(falta: FaltaRow, alertaDias: number): string {
   if (falta.status !== 'pendente') return 'var(--text-muted)'
   const dias = diasRestantes(falta.prazo_vencimento)
-  if (dias < 0) return '#FF5252'
-  if (dias <= alertaDias) return '#FFAB00'
-  return '#e0b066'
+  if (dias < 0) return '#EF4444'
+  if (dias <= alertaDias) return '#F59E0B'
+  return '#10B981'
 }
 
 function urgencyBg(falta: FaltaRow, alertaDias: number): string {
   if (falta.status !== 'pendente') return 'transparent'
   const dias = diasRestantes(falta.prazo_vencimento)
-  if (dias < 0) return 'rgba(255,82,82,0.08)'
-  if (dias <= alertaDias) return 'rgba(255,171,0,0.08)'
-  return 'rgba(224, 176, 102,0.06)'
+  if (dias < 0) return 'rgba(239, 68, 68,0.08)'
+  if (dias <= alertaDias) return 'rgba(245, 158, 11,0.08)'
+  return 'rgba(16, 185, 129,0.06)'
 }
 
 function statusLabel(status: FaltaRow['status']): { label: string; color: string; bg: string } {
   switch (status) {
-    case 'pendente': return { label: 'Pendente',         color: '#FFAB00', bg: 'rgba(255,171,0,0.12)' }
-    case 'reposta':  return { label: 'Remarcada',        color: '#e0b066', bg: 'rgba(224, 176, 102,0.12)' }
-    case 'credito':  return { label: 'Crédito',          color: '#40C4FF', bg: 'rgba(64,196,255,0.12)' }
-    case 'vencida':  return { label: 'Vencida',          color: '#FF5252', bg: 'rgba(255,82,82,0.12)' }
+    case 'pendente': return { label: 'Pendente',         color: '#F59E0B', bg: 'rgba(245, 158, 11,0.12)' }
+    case 'reposta':  return { label: 'Remarcada',        color: '#10B981', bg: 'rgba(16, 185, 129,0.12)' }
+    case 'credito':  return { label: 'Crédito',          color: '#38BDF8', bg: 'rgba(56, 189, 248,0.12)' }
+    case 'vencida':  return { label: 'Vencida',          color: '#EF4444', bg: 'rgba(239, 68, 68,0.12)' }
     case 'cobranca': return { label: 'Cobrança mantida', color: '#9E9E9E', bg: 'rgba(158,158,158,0.12)' }
   }
 }
@@ -132,7 +132,7 @@ function NovaFaltaModal({
                   onClick={() => setCulpa(c)}
                   className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors"
                   style={culpa === c
-                    ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.3)' }
+                    ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.3)' }
                     : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
                   }
                 >
@@ -159,7 +159,7 @@ function NovaFaltaModal({
             />
           </div>
 
-          {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+          {error && <p className="text-xs" style={{ color: '#EF4444' }}>{error}</p>}
 
           <div className="flex gap-2 mt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
@@ -271,7 +271,7 @@ function ResolverModal({
                 onClick={() => setTipo(t)}
                 className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors"
                 style={tipo === t
-                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.3)' }
+                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.3)' }
                   : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
                 }
               >
@@ -310,10 +310,10 @@ function ResolverModal({
               {/* Conflict warning */}
               {conflictAlunos.length > 0 && (
                 <div className="rounded-lg px-3 py-2.5 flex items-start gap-2"
-                  style={{ background: 'rgba(255,171,0,0.08)', border: '1px solid rgba(255,171,0,0.25)' }}>
-                  <span style={{ color: '#FFAB00', fontSize: 14, lineHeight: 1.4 }}>⚠️</span>
+                  style={{ background: 'rgba(245, 158, 11,0.08)', border: '1px solid rgba(245, 158, 11,0.25)' }}>
+                  <span style={{ color: '#F59E0B', fontSize: 14, lineHeight: 1.4 }}>⚠️</span>
                   <div>
-                    <p className="text-xs font-semibold" style={{ color: '#FFAB00' }}>Conflito de horário</p>
+                    <p className="text-xs font-semibold" style={{ color: '#F59E0B' }}>Conflito de horário</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       {conflictAlunos.map(a => a.nome.split(' ')[0]).join(', ')} tem aula neste horário.
                     </p>
@@ -343,7 +343,7 @@ function ResolverModal({
             </div>
           )}
 
-          {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+          {error && <p className="text-xs" style={{ color: '#EF4444' }}>{error}</p>}
 
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
@@ -425,7 +425,7 @@ function PreferenciasModal({
                 onClick={() => setPrazo(String(p))}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
                 style={prazo === String(p)
-                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.3)' }
+                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.3)' }
                   : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
                 }
               >
@@ -464,7 +464,7 @@ function PreferenciasModal({
           </p>
         </div>
 
-        {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#EF4444' }}>{error}</p>}
 
         <div className="flex gap-2">
           <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
@@ -536,7 +536,7 @@ function DesfazerModal({
           </p>
         </div>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{desc}</p>
-        {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#EF4444' }}>{error}</p>}
         <div className="flex gap-2 mt-1">
           <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
             Cancelar
@@ -547,7 +547,7 @@ function DesfazerModal({
             disabled={saving}
             className="flex-1 py-2 rounded-lg text-sm font-semibold transition-opacity"
             style={isVencida
-              ? { background: 'rgba(255,171,0,0.15)', color: '#FFAB00', border: '1px solid rgba(255,171,0,0.3)', opacity: saving ? 0.6 : 1 }
+              ? { background: 'rgba(245, 158, 11,0.15)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11,0.3)', opacity: saving ? 0.6 : 1 }
               : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', opacity: saving ? 0.6 : 1 }
             }
           >
@@ -595,7 +595,7 @@ function ManterCobrancaModal({
           Manter a cobrança normal para esta aula de <strong style={{ color: 'var(--text-primary)' }}>{(falta.aluno_nome ?? '').split(' ')[0]}</strong>?
           Nenhum crédito ou remarcação será gerado.
         </p>
-        {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#EF4444' }}>{error}</p>}
         <div className="flex gap-2 mt-1">
           <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
             Cancelar
@@ -681,7 +681,7 @@ function FaltaCard({
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Reposta em {fmtDate(falta.data_reposicao)}</p>
       )}
       {falta.status === 'credito' && falta.credito_valor != null && (
-        <p className="text-xs" style={{ color: '#40C4FF' }}>
+        <p className="text-xs" style={{ color: '#38BDF8' }}>
           Crédito: {Number(falta.credito_valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
         </p>
       )}
@@ -695,12 +695,12 @@ function FaltaCard({
           <button
             onClick={() => onResolve(falta)}
             className="flex-1 py-1.5 rounded-lg text-xs font-semibold"
-            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}
           >
             Resolver
           </button>
           {confirmDel ? (
-            <button onClick={handleDelete} disabled={deleting} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252' }}>
+            <button onClick={handleDelete} disabled={deleting} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444' }}>
               {deleting ? '…' : 'Confirmar'}
             </button>
           ) : (
@@ -728,7 +728,7 @@ function FaltaCard({
           <button
             onClick={() => onDesfazer(falta)}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-            style={{ background: 'rgba(255,171,0,0.12)', color: '#FFAB00', border: '1px solid rgba(255,171,0,0.3)' }}
+            style={{ background: 'rgba(245, 158, 11,0.12)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11,0.3)' }}
           >
             Reabrir
           </button>
@@ -761,9 +761,9 @@ function PendenciaCard({
   const isOverdue = dias < 0
   const isUrgent  = !isOverdue && dias <= alertaDias
 
-  const borderColor = isOverdue ? 'rgba(255,82,82,0.5)' : isUrgent ? 'rgba(255,171,0,0.4)' : 'rgba(224, 176, 102,0.2)'
-  const cardBg      = isOverdue ? 'rgba(255,82,82,0.05)' : isUrgent ? 'rgba(255,171,0,0.04)' : 'rgba(224, 176, 102,0.03)'
-  const barColor    = isOverdue ? '#FF5252' : isUrgent ? '#FFAB00' : '#e0b066'
+  const borderColor = isOverdue ? 'rgba(239, 68, 68,0.5)' : isUrgent ? 'rgba(245, 158, 11,0.4)' : 'rgba(16, 185, 129,0.2)'
+  const cardBg      = isOverdue ? 'rgba(239, 68, 68,0.05)' : isUrgent ? 'rgba(245, 158, 11,0.04)' : 'rgba(16, 185, 129,0.03)'
+  const barColor    = isOverdue ? '#EF4444' : isUrgent ? '#F59E0B' : '#10B981'
   const barWidth    = `${Math.max(2, Math.min(100, (dias / 30) * 100))}%`
 
   async function handleDelete() {
@@ -786,8 +786,8 @@ function PendenciaCard({
         <span
           className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0"
           style={falta.culpa === 'aluno'
-            ? { background: 'rgba(255,171,0,0.15)', color: '#FFAB00' }
-            : { background: 'rgba(255,82,82,0.15)', color: '#FF5252' }
+            ? { background: 'rgba(245, 158, 11,0.15)', color: '#F59E0B' }
+            : { background: 'rgba(239, 68, 68,0.15)', color: '#EF4444' }
           }
         >
           {falta.culpa === 'aluno' ? 'Aluno cancelou' : 'Professor cancelou'}
@@ -823,7 +823,7 @@ function PendenciaCard({
         <button
           onClick={() => onCredito(falta)}
           className="flex-1 h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
-          style={{ background: 'rgba(64,196,255,0.12)', color: '#40C4FF', border: '1px solid rgba(64,196,255,0.2)' }}
+          style={{ background: 'rgba(56, 189, 248,0.12)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248,0.2)' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" />
@@ -832,7 +832,7 @@ function PendenciaCard({
         </button>
         {confirmDel ? (
           <button onClick={handleDelete} disabled={deleting} className="px-3 h-11 rounded-xl text-xs font-medium"
-            style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252' }}>
+            style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444' }}>
             {deleting ? '…' : 'Confirmar'}
           </button>
         ) : (
@@ -874,8 +874,8 @@ function HistoricoRow({
     : falta.culpa === 'professor'
     ? 'Professor cancelou'
     : 'Aluno faltou'
-  const tipoColor = tipo === 'cancelamento' ? '#FF9800' : falta.culpa === 'professor' ? '#7C4DFF' : '#FF5252'
-  const tipoBg    = tipo === 'cancelamento' ? 'rgba(255,152,0,0.12)' : falta.culpa === 'professor' ? 'rgba(124,77,255,0.12)' : 'rgba(255,82,82,0.12)'
+  const tipoColor = tipo === 'cancelamento' ? '#F59E0B' : falta.culpa === 'professor' ? '#8B5CF6' : '#EF4444'
+  const tipoBg    = tipo === 'cancelamento' ? 'rgba(245, 158, 11,0.12)' : falta.culpa === 'professor' ? 'rgba(139, 92, 246,0.12)' : 'rgba(239, 68, 68,0.12)'
 
   return (
     <div
@@ -903,10 +903,10 @@ function HistoricoRow({
             · {falta.culpa === 'aluno' ? 'Aluno' : 'Professor'}
           </p>
           {falta.status === 'reposta' && falta.data_reposicao && (
-            <p className="text-xs" style={{ color: '#e0b066' }}>· Remarcada {fmtDate(falta.data_reposicao)}</p>
+            <p className="text-xs" style={{ color: '#10B981' }}>· Remarcada {fmtDate(falta.data_reposicao)}</p>
           )}
           {falta.status === 'credito' && falta.credito_valor != null && (
-            <p className="text-xs font-medium" style={{ color: '#40C4FF' }}>
+            <p className="text-xs font-medium" style={{ color: '#38BDF8' }}>
               · Crédito {Number(falta.credito_valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </p>
           )}
@@ -1111,14 +1111,14 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
           <div className="flex items-center gap-3 mb-4">
             <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Pendências</h2>
             {pendentesFiltered.length > 0 && (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,171,0,0.15)', color: '#FFAB00' }}>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(245, 158, 11,0.15)', color: '#F59E0B' }}>
                 {pendentesFiltered.length} pendente{pendentesFiltered.length !== 1 ? 's' : ''}
               </span>
             )}
           </div>
 
           {pendentesFiltered.length === 0 ? (
-            <div className="rounded-2xl py-10 text-center" style={{ background: 'rgba(224, 176, 102,0.05)', border: '1.5px solid rgba(224, 176, 102,0.15)' }}>
+            <div className="rounded-2xl py-10 text-center" style={{ background: 'rgba(16, 185, 129,0.05)', border: '1.5px solid rgba(16, 185, 129,0.15)' }}>
               <p className="text-3xl mb-2">✅</p>
               <p className="text-sm font-bold" style={{ color: 'var(--green-primary)' }}>Tudo resolvido!</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Nenhuma falta pendente no momento.</p>
@@ -1220,17 +1220,17 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
             <div className="flex items-center gap-3 mb-3 px-3 py-2 rounded-lg flex-wrap"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
               {totalFaltas > 0 && (
-                <span className="text-xs font-medium" style={{ color: '#FF5252' }}>
+                <span className="text-xs font-medium" style={{ color: '#EF4444' }}>
                   {totalFaltas} falta{totalFaltas !== 1 ? 's' : ''}
                 </span>
               )}
               {totalCancelamentos > 0 && (
-                <span className="text-xs font-medium" style={{ color: '#FF9800' }}>
+                <span className="text-xs font-medium" style={{ color: '#F59E0B' }}>
                   {totalCancelamentos} cancelamento{totalCancelamentos !== 1 ? 's' : ''}
                 </span>
               )}
               {totalRemarcadas > 0 && (
-                <span className="text-xs font-medium" style={{ color: '#e0b066' }}>
+                <span className="text-xs font-medium" style={{ color: '#10B981' }}>
                   {totalRemarcadas} remarcada{totalRemarcadas !== 1 ? 's' : ''}
                 </span>
               )}

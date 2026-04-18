@@ -57,9 +57,9 @@ interface Props {
 const MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
 const TIPO_COLOR: Record<AulaHoje['tipo'], string> = {
-  regular:    '#00E676',
-  reposicao:  '#40C4FF',
-  aula_extra: '#FFEB3B',
+  regular:    '#10B981',
+  reposicao:  '#38BDF8',
+  aula_extra: '#FBBF24',
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -411,19 +411,19 @@ export function DashboardHome({
                     )}
                     {!isProxima && aula.tipo === 'reposicao' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded"
-                        style={{ background: 'rgba(64,196,255,0.12)', color: '#40C4FF' }}>Repo</span>
+                        style={{ background: 'rgba(56, 189, 248,0.12)', color: '#38BDF8' }}>Repo</span>
                     )}
                     {!isProxima && aula.tipo === 'aula_extra' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded"
-                        style={{ background: 'rgba(255,235,59,0.12)', color: '#FFEB3B' }}>Extra</span>
+                        style={{ background: 'rgba(255,235,59,0.12)', color: '#FBBF24' }}>Extra</span>
                     )}
                     {isProxima && aula.tipo === 'reposicao' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded ml-1"
-                        style={{ background: 'rgba(64,196,255,0.12)', color: '#40C4FF' }}>Repo</span>
+                        style={{ background: 'rgba(56, 189, 248,0.12)', color: '#38BDF8' }}>Repo</span>
                     )}
                     {isProxima && aula.tipo === 'aula_extra' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded ml-1"
-                        style={{ background: 'rgba(255,235,59,0.12)', color: '#FFEB3B' }}>Extra</span>
+                        style={{ background: 'rgba(255,235,59,0.12)', color: '#FBBF24' }}>Extra</span>
                     )}
                   </div>
                 </button>
@@ -485,7 +485,7 @@ export function DashboardHome({
               onClick={() => setCobrancaTab(key)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
               style={cobrancaTab === key
-                ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }
+                ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }
                 : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent' }
               }
             >
@@ -493,7 +493,7 @@ export function DashboardHome({
               <span
                 className="text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
                 style={{
-                  background: cobrancaTab === key ? 'rgba(224, 176, 102,0.2)' : 'var(--bg-input)',
+                  background: cobrancaTab === key ? 'rgba(16, 185, 129,0.2)' : 'var(--bg-input)',
                   color: cobrancaTab === key ? 'var(--green-primary)' : 'var(--text-muted)',
                 }}
               >
@@ -525,9 +525,9 @@ export function DashboardHome({
                   const isDueToday = dueDiff === 0
                   return (
                     <div key={a.alunoId} className="flex items-center rounded-xl"
-                      style={{ gap: 10, padding: '9px 12px', background: 'var(--bg-input)', border: isOverdue ? '1px solid rgba(255,82,82,0.2)' : '1px solid transparent' }}>
+                      style={{ gap: 10, padding: '9px 12px', background: 'var(--bg-input)', border: isOverdue ? '1px solid rgba(239, 68, 68,0.2)' : '1px solid transparent' }}>
                       <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                        style={{ background: 'rgba(255,171,0,0.12)', color: '#FFAB00' }}>
+                        style={{ background: 'rgba(245, 158, 11,0.12)', color: '#F59E0B' }}>
                         {a.alunoNome.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -537,9 +537,9 @@ export function DashboardHome({
                         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                           {formatCurrency(a.valor)}
                           {isOverdue
-                            ? <span style={{ color: '#FF5252', fontWeight: 600 }}> · atrasado {Math.abs(dueDiff)}d</span>
+                            ? <span style={{ color: '#EF4444', fontWeight: 600 }}> · atrasado {Math.abs(dueDiff)}d</span>
                             : isDueToday
-                            ? <span style={{ color: '#FFAB00', fontWeight: 600 }}> · vence hoje</span>
+                            ? <span style={{ color: '#F59E0B', fontWeight: 600 }}> · vence hoje</span>
                             : ` · vence dia ${a.dia_cobranca || 1}`}
                         </p>
                       </div>
@@ -547,7 +547,7 @@ export function DashboardHome({
                         {whatsUrl !== '#' && (
                           <a href={whatsUrl} target="_blank" rel="noopener noreferrer"
                             className="px-2 py-1.5 rounded-lg text-[11px] font-semibold"
-                            style={{ background: 'rgba(224, 176, 102,0.1)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}>
+                            style={{ background: 'rgba(16, 185, 129,0.1)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
                             Cobrar
                           </a>
                         )}
@@ -576,7 +576,7 @@ export function DashboardHome({
                   <div key={a.alunoId} className="flex items-center rounded-xl"
                     style={{ gap: 10, padding: '9px 12px', background: 'var(--bg-input)', border: '1px solid transparent' }}>
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                      style={{ background: 'rgba(64,196,255,0.12)', color: '#40C4FF' }}>
+                      style={{ background: 'rgba(56, 189, 248,0.12)', color: '#38BDF8' }}>
                       {a.alunoNome.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -613,7 +613,7 @@ export function DashboardHome({
                   <div key={a.alunoId} className="flex items-center rounded-lg"
                     style={{ gap: 8, padding: '7px 10px', background: 'var(--bg-input)' }}>
                     <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-                      style={{ background: 'rgba(224, 176, 102,0.12)', color: 'var(--green-primary)' }}>
+                      style={{ background: 'rgba(16, 185, 129,0.12)', color: 'var(--green-primary)' }}>
                       ✓
                     </span>
                     <span className="flex-1 text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>

@@ -23,7 +23,7 @@ export function SuccessToast({ message }: { message: string }) {
       className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl"
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid rgba(224, 176, 102,0.3)',
+        border: '1px solid rgba(16, 185, 129,0.3)',
         color: 'var(--text-primary)',
         animation: 'slideUp 0.25s ease-out',
       }}

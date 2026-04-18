@@ -30,7 +30,7 @@ const CATEGORIA_ICONS: Record<string, string> = {
 }
 
 const CATEGORIA_COLORS: Record<string, string> = {
-  urgente: '#FF5252', importante: '#FFB300', cobranca: '#FF9800',
+  urgente: '#EF4444', importante: '#FFB300', cobranca: '#F59E0B',
   churn: '#FF7043', aniversario: '#E91E63', aula: 'var(--green-primary)',
   reposicao: '#2196F3', custo: '#9C27B0', info: '#2196F3',
 }
@@ -89,7 +89,7 @@ export function NotificacoesPage() {
           <button
             onClick={handleMarkAllRead}
             className="text-sm px-4 py-2 rounded-lg cursor-pointer"
-            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}
           >
             Marcar todas como lidas
           </button>
@@ -137,7 +137,7 @@ export function NotificacoesPage() {
               className="flex items-start gap-4 p-4 rounded-2xl text-left w-full cursor-pointer transition-all duration-150"
               style={{
                 background: !n.lida ? 'var(--bg-card)' : 'var(--bg-surface)',
-                border: !n.lida ? '1px solid rgba(224, 176, 102,0.2)' : '1px solid var(--border-subtle)',
+                border: !n.lida ? '1px solid rgba(16, 185, 129,0.2)' : '1px solid var(--border-subtle)',
               }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '0.85' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1' }}
@@ -158,7 +158,7 @@ export function NotificacoesPage() {
                     {CATEGORIA_LABELS[n.notificacao?.categoria] ?? n.notificacao?.categoria}
                   </span>
                   {!n.lida && (
-                    <span className="w-2 h-2 rounded-full" style={{ background: '#FF5252' }} />
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />
                   )}
                 </div>
                 <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>

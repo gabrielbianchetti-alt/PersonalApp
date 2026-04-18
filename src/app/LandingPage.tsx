@@ -5,10 +5,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 
 // ─── Color tokens ─────────────────────────────────────────────────────────────
-const BG    = '#0a0b0e'
-const CARD  = '#14161b'
+const BG    = '#0B0F19'
+const CARD  = '#111827'
 const CREAM = '#FFE7D0'
-const ACC   = '#e0b066'
+const ACC   = '#10B981'
 const WHITE = '#FFFFFF'
 
 // ─── Font loader ──────────────────────────────────────────────────────────────
@@ -221,8 +221,8 @@ function HeroSection() {
         <FadeIn>
           <div style={{
             display: 'inline-block',
-            background: 'rgba(224, 176, 102,0.12)',
-            border: '1px solid rgba(224, 176, 102,0.25)',
+            background: 'rgba(16, 185, 129,0.12)',
+            border: '1px solid rgba(16, 185, 129,0.25)',
             borderRadius: 99,
             padding: '6px 20px',
           }}>
@@ -238,7 +238,7 @@ function HeroSection() {
             fontWeight: 900,
             lineHeight: 1,
             letterSpacing: -2,
-            color: '#0a0b0e',
+            color: '#0B0F19',
             marginTop: 24,
             marginBottom: 0,
           }}>
@@ -301,7 +301,7 @@ function HeroSection() {
                 <div style={{
                   width: 36,
                   height: 36,
-                  background: 'rgba(224, 176, 102,0.1)',
+                  background: 'rgba(16, 185, 129,0.1)',
                   borderRadius: 99,
                   display: 'flex',
                   alignItems: 'center',
@@ -310,7 +310,7 @@ function HeroSection() {
                 }}>
                   {card.icon}
                 </div>
-                <div style={{ color: '#0a0b0e', fontSize: 14, fontWeight: 700 }}>{card.title}</div>
+                <div style={{ color: '#0B0F19', fontSize: 14, fontWeight: 700 }}>{card.title}</div>
                 <div style={{ color: '#888', fontSize: 13, lineHeight: 1.5 }}>{card.desc}</div>
               </div>
             ))}
@@ -335,7 +335,7 @@ function HeroSection() {
                 textDecoration: 'none',
                 transition: 'transform 0.2s, box-shadow 0.2s',
                 transform: ctaHover ? 'translateY(-2px)' : 'none',
-                boxShadow: ctaHover ? '0 8px 32px rgba(224, 176, 102,0.4)' : 'none',
+                boxShadow: ctaHover ? '0 8px 32px rgba(16, 185, 129,0.4)' : 'none',
               }}
               onMouseEnter={() => setCtaHover(true)}
               onMouseLeave={() => setCtaHover(false)}
@@ -374,7 +374,7 @@ function HeroSection() {
             padding: '12px 24px',
             marginTop: 24,
           }}>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#0a0b0e' }}>
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#0B0F19' }}>
               R$ 29,90<span style={{ fontSize: 14, fontWeight: 400, color: '#888' }}>/mês</span>
             </span>
             <div style={{ width: 1, height: 20, background: 'rgba(0,0,0,0.1)' }} />
@@ -559,7 +559,7 @@ function MockCalculo() {
             textAlign: 'center',
             padding: '6px 2px',
             borderRadius: 8,
-            background: i < 5 ? 'rgba(224, 176, 102,0.15)' : 'rgba(255,255,255,0.04)',
+            background: i < 5 ? 'rgba(16, 185, 129,0.15)' : 'rgba(255,255,255,0.04)',
             fontSize: 11,
             fontWeight: 700,
             color: i < 5 ? ACC : 'rgba(255,255,255,0.2)',
@@ -588,7 +588,7 @@ function MockCobranca() {
       <div style={{ background: CARD, borderRadius: 14, padding: 16, marginBottom: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: WHITE }}>Carlos Mendes</span>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 99, background: 'rgba(224, 176, 102,0.15)', color: ACC }}>Pendente</span>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 99, background: 'rgba(16, 185, 129,0.15)', color: ACC }}>Pendente</span>
         </div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>20 aulas · Seg/Qua/Sex</div>
         <div style={{ fontSize: 18, fontWeight: 900, color: WHITE }}>R$ 320,00</div>
@@ -656,16 +656,16 @@ function MockExtras() {
     <div style={{ background: BG, borderRadius: 20, padding: 24, minWidth: 300, maxWidth: 380, border: '1px solid rgba(255,255,255,0.08)' }}>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: 1, marginBottom: 16 }}>AULAS EXTRAS — Fevereiro 2026</div>
       {[
-        { aluno: 'Carlos M.', extras: 3, valor: '+R$120', bg: 'rgba(224, 176, 102,0.15)' },
-        { aluno: 'Ana F.', extras: 1, valor: '+R$40', bg: 'rgba(224, 176, 102,0.08)' },
-        { aluno: 'Bruno C.', extras: 2, valor: '+R$80', bg: 'rgba(224, 176, 102,0.12)' },
+        { aluno: 'Carlos M.', extras: 3, valor: '+R$120', bg: 'rgba(16, 185, 129,0.15)' },
+        { aluno: 'Ana F.', extras: 1, valor: '+R$40', bg: 'rgba(16, 185, 129,0.08)' },
+        { aluno: 'Bruno C.', extras: 2, valor: '+R$80', bg: 'rgba(16, 185, 129,0.12)' },
         { aluno: 'Larissa N.', extras: 0, valor: '—', bg: 'rgba(255,255,255,0.03)' },
       ].map(item => (
         <div key={item.aluno} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 12, marginBottom: 8, background: item.bg }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: WHITE }}>{item.aluno}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {item.extras > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'rgba(224, 176, 102,0.3)', color: ACC }}>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'rgba(16, 185, 129,0.3)', color: ACC }}>
                 +{item.extras} aula{item.extras > 1 ? 's' : ''}
               </span>
             )}
@@ -970,7 +970,7 @@ function ModulesSection() {
         <FadeIn style={{ textAlign: 'center', marginBottom: 56 }}>
           <span style={{
             background: 'rgba(27,27,27,0.1)',
-            color: '#0a0b0e',
+            color: '#0B0F19',
             padding: '6px 16px',
             borderRadius: 99,
             fontSize: 11,
@@ -984,7 +984,7 @@ function ModulesSection() {
             fontFamily: "'Playfair Display', serif",
             fontSize: 'clamp(36px, 5vw, 56px)',
             fontWeight: 900,
-            color: '#0a0b0e',
+            color: '#0B0F19',
             lineHeight: 1.1,
           }}>
             Tudo que você precisa,<br />nada que você não precisa
@@ -1009,7 +1009,7 @@ function ModulesSection() {
                 }}
                 onMouseEnter={e => {
                   const el = e.currentTarget as HTMLDivElement
-                  el.style.borderColor = 'rgba(224, 176, 102,0.3)'
+                  el.style.borderColor = 'rgba(16, 185, 129,0.3)'
                   el.style.transform = 'translateY(-2px)'
                 }}
                 onMouseLeave={e => {
@@ -1021,7 +1021,7 @@ function ModulesSection() {
                 <div style={{
                   width: 44,
                   height: 44,
-                  background: 'rgba(224, 176, 102,0.1)',
+                  background: 'rgba(16, 185, 129,0.1)',
                   borderRadius: 99,
                   display: 'flex',
                   alignItems: 'center',
@@ -1030,7 +1030,7 @@ function ModulesSection() {
                 }}>
                   {mod.icon}
                 </div>
-                <div style={{ color: '#0a0b0e', fontSize: 16, fontWeight: 800, marginTop: 12, marginBottom: 6 }}>{mod.name}</div>
+                <div style={{ color: '#0B0F19', fontSize: 16, fontWeight: 800, marginTop: 12, marginBottom: 6 }}>{mod.name}</div>
                 <div style={{ color: '#888', fontSize: 13, lineHeight: 1.55 }}>{mod.desc}</div>
               </div>
             </FadeIn>
@@ -1118,11 +1118,11 @@ function SocialProofSection() {
                     width: 44,
                     height: 44,
                     borderRadius: '50%',
-                    background: 'rgba(224, 176, 102,0.2)',
+                    background: 'rgba(16, 185, 129,0.2)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: 'rgba(224, 176, 102,0.6)',
+                    color: 'rgba(16, 185, 129,0.6)',
                   }}>
                     <IcoUser s={20}/>
                   </div>
@@ -1195,7 +1195,7 @@ function ComparisonSection() {
                   <th style={{ padding: '20px', textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600, background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                     <span style={{ display:'inline-flex', alignItems:'center', gap:6, color:'rgba(255,255,255,0.4)' }}><IcoX s={14}/>Jeito Antigo</span>
                   </th>
-                  <th style={{ padding: '20px', textAlign: 'center', fontSize: 13, color: ACC, fontWeight: 800, background: 'rgba(224, 176, 102,0.15)', borderBottom: '1px solid rgba(224, 176, 102,0.2)' }}>
+                  <th style={{ padding: '20px', textAlign: 'center', fontSize: 13, color: ACC, fontWeight: 800, background: 'rgba(16, 185, 129,0.15)', borderBottom: '1px solid rgba(16, 185, 129,0.2)' }}>
                     <span style={{ display:'inline-flex', alignItems:'center', gap:6, color:ACC }}><IcoCheck s={14}/>PersonalHub</span>
                   </th>
                 </tr>
@@ -1209,7 +1209,7 @@ function ComparisonSection() {
                     <td style={{ padding: '16px 20px', color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       {row[1]}
                     </td>
-                    <td style={{ padding: '16px 20px', color: 'rgba(224, 176, 102,0.9)', fontSize: 13, textAlign: 'center', fontWeight: 600, background: 'rgba(224, 176, 102,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <td style={{ padding: '16px 20px', color: 'rgba(16, 185, 129,0.9)', fontSize: 13, textAlign: 'center', fontWeight: 600, background: 'rgba(16, 185, 129,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       {row[2]}
                     </td>
                   </tr>
@@ -1483,11 +1483,11 @@ export default function LandingPage() {
 
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0;}
-        ::selection{background:rgba(224, 176, 102,0.25);}
+        ::selection{background:rgba(16, 185, 129,0.25);}
 
         @keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-        @keyframes glow{0%,100%{box-shadow:0 0 24px rgba(224, 176, 102,0.3)}50%{box-shadow:0 0 48px rgba(224, 176, 102,0.6)}}
+        @keyframes glow{0%,100%{box-shadow:0 0 24px rgba(16, 185, 129,0.3)}50%{box-shadow:0 0 48px rgba(16, 185, 129,0.6)}}
         @keyframes pulse{0%,100%{opacity:0.5;transform:scale(1)}50%{opacity:1;transform:scale(1.2)}}
 
         .ph-nav-link:hover{background:rgba(255,255,255,0.08)!important;color:#fff!important;}
@@ -1515,11 +1515,11 @@ export default function LandingPage() {
         num="01"
         badge="FINANCEIRO"
         badgeBg="rgba(27,27,27,0.1)"
-        badgeColor="#0a0b0e"
+        badgeColor="#0B0F19"
         headline="Controle financeiro total"
         desc="Saiba quanto fatura, quanto gasta e quanto sobra todo mês. Veja seu lucro real — não um chute."
         bg={CREAM}
-        textColor="#0a0b0e"
+        textColor="#0B0F19"
         flip={false}
         mockup={<MockFinanceiro />}
         zIndex={3}
@@ -1540,7 +1540,7 @@ export default function LandingPage() {
       <FeatureSection
         num="03"
         badge="CÁLCULO"
-        badgeBg="rgba(224, 176, 102,0.15)"
+        badgeBg="rgba(16, 185, 129,0.15)"
         badgeColor={ACC}
         headline="Cálculo automático de aulas"
         desc="O app conta os dias exatos do mês, calcula extras e reposições. Zero conta manual, zero esquecimento."
@@ -1553,7 +1553,7 @@ export default function LandingPage() {
       <FeatureSection
         num="04"
         badge="COBRANÇA"
-        badgeBg="rgba(224, 176, 102,0.15)"
+        badgeBg="rgba(16, 185, 129,0.15)"
         badgeColor={ACC}
         headline="Cobrança em 1 toque"
         desc="Mensagem personalizada com valor exato, datas das aulas e link de pagamento. Envia pelo WhatsApp sem digitar nada."
@@ -1567,11 +1567,11 @@ export default function LandingPage() {
         num="05"
         badge="REPOSIÇÕES"
         badgeBg="rgba(27,27,27,0.1)"
-        badgeColor="#0a0b0e"
+        badgeColor="#0B0F19"
         headline="Reposições sob controle"
         desc="Cada falta gera uma reposição com prazo automático. Acompanhe o status — pendente, agendada ou vencida."
         bg={CREAM}
-        textColor="#0a0b0e"
+        textColor="#0B0F19"
         flip={false}
         mockup={<MockReposicoes />}
         zIndex={7}
@@ -1579,7 +1579,7 @@ export default function LandingPage() {
       <FeatureSection
         num="06"
         badge="EXTRAS"
-        badgeBg="rgba(224, 176, 102,0.15)"
+        badgeBg="rgba(16, 185, 129,0.15)"
         badgeColor={ACC}
         headline="Aulas extras na cobrança"
         desc="Registre aulas extras com um toque. Elas são somadas automaticamente na cobrança do mês seguinte."

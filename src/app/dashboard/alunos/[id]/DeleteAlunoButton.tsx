@@ -46,9 +46,9 @@ export function DeleteAlunoButton({ alunoId, alunoNome }: Props) {
       <button
         onClick={open}
         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-100 cursor-pointer"
-        style={{ color: '#FF5252', border: '1px solid rgba(255,82,82,0.2)', background: 'rgba(255,82,82,0.05)' }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,82,82,0.12)' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,82,82,0.05)' }}
+        style={{ color: '#EF4444', border: '1px solid rgba(239, 68, 68,0.2)', background: 'rgba(239, 68, 68,0.05)' }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68,0.12)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68,0.05)' }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <polyline points="3 6 5 6 21 6" />
@@ -68,15 +68,15 @@ export function DeleteAlunoButton({ alunoId, alunoNome }: Props) {
         >
           <div
             className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-4"
-            style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,82,82,0.3)' }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid rgba(239, 68, 68,0.3)' }}
           >
             {/* Icon */}
             <div className="flex items-center justify-center">
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center"
-                style={{ background: 'rgba(255,82,82,0.12)' }}
+                style={{ background: 'rgba(239, 68, 68,0.12)' }}
               >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF5252" strokeWidth="2">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                   <line x1="12" y1="9" x2="12" y2="13" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -106,7 +106,7 @@ export function DeleteAlunoButton({ alunoId, alunoNome }: Props) {
               <button
                 onClick={handleConfirm}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer"
-                style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.3)' }}
+                style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68,0.3)' }}
               >
                 Continuar
               </button>
@@ -124,7 +124,7 @@ export function DeleteAlunoButton({ alunoId, alunoNome }: Props) {
         >
           <div
             className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-4"
-            style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,82,82,0.3)' }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid rgba(239, 68, 68,0.3)' }}
           >
             <div>
               <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
@@ -144,14 +144,14 @@ export function DeleteAlunoButton({ alunoId, alunoNome }: Props) {
               className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
               style={{
                 background: 'var(--bg-input)',
-                border: `1px solid ${match ? 'rgba(255,82,82,0.6)' : 'var(--border-subtle)'}`,
+                border: `1px solid ${match ? 'rgba(239, 68, 68,0.6)' : 'var(--border-subtle)'}`,
                 color: 'var(--text-primary)',
               }}
               onKeyDown={e => { if (e.key === 'Enter' && match && !isPending) handleDelete() }}
             />
 
             {erro && (
-              <p className="text-xs" style={{ color: '#FF5252' }}>{erro}</p>
+              <p className="text-xs" style={{ color: '#EF4444' }}>{erro}</p>
             )}
 
             <div className="flex gap-2">
@@ -167,8 +167,8 @@ export function DeleteAlunoButton({ alunoId, alunoNome }: Props) {
                 disabled={!match || isPending}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-opacity"
                 style={{
-                  background: match ? '#FF5252' : 'rgba(255,82,82,0.2)',
-                  color: match ? '#fff' : 'rgba(255,82,82,0.5)',
+                  background: match ? '#EF4444' : 'rgba(239, 68, 68,0.2)',
+                  color: match ? '#fff' : 'rgba(239, 68, 68,0.5)',
                   opacity: isPending ? 0.7 : 1,
                   cursor: (!match || isPending) ? 'not-allowed' : 'pointer',
                 }}

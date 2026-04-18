@@ -252,7 +252,7 @@ export function CalculoMensal({ alunos }: Props) {
 
         <div
           className="min-w-0 p-5 rounded-2xl"
-          style={{ background: 'var(--green-muted)', border: '1px solid rgba(224, 176, 102,0.2)' }}
+          style={{ background: 'var(--green-muted)', border: '1px solid rgba(16, 185, 129,0.2)' }}
         >
           <p className="text-xs font-medium mb-1" style={{ color: 'var(--green-primary)', opacity: 0.8 }}>
             Faturamento bruto
@@ -306,7 +306,7 @@ export function CalculoMensal({ alunos }: Props) {
                 className="p-5 rounded-2xl"
                 style={{
                   background: 'var(--bg-card)',
-                  border: `1px solid ${isAjustado ? 'rgba(224, 176, 102,0.25)' : 'var(--border-subtle)'}`,
+                  border: `1px solid ${isAjustado ? 'rgba(16, 185, 129,0.25)' : 'var(--border-subtle)'}`,
                 }}
               >
                 {/* Linha superior: avatar + nome + total */}
@@ -433,7 +433,7 @@ export function CalculoMensal({ alunos }: Props) {
                             <button
                               onClick={() => removeAdjust(aluno.id)}
                               className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors"
-                              style={{ color: '#FF8A80', background: 'rgba(255,82,82,0.08)', border: '1px solid rgba(255,82,82,0.2)' }}
+                              style={{ color: '#FF8A80', background: 'rgba(239, 68, 68,0.08)', border: '1px solid rgba(239, 68, 68,0.2)' }}
                               title="Remover ajuste"
                             >
                               remover ajuste
@@ -443,7 +443,7 @@ export function CalculoMensal({ alunos }: Props) {
                               onClick={() => openAdjust(aluno)}
                               className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors"
                               style={{ color: 'var(--text-muted)', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}
-                              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--green-primary)'; e.currentTarget.style.borderColor = 'rgba(224, 176, 102,0.4)' }}
+                              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--green-primary)'; e.currentTarget.style.borderColor = 'rgba(16, 185, 129,0.4)' }}
                               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-subtle)' }}
                             >
                               ajustar

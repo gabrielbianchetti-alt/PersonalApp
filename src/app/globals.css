@@ -1,20 +1,21 @@
 @import "tailwindcss";
 
-/* ── Dark mode (default) · Grafite + Mostarda ───────────────────────────── */
+/* ── Dark mode (default) · Esmeralda + Slate ────────────────────────────── */
 :root {
-  --green-primary: #e0b066;
-  --green-hover: #efc077;
-  --green-muted: rgba(224, 176, 102, 0.15);
-  --green-border: rgba(224, 176, 102, 0.25);
-  --bg-base: #0a0b0e;
-  --bg-surface: #10121a;
-  --bg-card: #14161b;
-  --bg-input: #14161b;
-  --border-subtle: #23262e;
-  --border-focus: rgba(224, 176, 102, 0.5);
-  --text-primary: #ffffff;
-  --text-secondary: #d9dce3;
-  --text-muted: #9a9ca5;
+  --green-primary: #10B981;
+  --green-hover: #059669;
+  --green-light: #34D399;
+  --green-muted: rgba(16, 185, 129, 0.15);
+  --green-border: rgba(16, 185, 129, 0.25);
+  --bg-base: #0B0F19;
+  --bg-surface: #111827;
+  --bg-card: #111827;
+  --bg-input: #1F2937;
+  --border-subtle: #374151;
+  --border-focus: rgba(16, 185, 129, 0.5);
+  --text-primary: #F9FAFB;
+  --text-secondary: #9CA3AF;
+  --text-muted: #6B7280;
 }
 
 html {
@@ -24,19 +25,20 @@ html {
 /* ── Light mode — matches data-theme="claro" set by applyModo() / root layout ── */
 html[data-theme="claro"] {
   color-scheme: light;
-  --green-primary: #d4a058;
-  --green-hover: #c08f4a;
-  --green-muted: #f5e8cf;
-  --green-border: rgba(212, 160, 88, 0.25);
-  --bg-base: #ffffff;
-  --bg-surface: #faf8f2;
-  --bg-card: #faf8f2;
-  --bg-input: #ffffff;
-  --border-subtle: #e8e4d8;
-  --border-focus: rgba(212, 160, 88, 0.5);
-  --text-primary: #0f1117;
-  --text-secondary: #2c2f3a;
-  --text-muted: #6b6e7a;
+  --green-primary: #10B981;
+  --green-hover: #059669;
+  --green-light: #34D399;
+  --green-muted: #D1FAE5;
+  --green-border: rgba(16, 185, 129, 0.25);
+  --bg-base: #F9FAFB;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-input: #FFFFFF;
+  --border-subtle: #E5E7EB;
+  --border-focus: rgba(16, 185, 129, 0.5);
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
 }
 
 /* ── Auto mode — follows OS preference, matches data-theme="auto" ─────────── */
@@ -46,19 +48,20 @@ html[data-theme="auto"] {
 
 @media (prefers-color-scheme: light) {
   html[data-theme="auto"] {
-    --green-primary: #d4a058;
-    --green-hover: #c08f4a;
-    --green-muted: #f5e8cf;
-    --green-border: rgba(212, 160, 88, 0.25);
-    --bg-base: #ffffff;
-    --bg-surface: #faf8f2;
-    --bg-card: #faf8f2;
-    --bg-input: #ffffff;
-    --border-subtle: #e8e4d8;
-    --border-focus: rgba(212, 160, 88, 0.5);
-    --text-primary: #0f1117;
-    --text-secondary: #2c2f3a;
-    --text-muted: #6b6e7a;
+    --green-primary: #10B981;
+    --green-hover: #059669;
+    --green-light: #34D399;
+    --green-muted: #D1FAE5;
+    --green-border: rgba(16, 185, 129, 0.25);
+    --bg-base: #F9FAFB;
+    --bg-surface: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --bg-input: #FFFFFF;
+    --border-subtle: #E5E7EB;
+    --border-focus: rgba(16, 185, 129, 0.5);
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
   }
 }
 
@@ -99,9 +102,9 @@ input:-webkit-autofill:focus {
 html[data-theme="claro"] input:-webkit-autofill,
 html[data-theme="claro"] input:-webkit-autofill:hover,
 html[data-theme="claro"] input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
-  -webkit-text-fill-color: #0f1117 !important;
-  caret-color: #0f1117;
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  -webkit-text-fill-color: #111827 !important;
+  caret-color: #111827;
 }
 
 /* Autofill — auto mode when system is light */
@@ -109,8 +112,8 @@ html[data-theme="claro"] input:-webkit-autofill:focus {
   html[data-theme="auto"] input:-webkit-autofill,
   html[data-theme="auto"] input:-webkit-autofill:hover,
   html[data-theme="auto"] input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
-    -webkit-text-fill-color: #0f1117 !important;
-    caret-color: #0f1117;
+    -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+    -webkit-text-fill-color: #111827 !important;
+    caret-color: #111827;
   }
 }

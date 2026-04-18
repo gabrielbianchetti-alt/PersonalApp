@@ -9,8 +9,8 @@ export function Alert({ type, message }: AlertProps) {
     <div
       className="flex items-start gap-3 p-4 rounded-xl text-sm"
       style={{
-        background: isError ? 'rgba(255,82,82,0.08)' : 'rgba(224, 176, 102,0.08)',
-        border: `1px solid ${isError ? 'rgba(255,82,82,0.2)' : 'rgba(224, 176, 102,0.2)'}`,
+        background: isError ? 'rgba(239, 68, 68,0.08)' : 'rgba(16, 185, 129,0.08)',
+        border: `1px solid ${isError ? 'rgba(239, 68, 68,0.2)' : 'rgba(16, 185, 129,0.2)'}`,
         color: isError ? '#FF8A80' : '#69F0AE',
       }}
     >

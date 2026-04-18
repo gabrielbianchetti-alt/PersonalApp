@@ -35,9 +35,9 @@ function getCategoriaIcon(categoria: string): string {
 
 function getCategoriaColor(categoria: string): string {
   const colors: Record<string, string> = {
-    urgente: '#FF5252',
+    urgente: '#EF4444',
     importante: '#FFB300',
-    cobranca: '#FF9800',
+    cobranca: '#F59E0B',
     churn: '#FF7043',
     aniversario: '#E91E63',
     aula: 'var(--green-primary)',
@@ -139,7 +139,7 @@ export function NotificationBell({ variant = 'sidebar' }: Props) {
           {unreadCount > 0 && (
             <span
               className="absolute top-1 right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full text-white font-bold"
-              style={{ background: '#FF5252', fontSize: '9px', padding: '0 3px' }}
+              style={{ background: '#EF4444', fontSize: '9px', padding: '0 3px' }}
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
@@ -169,7 +169,7 @@ export function NotificationBell({ variant = 'sidebar' }: Props) {
         onClick={handleOpen}
         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-100 cursor-pointer"
         style={open
-          ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.15)' }
+          ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.15)' }
           : { color: 'var(--text-secondary)', background: 'transparent', border: '1px solid transparent' }
         }
         onMouseEnter={e => { if (!open) (e.currentTarget as HTMLElement).style.background = 'var(--bg-card)' }}
@@ -181,7 +181,7 @@ export function NotificationBell({ variant = 'sidebar' }: Props) {
           {unreadCount > 0 && (
             <span
               className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full text-white font-bold"
-              style={{ background: '#FF5252', fontSize: '9px', padding: '0 3px' }}
+              style={{ background: '#EF4444', fontSize: '9px', padding: '0 3px' }}
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
@@ -241,7 +241,7 @@ const NotificationPanel = forwardRef<HTMLDivElement, PanelProps>(
             </span>
             {unreadCount > 0 && (
               <span className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
-                style={{ background: '#FF5252' }}>
+                style={{ background: '#EF4444' }}>
                 {unreadCount}
               </span>
             )}
@@ -284,11 +284,11 @@ const NotificationPanel = forwardRef<HTMLDivElement, PanelProps>(
                 onClick={() => onMarkRead(n.id, n.notificacao?.link ?? null)}
                 className="w-full flex items-start gap-3 px-4 py-3 text-left transition-colors duration-100 cursor-pointer"
                 style={{
-                  background: !n.lida ? 'rgba(224, 176, 102,0.04)' : 'transparent',
+                  background: !n.lida ? 'rgba(16, 185, 129,0.04)' : 'transparent',
                   borderBottom: '1px solid var(--border-subtle)',
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = !n.lida ? 'rgba(224, 176, 102,0.04)' : 'transparent' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = !n.lida ? 'rgba(16, 185, 129,0.04)' : 'transparent' }}
               >
                 {/* Icon */}
                 <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
@@ -304,7 +304,7 @@ const NotificationPanel = forwardRef<HTMLDivElement, PanelProps>(
                       {n.notificacao?.titulo}
                     </p>
                     {!n.lida && (
-                      <div className="w-2 h-2 rounded-full shrink-0 mt-1" style={{ background: '#FF5252' }} />
+                      <div className="w-2 h-2 rounded-full shrink-0 mt-1" style={{ background: '#EF4444' }} />
                     )}
                   </div>
                   <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>

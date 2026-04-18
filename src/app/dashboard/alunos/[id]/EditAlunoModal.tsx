@@ -143,7 +143,7 @@ export function EditAlunoModal({ alunoId, initialData, onClose, onSaved }: Props
               {tabHasErrors(i, errors) && (
                 <span
                   className="absolute top-2 right-1.5 w-1.5 h-1.5 rounded-full"
-                  style={{ background: '#FF5252' }}
+                  style={{ background: '#EF4444' }}
                 />
               )}
             </button>
@@ -156,9 +156,9 @@ export function EditAlunoModal({ alunoId, initialData, onClose, onSaved }: Props
             <div
               className="mb-4 px-4 py-3 rounded-xl text-sm"
               style={{
-                background: 'rgba(255,82,82,0.08)',
-                border: '1px solid rgba(255,82,82,0.25)',
-                color: '#FF5252',
+                background: 'rgba(239, 68, 68,0.08)',
+                border: '1px solid rgba(239, 68, 68,0.25)',
+                color: '#EF4444',
               }}
             >
               {saveError}

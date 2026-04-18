@@ -61,8 +61,8 @@ function modeloLabel(tipo: ModeloTipo): string {
 
 function modeloColor(tipo: ModeloTipo): { color: string; bg: string; border: string } {
   switch (tipo) {
-    case 'formal':        return { color: '#40C4FF', bg: 'rgba(64,196,255,0.1)', border: 'rgba(64,196,255,0.25)' }
-    case 'descontraido':  return { color: '#FFAB00', bg: 'rgba(255,171,0,0.1)',  border: 'rgba(255,171,0,0.25)' }
+    case 'formal':        return { color: '#38BDF8', bg: 'rgba(56, 189, 248,0.1)', border: 'rgba(56, 189, 248,0.25)' }
+    case 'descontraido':  return { color: '#F59E0B', bg: 'rgba(245, 158, 11,0.1)',  border: 'rgba(245, 158, 11,0.25)' }
     case 'personalizado': return { color: '#CE93D8', bg: 'rgba(206,147,216,0.1)', border: 'rgba(206,147,216,0.25)' }
   }
 }
@@ -124,7 +124,7 @@ function EditModeloModal({
               type="button"
               onClick={() => setConteudo(c => c + v)}
               className="px-2.5 py-1 rounded-full text-xs font-mono font-medium transition-colors"
-              style={{ background: 'var(--bg-input)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}
+              style={{ background: 'var(--bg-input)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}
               title={`Inserir ${v}`}
             >
               {v}
@@ -160,7 +160,7 @@ function EditModeloModal({
           />
         </div>
 
-        {error && <p className="px-5 pb-2 text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+        {error && <p className="px-5 pb-2 text-xs" style={{ color: '#EF4444' }}>{error}</p>}
 
         {/* Footer */}
         <div className="flex gap-2 px-5 pb-5">
@@ -234,7 +234,7 @@ function NewModeloModal({
               type="button"
               onClick={() => setConteudo(c => c + v)}
               className="px-2.5 py-1 rounded-full text-xs font-mono font-medium transition-colors"
-              style={{ background: 'var(--bg-input)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}
+              style={{ background: 'var(--bg-input)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }}
               title={`Inserir ${v}`}
             >
               {v}
@@ -273,7 +273,7 @@ function NewModeloModal({
           />
         </div>
 
-        {error && <p className="px-5 pb-2 text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+        {error && <p className="px-5 pb-2 text-xs" style={{ color: '#EF4444' }}>{error}</p>}
 
         {/* Footer */}
         <div className="flex gap-2 px-5 pb-5">
@@ -324,8 +324,8 @@ function ConfirmDeleteModeloModal({
       >
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: 'rgba(255,82,82,0.12)' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5252" strokeWidth="2">
+            style={{ background: 'rgba(239, 68, 68,0.12)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
               <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
             </svg>
@@ -340,7 +340,7 @@ function ConfirmDeleteModeloModal({
           </div>
         </div>
 
-        {error && <p className="text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#EF4444' }}>{error}</p>}
 
         <div className="flex gap-2">
           <button
@@ -354,7 +354,7 @@ function ConfirmDeleteModeloModal({
             onClick={handleDelete}
             disabled={deleting}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
-            style={{ background: 'rgba(255,82,82,0.15)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.3)' }}
+            style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68,0.3)' }}
           >
             {deleting ? 'Excluindo…' : 'Excluir'}
           </button>
@@ -521,7 +521,7 @@ function EnviarTermoModal({
           )}
         </div>
 
-        {error && <p className="px-5 pb-2 text-xs" style={{ color: '#FF5252' }}>{error}</p>}
+        {error && <p className="px-5 pb-2 text-xs" style={{ color: '#EF4444' }}>{error}</p>}
 
         {/* Footer */}
         <div className="px-5 pb-5 flex gap-2 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
@@ -530,7 +530,7 @@ function EnviarTermoModal({
               type="button"
               onClick={onClose}
               className="flex-1 py-2.5 rounded-lg text-sm font-semibold"
-              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.3)' }}
+              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.3)' }}
             >
               ✓ Enviado! Fechar
             </button>
@@ -768,7 +768,7 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
                       <div className="text-right shrink-0 hidden sm:block">
                         {lastSend ? (
                           <>
-                            <p className="text-xs font-medium" style={{ color: '#e0b066' }}>✓ Enviado</p>
+                            <p className="text-xs font-medium" style={{ color: '#10B981' }}>✓ Enviado</p>
                             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{fmtEnviadoEm(lastSend).split(',')[0]}</p>
                           </>
                         ) : sendCount === 0 ? (
@@ -869,7 +869,7 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
                       <button
                         onClick={() => setModal({ type: 'confirmDeleteModelo', modelo })}
                         className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
-                        style={{ background: 'rgba(255,82,82,0.1)', color: '#FF5252' }}
+                        style={{ background: 'rgba(239, 68, 68,0.1)', color: '#EF4444' }}
                         title="Excluir modelo"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

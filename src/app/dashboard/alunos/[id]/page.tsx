@@ -128,7 +128,7 @@ export default async function AlunoPerfilPage({
           <div className="text-center">
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Enviar Termo</p>
             {ultimoTermo ? (
-              <p className="text-xs mt-0.5" style={{ color: '#e0b066' }}>
+              <p className="text-xs mt-0.5" style={{ color: '#10B981' }}>
                 ✓ {new Date(ultimoTermo.enviado_em).toLocaleDateString('pt-BR')}
               </p>
             ) : (
@@ -143,8 +143,8 @@ export default async function AlunoPerfilPage({
           className="flex flex-col items-center gap-2 p-4 rounded-xl transition-colors"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
         >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,171,0,0.12)' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFAB00" strokeWidth="2">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245, 158, 11,0.12)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <line x1="18" y1="8" x2="23" y2="13" /><line x1="23" y1="8" x2="18" y2="13" />
@@ -152,7 +152,7 @@ export default async function AlunoPerfilPage({
           </div>
           <div className="text-center">
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Faltas</p>
-            <p className="text-xs mt-0.5" style={{ color: (faltasPendentes?.length ?? 0) > 0 ? '#FFAB00' : 'var(--text-muted)' }}>
+            <p className="text-xs mt-0.5" style={{ color: (faltasPendentes?.length ?? 0) > 0 ? '#F59E0B' : 'var(--text-muted)' }}>
               {(faltasPendentes?.length ?? 0) > 0
                 ? `${faltasPendentes!.length} pendente${faltasPendentes!.length > 1 ? 's' : ''}`
                 : 'Sem pendências'}
@@ -184,8 +184,8 @@ export default async function AlunoPerfilPage({
       )}
 
       {/* Danger zone */}
-      <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid rgba(255,82,82,0.15)' }}>
-        <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'rgba(255,82,82,0.7)' }}>Zona de perigo</p>
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239, 68, 68,0.15)' }}>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'rgba(239, 68, 68,0.7)' }}>Zona de perigo</p>
         <DeleteAlunoButton alunoId={id} alunoNome={aluno.nome} />
       </div>
     </div>

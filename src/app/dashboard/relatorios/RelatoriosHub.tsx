@@ -651,7 +651,7 @@ function ReportCard({
 
       {/* Error */}
       {error && (
-        <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff5252' }}>
+        <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>
           {error}
         </p>
       )}
@@ -689,7 +689,7 @@ function ReportCard({
         <div className="flex flex-col gap-2">
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
-            style={{ background: 'rgba(0,200,100,0.08)', color: '#00c864', border: '1px solid rgba(0,200,100,0.2)' }}
+            style={{ background: 'rgba(16, 185, 129,0.08)', color: '#10B981', border: '1px solid rgba(16, 185, 129,0.2)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="20 6 9 17 4 12" />
@@ -828,7 +828,7 @@ export function RelatoriosHub({ mesAtual }: { mesAtual: string }) {
               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           }
-          accentColor="#00b852"
+          accentColor="#10B981"
           accentBg="rgba(0,184,82,0.12)"
           accentBorder="rgba(0,184,82,0.3)"
           mes={mesF}
@@ -852,7 +852,7 @@ export function RelatoriosHub({ mesAtual }: { mesAtual: string }) {
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
           }
-          accentColor="#0078c8"
+          accentColor="#3B82F6"
           accentBg="rgba(0,120,200,0.12)"
           accentBorder="rgba(0,120,200,0.3)"
           mes={mesP}
@@ -877,7 +877,7 @@ export function RelatoriosHub({ mesAtual }: { mesAtual: string }) {
               <polyline points="12 6 12 12 16 14" />
             </svg>
           }
-          accentColor="#8232dc"
+          accentColor="#8B5CF6"
           accentBg="rgba(130,50,220,0.12)"
           accentBorder="rgba(130,50,220,0.3)"
           loading={loadingPrev}

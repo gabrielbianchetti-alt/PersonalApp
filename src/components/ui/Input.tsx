@@ -43,17 +43,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             `}
             style={{
               background: 'var(--bg-input)',
-              border: `1px solid ${error ? '#FF5252' : 'var(--border-subtle)'}`,
+              border: `1px solid ${error ? '#EF4444' : 'var(--border-subtle)'}`,
               color: 'var(--text-primary)',
             }}
             onFocus={(e) => {
-              e.target.style.borderColor = error ? '#FF5252' : 'var(--border-focus)'
+              e.target.style.borderColor = error ? '#EF4444' : 'var(--border-focus)'
               e.target.style.boxShadow = error
-                ? '0 0 0 3px rgba(255,82,82,0.1)'
-                : '0 0 0 3px rgba(224, 176, 102,0.08)'
+                ? '0 0 0 3px rgba(239, 68, 68,0.1)'
+                : '0 0 0 3px rgba(16, 185, 129,0.08)'
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = error ? '#FF5252' : 'var(--border-subtle)'
+              e.target.style.borderColor = error ? '#EF4444' : 'var(--border-subtle)'
               e.target.style.boxShadow = 'none'
             }}
             {...props}
@@ -82,7 +82,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && (
-          <p className="text-xs" style={{ color: '#FF5252' }}>
+          <p className="text-xs" style={{ color: '#EF4444' }}>
             {error}
           </p>
         )}

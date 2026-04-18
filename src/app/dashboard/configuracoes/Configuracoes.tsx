@@ -69,11 +69,11 @@ function AssinaturaSection({ assinatura }: { assinatura: AssinaturaData }) {
 
   const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
     trial:         { label: 'Teste grátis',   color: 'var(--green-primary)', bg: 'var(--green-muted)' },
-    trial_expired: { label: 'Teste expirado', color: '#FF5252', bg: 'rgba(255,82,82,0.1)' },
+    trial_expired: { label: 'Teste expirado', color: '#EF4444', bg: 'rgba(239, 68, 68,0.1)' },
     active:        { label: 'Ativo',           color: 'var(--green-primary)', bg: 'var(--green-muted)' },
-    past_due:      { label: 'Pagamento pendente', color: '#FFAB00', bg: 'rgba(255,171,0,0.1)' },
-    canceled:      { label: 'Cancelado',       color: '#FFAB00', bg: 'rgba(255,171,0,0.1)' },
-    expired:       { label: 'Expirado',        color: '#FF5252', bg: 'rgba(255,82,82,0.1)' },
+    past_due:      { label: 'Pagamento pendente', color: '#F59E0B', bg: 'rgba(245, 158, 11,0.1)' },
+    canceled:      { label: 'Cancelado',       color: '#F59E0B', bg: 'rgba(245, 158, 11,0.1)' },
+    expired:       { label: 'Expirado',        color: '#EF4444', bg: 'rgba(239, 68, 68,0.1)' },
   }
 
   const st = statusLabels[assinatura.status] ?? statusLabels.expired
@@ -153,7 +153,7 @@ function AssinaturaSection({ assinatura }: { assinatura: AssinaturaData }) {
       </div>
 
       {portalError && (
-        <p className="text-xs mt-3" style={{ color: '#FF5252' }}>{portalError}</p>
+        <p className="text-xs mt-3" style={{ color: '#EF4444' }}>{portalError}</p>
       )}
 
       {isActive && (
@@ -185,8 +185,8 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── tema ────────────────────────────────────────────────────────────────────
-  const [corSalva, setCorSalva] = useState(perfil.cor_tema || '#e0b066')
-  const [corPreview, setCorPreview] = useState(perfil.cor_tema || '#e0b066')
+  const [corSalva, setCorSalva] = useState(perfil.cor_tema || '#10B981')
+  const [corPreview, setCorPreview] = useState(perfil.cor_tema || '#10B981')
   const [corLoading, setCorLoading] = useState(false)
   const [corDone, setCorDone] = useState(false)
   const [customCor, setCustomCor] = useState(
@@ -378,7 +378,7 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
             onChange={handleFileChange}
           />
         </div>
-        {fotoError && <p className="text-xs mb-4" style={{ color: '#FF5252' }}>{fotoError}</p>}
+        {fotoError && <p className="text-xs mb-4" style={{ color: '#EF4444' }}>{fotoError}</p>}
 
         {/* Nome */}
         <div className="flex flex-col gap-1.5 mb-4">
@@ -390,7 +390,7 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
             onKeyDown={e => e.key === 'Enter' && handleSaveNome()}
             className="h-11 rounded-xl px-4 text-sm outline-none w-full"
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
-            onFocus={e => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(224, 176, 102,0.08)' }}
+            onFocus={e => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129,0.08)' }}
             onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
           />
         </div>

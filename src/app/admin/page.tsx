@@ -12,7 +12,7 @@ export default async function AdminPage() {
   } catch {
     return (
       <div className="p-8">
-        <p style={{ color: '#FF5252' }}>
+        <p style={{ color: '#EF4444' }}>
           Configuração incompleta: SUPABASE_SERVICE_ROLE_KEY não encontrada.
         </p>
         <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
@@ -27,7 +27,7 @@ export default async function AdminPage() {
   if (usersError) {
     return (
       <div className="p-8">
-        <p style={{ color: '#FF5252' }}>Erro ao buscar usuários: {usersError.message}</p>
+        <p style={{ color: '#EF4444' }}>Erro ao buscar usuários: {usersError.message}</p>
         <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
           Verifique se SUPABASE_SERVICE_ROLE_KEY está configurada no Vercel.
         </p>

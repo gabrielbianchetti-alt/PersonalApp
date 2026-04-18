@@ -31,7 +31,7 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
   // navigation and syncs the ph-modo cookie so future SSR renders are also correct
   // (e.g. on a new device where the cookie doesn't exist yet).
   useEffect(() => {
-    if (corTema && corTema !== '#e0b066') applyTheme(corTema)
+    if (corTema && corTema !== '#10B981') applyTheme(corTema)
     applyModo(modoTema)
     // Sync cookie client-side so the root layout reads the correct value on next SSR
     const maxAge = 60 * 60 * 24 * 365

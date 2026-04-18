@@ -59,7 +59,7 @@ export function StepSaude({ data, errors, onChange }: Props) {
           })}
         </div>
         {errors.objetivos && (
-          <p className="text-xs" style={{ color: '#FF5252' }}>
+          <p className="text-xs" style={{ color: '#EF4444' }}>
             {errors.objetivos}
           </p>
         )}
@@ -84,7 +84,7 @@ export function StepSaude({ data, errors, onChange }: Props) {
             color: 'var(--text-primary)',
             lineHeight: '1.6',
           }}
-          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(224, 176, 102,0.08)' }}
+          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129,0.08)' }}
           onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
         />
       </div>
@@ -108,7 +108,7 @@ export function StepSaude({ data, errors, onChange }: Props) {
             color: 'var(--text-primary)',
             lineHeight: '1.6',
           }}
-          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(224, 176, 102,0.08)' }}
+          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129,0.08)' }}
           onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
         />
       </div>

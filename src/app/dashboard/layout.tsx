@@ -24,7 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         .maybeSingle()
     : { data: null }
 
-  const corTema: string   = (perfil?.cor_tema  as string | null) ?? '#e0b066'
+  const corTema: string   = (perfil?.cor_tema  as string | null) ?? '#10B981'
   const modoTema: ModoTema = ((perfil?.modo_tema as string | null) ?? 'escuro') as ModoTema
   const fotoUrl: string | null = (perfil?.foto_url as string | null) ?? null
   const professorNome: string =
