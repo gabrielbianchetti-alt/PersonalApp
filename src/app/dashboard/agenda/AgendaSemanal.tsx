@@ -108,14 +108,22 @@ interface MoveConfirm {
   duracao: number
 }
 
+type AddEventStep = 'choose' | 'aula' | 'reposicao' | 'aula_extra' | 'outro'
 type Modal =
-  | { type: 'add';         dayIdx: number; date: Date; timeMin: number }
+  | { type: 'add';         dayIdx: number; date: Date; timeMin: number; duracao?: number; initialStep?: AddEventStep }
   | { type: 'aluno-card';  aluno: AlunoAgenda; dayIdx: number; date: Date }
   | { type: 'evento-card'; evento: EventoAgendaRow; alunoNome?: string }
   | { type: 'edit';        evento: EventoAgendaRow }
   | { type: 'slots' }
   | { type: 'move-confirm'; confirm: MoveConfirm }
   | null
+
+interface SelectedSlot {
+  dayIdx: number
+  date: Date
+  startMin: number
+  duracao: number
+}
 
 interface Props {
   alunos: AlunoAgenda[]
@@ -373,15 +381,17 @@ function MoveConfirmModal({
 // ─── AddEventModal ─────────────────────────────────────────────────────────────
 
 function AddEventModal({
-  dayIdx, date, timeMin, alunos, onClose, onSaved,
+  dayIdx, date, timeMin, alunos, onClose, onSaved, initialStep, initialDuracao,
 }: {
   dayIdx: number; date: Date; timeMin: number
   alunos: AlunoAgenda[]; onClose: () => void
   onSaved: (ev: EventoAgendaRow) => void
+  initialStep?: AddEventStep
+  initialDuracao?: number
 }) {
-  const [step, setStep]         = useState<'choose' | 'aula' | 'reposicao' | 'aula_extra' | 'outro'>('choose')
+  const [step, setStep]         = useState<AddEventStep>(initialStep ?? 'choose')
   const [alunoId, setAlunoId]   = useState('')
-  const [duracao, setDuracao]   = useState(60)
+  const [duracao, setDuracao]   = useState(initialDuracao ?? 60)
   const [titulo, setTitulo]     = useState('')
   const [tipo, setTipo]         = useState<EventoTipo>('outro')
   const [cor, setCor]           = useState(OUTRO_CORES[0])
@@ -393,7 +403,7 @@ function AddEventModal({
   // ── recurrence + free time (for "outro" step only) ─────────────────────────
   const [repetir, setRepetir] = useState(false)
   const defaultStart = minToTime(timeMin)
-  const defaultEnd   = minToTime(Math.min(GRID_END, timeMin + 60))
+  const defaultEnd   = minToTime(Math.min(GRID_END, timeMin + (initialDuracao ?? 60)))
   const [horaInicio, setHoraInicio] = useState<string>(defaultStart)
   const [horaFim,    setHoraFim]    = useState<string>(defaultEnd)
   const [diasSemana, setDiasSemana] = useState<DayKey[]>([WEEK_KEYS[dayIdx]])
@@ -1280,6 +1290,131 @@ function AvailableSlotsModal({
   )
 }
 
+// ─── SlotSelectionBottomSheet (mobile) ─────────────────────────────────────────
+
+function SlotSelectionBottomSheet({
+  slot, onCancel, onChoose,
+}: {
+  slot: SelectedSlot
+  onCancel: () => void
+  onChoose: (step: AddEventStep) => void
+}) {
+  const [visible, setVisible] = useState(false)
+  const [dragY, setDragY]     = useState(0)
+  const dragRef = useRef<{ startY: number; active: boolean }>({ startY: 0, active: false })
+
+  // Slide in on mount
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setVisible(true))
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
+  function close() {
+    setVisible(false)
+    setTimeout(onCancel, 200)
+  }
+
+  function onHandlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    dragRef.current = { startY: e.clientY, active: true }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  function onHandlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragRef.current.active) return
+    const dy = Math.max(0, e.clientY - dragRef.current.startY)
+    setDragY(dy)
+  }
+  function onHandlePointerUp() {
+    if (!dragRef.current.active) return
+    dragRef.current.active = false
+    if (dragY > 80) close()
+    else setDragY(0)
+  }
+
+  const endMin = slot.startMin + slot.duracao
+  const weekLabelsFull = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo']
+  const monthsShort = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
+  const dayName = weekLabelsFull[slot.dayIdx]
+  const dateLabel = `${dayName}, ${slot.date.getDate()} ${monthsShort[slot.date.getMonth()]}`
+
+  const translate = visible ? `translateY(${dragY}px)` : 'translateY(100%)'
+
+  return (
+    <>
+      {/* Invisible backdrop — catches taps outside the sheet to cancel */}
+      <div className="md:hidden fixed inset-0 z-40" onClick={close} />
+
+      {/* Bottom sheet */}
+      <div
+        className="md:hidden fixed left-0 right-0 bottom-0 z-50"
+        style={{
+          transform: translate,
+          transition: dragRef.current.active ? 'none' : 'transform 200ms ease-out',
+          background: 'var(--bg-surface)',
+          borderTopLeftRadius: 20, borderTopRightRadius: 20,
+          borderTop: '1px solid var(--border-subtle)',
+          boxShadow: '0 -12px 32px rgba(0,0,0,0.35)',
+          paddingBottom: 'env(safe-area-inset-bottom, 12px)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle */}
+        <div
+          onPointerDown={onHandlePointerDown}
+          onPointerMove={onHandlePointerMove}
+          onPointerUp={onHandlePointerUp}
+          onPointerCancel={onHandlePointerUp}
+          className="flex justify-center py-2.5 cursor-grab active:cursor-grabbing"
+          style={{ touchAction: 'none' }}
+        >
+          <div style={{
+            width: 40, height: 4, borderRadius: 2,
+            background: 'var(--border-subtle)',
+          }} />
+        </div>
+
+        <div className="px-5 pb-4">
+          {/* Time label */}
+          <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            Horário selecionado
+          </p>
+          <p className="text-base font-bold mt-0.5" style={{ color: 'var(--text-primary)' }}>
+            {dateLabel}
+          </p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--green-primary)', fontWeight: 600 }}>
+            {minToTime(slot.startMin)} — {minToTime(endMin)}
+            <span className="text-xs ml-2" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+              · {slot.duracao} min
+            </span>
+          </p>
+
+          {/* 3 option buttons */}
+          <div className="flex flex-col gap-2 mt-4">
+            {([
+              { id: 'aula' as const,      label: '📅 Marcar aula', color: TIPO_COLOR.aula },
+              { id: 'reposicao' as const, label: '🔁 Reposição',   color: TIPO_COLOR.reposicao },
+              { id: 'outro' as const,     label: '➕ Outros',      color: TIPO_COLOR.outro },
+            ]).map(opt => (
+              <button key={opt.id} onClick={() => onChoose(opt.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors"
+                style={{
+                  background: 'var(--bg-card)',
+                  border: `1px solid var(--border-subtle)`,
+                  color: opt.color,
+                }}>
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: opt.color }} />
+                <span className="flex-1 text-left">{opt.label}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ─── main component ────────────────────────────────────────────────────────────
 
 export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToFaltas }: Props) {
@@ -1294,6 +1429,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
   })
   const [hoverPos, setHoverPos]         = useState<{ dayIdx: number; y: number; timeMin: number } | null>(null)
   const [loadingWeek, setLoadingWeek]   = useState(false)
+  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null)
 
   // ── current time line ────────────────────────────────────────────────────────
   const [nowMin, setNowMin] = useState(() => {
@@ -1484,8 +1620,6 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     scrollContainerRef.current.scrollTo({ top: Math.max(0, px), behavior: 'smooth' })
   }
 
-  function scrollToHour(hour: number) { scrollToMinOffset(hour * 60) }
-
   function scrollToNow() {
     const n = new Date()
     scrollToMinOffset(n.getHours() * 60 + n.getMinutes())
@@ -1670,6 +1804,100 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     return Math.round(raw / 30) * 30
   }
 
+  // ── Renderer for the selected-slot highlight (mobile slot-selection mode) ──
+  // Used inside day columns. Includes top+bottom drag handles for resizing.
+  function renderSlotHighlight(pxScale: number) {
+    if (!selectedSlot) return null
+
+    function resizePointerDown(
+      e: React.PointerEvent<HTMLDivElement>,
+      edge: 'top' | 'bottom',
+    ) {
+      e.stopPropagation()
+      e.preventDefault()
+      const startY    = e.clientY
+      const origStart = selectedSlot!.startMin
+      const origDur   = selectedSlot!.duracao
+      const pid       = e.pointerId
+      const target    = e.currentTarget
+      target.setPointerCapture(pid)
+
+      const onMove = (ev: PointerEvent) => {
+        const dy       = ev.clientY - startY
+        const dMin     = Math.round(dy / pxScale / 15) * 15
+        if (edge === 'top') {
+          const newStart = Math.max(GRID_START, Math.min(origStart + dMin, origStart + origDur - 30))
+          const newDur   = origStart + origDur - newStart
+          setSelectedSlot(s => s ? { ...s, startMin: newStart, duracao: newDur } : s)
+        } else {
+          const newDur = Math.max(30, Math.min(origDur + dMin, GRID_END - origStart))
+          setSelectedSlot(s => s ? { ...s, duracao: newDur } : s)
+        }
+      }
+      const onUp = () => {
+        target.releasePointerCapture(pid)
+        target.removeEventListener('pointermove', onMove)
+        target.removeEventListener('pointerup', onUp)
+        target.removeEventListener('pointercancel', onUp)
+      }
+      target.addEventListener('pointermove', onMove)
+      target.addEventListener('pointerup', onUp)
+      target.addEventListener('pointercancel', onUp)
+    }
+
+    const top    = (selectedSlot.startMin - GRID_START) * pxScale
+    const height = Math.max(selectedSlot.duracao * pxScale, 24)
+
+    return (
+      <div
+        data-selected-slot="true"
+        className="absolute left-px right-px rounded z-20"
+        style={{
+          top, height,
+          background: 'rgba(16, 185, 129, 0.22)',
+          border: '2px solid #10B981',
+          boxShadow: '0 4px 16px rgba(16, 185, 129, 0.25)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Top drag handle */}
+        <div
+          onPointerDown={(e) => resizePointerDown(e, 'top')}
+          className="absolute left-0 right-0 flex items-center justify-center"
+          style={{ top: -10, height: 20, cursor: 'ns-resize', touchAction: 'none' }}
+        >
+          <div style={{
+            width: 32, height: 4, borderRadius: 2,
+            background: '#10B981', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          }} />
+        </div>
+
+        {/* Time label inside */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-1">
+          <span style={{
+            fontSize: 10, fontWeight: 700, color: '#10B981',
+            textShadow: '0 0 4px rgba(0,0,0,0.4)', lineHeight: 1.2,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {minToTime(selectedSlot.startMin)}–{minToTime(selectedSlot.startMin + selectedSlot.duracao)}
+          </span>
+        </div>
+
+        {/* Bottom drag handle */}
+        <div
+          onPointerDown={(e) => resizePointerDown(e, 'bottom')}
+          className="absolute left-0 right-0 flex items-center justify-center"
+          style={{ bottom: -10, height: 20, cursor: 'ns-resize', touchAction: 'none' }}
+        >
+          <div style={{
+            width: 32, height: 4, borderRadius: 2,
+            background: '#10B981', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          }} />
+        </div>
+      </div>
+    )
+  }
+
   function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, dayIdx: number) {
     if ((e.target as HTMLElement).closest('[data-block]')) return
     const rect    = e.currentTarget.getBoundingClientRect()
@@ -1677,7 +1905,12 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
     if (snapped < cfg.start || snapped >= cfg.end) return
     setHoverPos(null)
-    setModal({ type: 'add', dayIdx, date: weekDays[dayIdx], timeMin: snapped })
+    // Mobile: open bottom sheet with slot selection. Desktop: open modal directly.
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setSelectedSlot({ dayIdx, date: weekDays[dayIdx], startMin: snapped, duracao: 60 })
+    } else {
+      setModal({ type: 'add', dayIdx, date: weekDays[dayIdx], timeMin: snapped })
+    }
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>, dayIdx: number) {
@@ -1811,6 +2044,9 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
               border: `2px dashed ${dropHere.valid ? '#10B981' : '#EF4444'}`,
             }} />
         )}
+
+        {/* Selected slot highlight (mobile — slot selection mode) */}
+        {selectedSlot && selectedSlot.dayIdx === dayIdx && renderSlotHighlight(MIN_PX)}
 
         {/* Hover indicator (no drag active) — shows a 30-min preview block so
             the user can clearly see which :00/:30 slot they'll snap to. */}
@@ -1963,12 +2199,13 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
 
     function handleCompactClick(e: React.MouseEvent<HTMLDivElement>, dayIdx: number) {
       if ((e.target as HTMLElement).closest('[data-block]')) return
+      if ((e.target as HTMLElement).closest('[data-selected-slot]')) return
       const rect    = e.currentTarget.getBoundingClientRect()
       const snapped = snapTimeFromEvent(e.clientY, rect.top, COMPACT_MIN_PX)
       const cfg     = DAY_CFG[WEEK_KEYS[dayIdx]]
       if (snapped < cfg.start || snapped >= cfg.end) return
       setHoverPos(null)
-      setModal({ type: 'add', dayIdx, date: weekDays[dayIdx], timeMin: snapped })
+      setSelectedSlot({ dayIdx, date: weekDays[dayIdx], startMin: snapped, duracao: 60 })
     }
 
     const cHourLabels = Array.from({ length: 19 }, (_, i) => ({
@@ -1982,7 +2219,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         {/* Sticky day headers */}
         <div className="flex sticky top-0 z-10 shrink-0"
           style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ width: 28, flexShrink: 0 }} />
+          <div style={{ width: 40, flexShrink: 0 }} />
           {weekDays.map((day, i) => {
             const isTodayDay = toDateStr(day) === todayStr
             return (
@@ -2011,11 +2248,11 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         <div className="flex" style={{ height: COMPACT_GRID_H }}>
 
           {/* Hour labels */}
-          <div className="relative shrink-0" style={{ width: 28, height: COMPACT_GRID_H }}>
+          <div className="relative shrink-0" style={{ width: 40, height: COMPACT_GRID_H }}>
             {cHourLabels.map(({ label, top }) => (
-              <div key={label} className="absolute right-1 -translate-y-2"
-                style={{ top, fontSize: 9, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                {label}
+              <div key={label} className="absolute right-2 -translate-y-2 tabular-nums"
+                style={{ top, fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                {label}:00
               </div>
             ))}
           </div>
@@ -2137,6 +2374,9 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                       border: `1.5px dashed ${dropTarget.valid ? '#10B981' : '#EF4444'}`,
                     }} />
                 )}
+
+                {/* Selected slot highlight (mobile — slot selection mode) */}
+                {selectedSlot && selectedSlot.dayIdx === dayIdx && renderSlotHighlight(COMPACT_MIN_PX)}
 
                 {/* Blocks */}
                 {allBlocks.map((b) => {
@@ -2380,9 +2620,9 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
             {/* Mobile — Dia view */}
             {mobileView === 'dia' && (
               <div className="md:hidden flex" style={{ height: gridHeight }}>
-                <div className="relative shrink-0" style={{ width: 44, height: gridHeight }}>
+                <div className="relative shrink-0" style={{ width: 52, height: gridHeight }}>
                   {hourLabels.map(({ label, top }) => (
-                    <div key={label} className="absolute right-1.5 text-[10px] -translate-y-2"
+                    <div key={label} className="absolute right-2 text-[11px] font-medium -translate-y-2"
                       style={{ top, color: 'var(--text-muted)' }}>{label}</div>
                   ))}
                 </div>
@@ -2392,39 +2632,18 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
 
             {/* Mobile — Semana view */}
             {mobileView === 'semana' && (
-              <div className="md:hidden" style={{ paddingRight: 22 }}>
+              <div className="md:hidden">
                 {renderMobileWeekView()}
               </div>
             )}
           </div>
 
-          {/* Mobile scroll helper bar — right side, overlays the grid */}
-          <div className="md:hidden absolute right-0 top-0 bottom-0 z-30 flex flex-col items-center justify-between py-3 pointer-events-auto"
-            style={{ width: 22, background: 'rgba(12,12,18,0.72)', backdropFilter: 'blur(6px)' }}>
-            {[5,7,9,11,13,15,17,19,21,23].map(h => {
-              const nowHour   = new Date().getHours()
-              const isCurrent = nowHour >= h && nowHour < h + 2
-              return (
-                <button key={h}
-                  onClick={() => scrollToHour(h)}
-                  style={{
-                    fontSize: 9, fontWeight: 700, lineHeight: 1,
-                    color: isCurrent ? 'var(--green-primary)' : 'rgba(255,255,255,0.45)',
-                    background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0',
-                    textShadow: isCurrent ? '0 0 8px #10B981' : 'none',
-                  }}>
-                  {h}
-                </button>
-              )
-            })}
-          </div>
-
           {/* Agora floating button (mobile only) */}
           <button className="md:hidden absolute z-30 cursor-pointer"
             style={{
-              right: 34, bottom: 12, fontSize: 10, fontWeight: 700, lineHeight: 1,
+              right: 12, bottom: 12, fontSize: 11, fontWeight: 700, lineHeight: 1,
               background: 'var(--green-primary)', color: '#000',
-              border: 'none', borderRadius: 10, padding: '5px 8px',
+              border: 'none', borderRadius: 10, padding: '6px 10px',
               boxShadow: '0 2px 10px rgba(16, 185, 129,0.4)',
             }}
             onClick={scrollToNow}>
@@ -2460,6 +2679,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         {/* Modals */}
         {modal?.type === 'add' && (
           <AddEventModal dayIdx={modal.dayIdx} date={modal.date} timeMin={modal.timeMin}
+            initialStep={modal.initialStep} initialDuracao={modal.duracao}
             alunos={alunos} onClose={() => setModal(null)}
             onSaved={(ev) => { addEvento(ev); setModal(null) }} />
         )}
@@ -2499,6 +2719,26 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                 ? handleMoveEvento(modal.confirm)
                 : handleMoveAlunoPermanent(modal.confirm)
             }
+          />
+        )}
+
+        {/* Mobile slot-selection bottom sheet — Google Calendar style */}
+        {selectedSlot && !modal && (
+          <SlotSelectionBottomSheet
+            slot={selectedSlot}
+            onCancel={() => setSelectedSlot(null)}
+            onChoose={(step) => {
+              const s = selectedSlot
+              setSelectedSlot(null)
+              setModal({
+                type: 'add',
+                dayIdx: s.dayIdx,
+                date: s.date,
+                timeMin: s.startMin,
+                duracao: s.duracao,
+                initialStep: step,
+              })
+            }}
           />
         )}
     </div>
