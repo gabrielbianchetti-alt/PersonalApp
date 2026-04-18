@@ -45,7 +45,7 @@ function InputField({
           border: '1px solid var(--border-subtle)',
           color: 'var(--text-primary)',
         }}
-        onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.06)' }}
+        onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(224, 176, 102,0.06)' }}
         onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
       />
       {hint && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{hint}</p>}
@@ -173,7 +173,7 @@ export default function PreferenciasPage() {
                   className="flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors"
                   style={{
                     background: isActive ? 'var(--green-muted)' : 'var(--bg-input)',
-                    border: `1px solid ${isActive ? 'rgba(252,110,32,0.25)' : 'var(--border-subtle)'}`,
+                    border: `1px solid ${isActive ? 'rgba(224, 176, 102,0.25)' : 'var(--border-subtle)'}`,
                   }}
                 >
                   <input
@@ -181,7 +181,7 @@ export default function PreferenciasPage() {
                     name="tipo_data_cobranca"
                     value={opt.value}
                     defaultChecked={isActive}
-                    className="mt-0.5 accent-[#FC6E20]"
+                    className="mt-0.5 accent-[#e0b066]"
                     onChange={() => setPrefs(p => p ? { ...p, tipo_data_cobranca: opt.value } : p)}
                   />
                   <div>
@@ -216,7 +216,7 @@ export default function PreferenciasPage() {
               color: 'var(--text-primary)',
               lineHeight: '1.6',
             }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.06)' }}
+            onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(224, 176, 102,0.06)' }}
             onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
           />
         </div>

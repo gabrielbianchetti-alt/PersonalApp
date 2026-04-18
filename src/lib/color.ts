@@ -27,9 +27,9 @@ export function darkenHex(hex: string, amount = 25): string {
  * Returns null when accent is the default green (nothing to inject).
  */
 export function themeStyle(cor: string): string | null {
-  if (cor === '#FC6E20') return null          // default accent — nothing to inject
+  if (cor === '#e0b066') return null          // default accent — nothing to inject
   const [r, g, b] = hexToRgb(cor)
-  return `:root{--green-primary:${cor};--green-hover:${darkenHex(cor, 25)};--green-muted:rgba(${r},${g},${b},0.08);--green-border:rgba(${r},${g},${b},0.18);--border-focus:rgba(${r},${g},${b},0.5)}`
+  return `:root{--green-primary:${cor};--green-hover:${darkenHex(cor, 25)};--green-muted:rgba(${r},${g},${b},0.15);--green-border:rgba(${r},${g},${b},0.25);--border-focus:rgba(${r},${g},${b},0.5)}`
 }
 
 /** Apply accent-color CSS variables at runtime — client-only */
@@ -38,8 +38,8 @@ export function applyTheme(cor: string): void {
   const root = document.documentElement
   root.style.setProperty('--green-primary', cor)
   root.style.setProperty('--green-hover', darkenHex(cor, 25))
-  root.style.setProperty('--green-muted', `rgba(${r},${g},${b},0.08)`)
-  root.style.setProperty('--green-border', `rgba(${r},${g},${b},0.18)`)
+  root.style.setProperty('--green-muted', `rgba(${r},${g},${b},0.15)`)
+  root.style.setProperty('--green-border', `rgba(${r},${g},${b},0.25)`)
   root.style.setProperty('--border-focus', `rgba(${r},${g},${b},0.5)`)
 }
 

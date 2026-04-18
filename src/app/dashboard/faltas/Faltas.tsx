@@ -34,7 +34,7 @@ function urgencyColor(falta: FaltaRow, alertaDias: number): string {
   const dias = diasRestantes(falta.prazo_vencimento)
   if (dias < 0) return '#FF5252'
   if (dias <= alertaDias) return '#FFAB00'
-  return '#FC6E20'
+  return '#e0b066'
 }
 
 function urgencyBg(falta: FaltaRow, alertaDias: number): string {
@@ -42,13 +42,13 @@ function urgencyBg(falta: FaltaRow, alertaDias: number): string {
   const dias = diasRestantes(falta.prazo_vencimento)
   if (dias < 0) return 'rgba(255,82,82,0.08)'
   if (dias <= alertaDias) return 'rgba(255,171,0,0.08)'
-  return 'rgba(252,110,32,0.06)'
+  return 'rgba(224, 176, 102,0.06)'
 }
 
 function statusLabel(status: FaltaRow['status']): { label: string; color: string; bg: string } {
   switch (status) {
     case 'pendente': return { label: 'Pendente',         color: '#FFAB00', bg: 'rgba(255,171,0,0.12)' }
-    case 'reposta':  return { label: 'Remarcada',        color: '#FC6E20', bg: 'rgba(252,110,32,0.12)' }
+    case 'reposta':  return { label: 'Remarcada',        color: '#e0b066', bg: 'rgba(224, 176, 102,0.12)' }
     case 'credito':  return { label: 'Crédito',          color: '#40C4FF', bg: 'rgba(64,196,255,0.12)' }
     case 'vencida':  return { label: 'Vencida',          color: '#FF5252', bg: 'rgba(255,82,82,0.12)' }
     case 'cobranca': return { label: 'Cobrança mantida', color: '#9E9E9E', bg: 'rgba(158,158,158,0.12)' }
@@ -132,7 +132,7 @@ function NovaFaltaModal({
                   onClick={() => setCulpa(c)}
                   className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors"
                   style={culpa === c
-                    ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.3)' }
+                    ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.3)' }
                     : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
                   }
                 >
@@ -271,7 +271,7 @@ function ResolverModal({
                 onClick={() => setTipo(t)}
                 className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors"
                 style={tipo === t
-                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.3)' }
+                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.3)' }
                   : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
                 }
               >
@@ -425,7 +425,7 @@ function PreferenciasModal({
                 onClick={() => setPrazo(String(p))}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
                 style={prazo === String(p)
-                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.3)' }
+                  ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.3)' }
                   : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
                 }
               >
@@ -695,7 +695,7 @@ function FaltaCard({
           <button
             onClick={() => onResolve(falta)}
             className="flex-1 py-1.5 rounded-lg text-xs font-semibold"
-            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}
           >
             Resolver
           </button>
@@ -761,9 +761,9 @@ function PendenciaCard({
   const isOverdue = dias < 0
   const isUrgent  = !isOverdue && dias <= alertaDias
 
-  const borderColor = isOverdue ? 'rgba(255,82,82,0.5)' : isUrgent ? 'rgba(255,171,0,0.4)' : 'rgba(252,110,32,0.2)'
-  const cardBg      = isOverdue ? 'rgba(255,82,82,0.05)' : isUrgent ? 'rgba(255,171,0,0.04)' : 'rgba(252,110,32,0.03)'
-  const barColor    = isOverdue ? '#FF5252' : isUrgent ? '#FFAB00' : '#FC6E20'
+  const borderColor = isOverdue ? 'rgba(255,82,82,0.5)' : isUrgent ? 'rgba(255,171,0,0.4)' : 'rgba(224, 176, 102,0.2)'
+  const cardBg      = isOverdue ? 'rgba(255,82,82,0.05)' : isUrgent ? 'rgba(255,171,0,0.04)' : 'rgba(224, 176, 102,0.03)'
+  const barColor    = isOverdue ? '#FF5252' : isUrgent ? '#FFAB00' : '#e0b066'
   const barWidth    = `${Math.max(2, Math.min(100, (dias / 30) * 100))}%`
 
   async function handleDelete() {
@@ -903,7 +903,7 @@ function HistoricoRow({
             · {falta.culpa === 'aluno' ? 'Aluno' : 'Professor'}
           </p>
           {falta.status === 'reposta' && falta.data_reposicao && (
-            <p className="text-xs" style={{ color: '#FC6E20' }}>· Remarcada {fmtDate(falta.data_reposicao)}</p>
+            <p className="text-xs" style={{ color: '#e0b066' }}>· Remarcada {fmtDate(falta.data_reposicao)}</p>
           )}
           {falta.status === 'credito' && falta.credito_valor != null && (
             <p className="text-xs font-medium" style={{ color: '#40C4FF' }}>
@@ -1118,7 +1118,7 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
           </div>
 
           {pendentesFiltered.length === 0 ? (
-            <div className="rounded-2xl py-10 text-center" style={{ background: 'rgba(252,110,32,0.05)', border: '1.5px solid rgba(252,110,32,0.15)' }}>
+            <div className="rounded-2xl py-10 text-center" style={{ background: 'rgba(224, 176, 102,0.05)', border: '1.5px solid rgba(224, 176, 102,0.15)' }}>
               <p className="text-3xl mb-2">✅</p>
               <p className="text-sm font-bold" style={{ color: 'var(--green-primary)' }}>Tudo resolvido!</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Nenhuma falta pendente no momento.</p>
@@ -1230,7 +1230,7 @@ export function Faltas({ alunos, faltasIniciais, prefsIniciais }: Props) {
                 </span>
               )}
               {totalRemarcadas > 0 && (
-                <span className="text-xs font-medium" style={{ color: '#FC6E20' }}>
+                <span className="text-xs font-medium" style={{ color: '#e0b066' }}>
                   {totalRemarcadas} remarcada{totalRemarcadas !== 1 ? 's' : ''}
                 </span>
               )}

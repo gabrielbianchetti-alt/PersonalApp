@@ -169,7 +169,7 @@ export function NotificationBell({ variant = 'sidebar' }: Props) {
         onClick={handleOpen}
         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-100 cursor-pointer"
         style={open
-          ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.15)' }
+          ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.15)' }
           : { color: 'var(--text-secondary)', background: 'transparent', border: '1px solid transparent' }
         }
         onMouseEnter={e => { if (!open) (e.currentTarget as HTMLElement).style.background = 'var(--bg-card)' }}
@@ -284,11 +284,11 @@ const NotificationPanel = forwardRef<HTMLDivElement, PanelProps>(
                 onClick={() => onMarkRead(n.id, n.notificacao?.link ?? null)}
                 className="w-full flex items-start gap-3 px-4 py-3 text-left transition-colors duration-100 cursor-pointer"
                 style={{
-                  background: !n.lida ? 'rgba(252,110,32,0.04)' : 'transparent',
+                  background: !n.lida ? 'rgba(224, 176, 102,0.04)' : 'transparent',
                   borderBottom: '1px solid var(--border-subtle)',
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = !n.lida ? 'rgba(252,110,32,0.04)' : 'transparent' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = !n.lida ? 'rgba(224, 176, 102,0.04)' : 'transparent' }}
               >
                 {/* Icon */}
                 <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"

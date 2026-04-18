@@ -104,14 +104,14 @@ export function EditAlunoButton({ aluno }: { aluno: AlunoRow }) {
           className="fixed bottom-6 right-6 z-[200] flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold shadow-2xl"
           style={{
             background: '#0f172a',
-            border: '1px solid #FC6E20',
+            border: '1px solid #e0b066',
             color: '#fff',
             animation: 'fadeInUp 0.25s ease',
           }}
         >
           <span
             className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: 'rgba(252,110,32,0.15)', color: '#FC6E20', fontSize: 12, fontWeight: 700 }}
+            style={{ background: 'rgba(224, 176, 102,0.15)', color: '#e0b066', fontSize: 12, fontWeight: 700 }}
           >
             ✓
           </span>

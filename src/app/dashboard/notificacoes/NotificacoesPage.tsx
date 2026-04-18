@@ -89,7 +89,7 @@ export function NotificacoesPage() {
           <button
             onClick={handleMarkAllRead}
             className="text-sm px-4 py-2 rounded-lg cursor-pointer"
-            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}
           >
             Marcar todas como lidas
           </button>
@@ -137,7 +137,7 @@ export function NotificacoesPage() {
               className="flex items-start gap-4 p-4 rounded-2xl text-left w-full cursor-pointer transition-all duration-150"
               style={{
                 background: !n.lida ? 'var(--bg-card)' : 'var(--bg-surface)',
-                border: !n.lida ? '1px solid rgba(252,110,32,0.2)' : '1px solid var(--border-subtle)',
+                border: !n.lida ? '1px solid rgba(224, 176, 102,0.2)' : '1px solid var(--border-subtle)',
               }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '0.85' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1' }}

@@ -124,7 +124,7 @@ function EditModeloModal({
               type="button"
               onClick={() => setConteudo(c => c + v)}
               className="px-2.5 py-1 rounded-full text-xs font-mono font-medium transition-colors"
-              style={{ background: 'var(--bg-input)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}
+              style={{ background: 'var(--bg-input)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}
               title={`Inserir ${v}`}
             >
               {v}
@@ -234,7 +234,7 @@ function NewModeloModal({
               type="button"
               onClick={() => setConteudo(c => c + v)}
               className="px-2.5 py-1 rounded-full text-xs font-mono font-medium transition-colors"
-              style={{ background: 'var(--bg-input)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}
+              style={{ background: 'var(--bg-input)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}
               title={`Inserir ${v}`}
             >
               {v}
@@ -530,7 +530,7 @@ function EnviarTermoModal({
               type="button"
               onClick={onClose}
               className="flex-1 py-2.5 rounded-lg text-sm font-semibold"
-              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.3)' }}
+              style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.3)' }}
             >
               ✓ Enviado! Fechar
             </button>
@@ -768,7 +768,7 @@ export function Termos({ alunos, modelos: modelosIniciais, historicoInicial, alu
                       <div className="text-right shrink-0 hidden sm:block">
                         {lastSend ? (
                           <>
-                            <p className="text-xs font-medium" style={{ color: '#FC6E20' }}>✓ Enviado</p>
+                            <p className="text-xs font-medium" style={{ color: '#e0b066' }}>✓ Enviado</p>
                             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{fmtEnviadoEm(lastSend).split(',')[0]}</p>
                           </>
                         ) : sendCount === 0 ? (

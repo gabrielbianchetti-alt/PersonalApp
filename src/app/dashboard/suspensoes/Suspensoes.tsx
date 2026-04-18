@@ -36,7 +36,7 @@ function tipoLabel(tipo: SuspensaoTipo): { label: string; color: string; bg: str
 
 function acaoLabel(acao: AcaoHorario): { label: string; desc: string; color: string } {
   switch (acao) {
-    case 'disponivel': return { label: 'Disponível',         desc: 'Horário liberado na agenda',          color: '#FC6E20' }
+    case 'disponivel': return { label: 'Disponível',         desc: 'Horário liberado na agenda',          color: '#e0b066' }
     case 'bloqueado':  return { label: 'Bloqueado',          desc: 'Horário bloqueado durante a pausa',   color: '#FF5252' }
     case 'reposicoes': return { label: 'Para reposições',    desc: 'Horário reservado para reposições',   color: '#CE93D8' }
   }
@@ -134,7 +134,7 @@ function NovaSuspensaoModal({
                   onClick={() => setTipo(t.value)}
                   className="flex flex-col items-start gap-0.5 p-3 rounded-xl text-left transition-colors"
                   style={tipo === t.value
-                    ? { background: 'var(--green-muted)', border: '1px solid rgba(252,110,32,0.3)', color: 'var(--green-primary)' }
+                    ? { background: 'var(--green-muted)', border: '1px solid rgba(224, 176, 102,0.3)', color: 'var(--green-primary)' }
                     : { background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }
                   }
                 >
@@ -187,7 +187,7 @@ function NovaSuspensaoModal({
                   onClick={() => setAcaoHorario(op.value)}
                   className="flex items-center gap-3 p-3 rounded-xl text-left transition-colors"
                   style={acaoHorario === op.value
-                    ? { background: 'var(--green-muted)', border: '1px solid rgba(252,110,32,0.3)' }
+                    ? { background: 'var(--green-muted)', border: '1px solid rgba(224, 176, 102,0.3)' }
                     : { background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }
                   }
                 >
@@ -310,7 +310,7 @@ function ReativarModal({
         {/* ── LIVRE ── */}
         {step.type === 'livre' && (
           <>
-            <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: 'var(--green-muted)', border: '1px solid rgba(252,110,32,0.2)' }}>
+            <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: 'var(--green-muted)', border: '1px solid rgba(224, 176, 102,0.2)' }}>
               <span className="text-lg">✅</span>
               <div>
                 <p className="text-sm font-semibold" style={{ color: 'var(--green-primary)' }}>Horário disponível!</p>
@@ -532,7 +532,7 @@ function ExcluirSuspensaoModal({
           <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
             Esta ação não pode ser desfeita.
             {suspensao.status === 'ativa' && (
-              <><br /><span style={{ color: '#FC6E20' }}>O aluno será reativado automaticamente.</span></>
+              <><br /><span style={{ color: '#e0b066' }}>O aluno será reativado automaticamente.</span></>
             )}
           </p>
         </div>
@@ -722,7 +722,7 @@ function SuspensaoCard({
           <button
             onClick={() => onReativar(suspensao)}
             className="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors"
-            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(252,110,32,0.2)' }}
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(224, 176, 102,0.2)' }}
           >
             ▶ Reativar Aluno
           </button>
@@ -974,14 +974,14 @@ export function Suspensoes({ alunosAtivos, alunosPausados, suspensoesIniciais }:
           className="fixed bottom-6 right-6 z-[200] flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold shadow-2xl"
           style={{
             background: '#0f172a',
-            border: '1px solid #FC6E20',
+            border: '1px solid #e0b066',
             color: '#fff',
             animation: 'fadeInUp 0.25s ease',
           }}
         >
           <span
             className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: 'rgba(252,110,32,0.15)', color: '#FC6E20', fontSize: 12, fontWeight: 700 }}
+            style={{ background: 'rgba(224, 176, 102,0.15)', color: '#e0b066', fontSize: 12, fontWeight: 700 }}
           >
             ✓
           </span>

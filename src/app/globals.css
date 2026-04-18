@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
-/* ── Dark mode (default) ──────────────────────────────────────────────────── */
+/* ── Dark mode (default) · Grafite + Mostarda ───────────────────────────── */
 :root {
-  --green-primary: #FC6E20;
-  --green-hover: #E35507;
-  --green-muted: rgba(252, 110, 32, 0.08);
-  --green-border: rgba(252, 110, 32, 0.18);
-  --bg-base: #1B1B1B;
-  --bg-surface: #232323;
-  --bg-card: #323232;
-  --bg-input: #2A2A2A;
-  --border-subtle: #3D3D3D;
-  --border-focus: rgba(252, 110, 32, 0.5);
-  --text-primary: #F5F5F5;
-  --text-secondary: #C0C0C0;
-  --text-muted: #888888;
+  --green-primary: #e0b066;
+  --green-hover: #efc077;
+  --green-muted: rgba(224, 176, 102, 0.15);
+  --green-border: rgba(224, 176, 102, 0.25);
+  --bg-base: #0a0b0e;
+  --bg-surface: #10121a;
+  --bg-card: #14161b;
+  --bg-input: #14161b;
+  --border-subtle: #23262e;
+  --border-focus: rgba(224, 176, 102, 0.5);
+  --text-primary: #ffffff;
+  --text-secondary: #d9dce3;
+  --text-muted: #9a9ca5;
 }
 
 html {
@@ -24,15 +24,19 @@ html {
 /* ── Light mode — matches data-theme="claro" set by applyModo() / root layout ── */
 html[data-theme="claro"] {
   color-scheme: light;
-  --bg-base: #F5F5F5;
-  --bg-surface: #FFFFFF;
-  --bg-card: #FFFFFF;
-  --bg-input: #FFFFFF;
-  --border-subtle: #E5E7EB;
-  --border-focus: rgba(252, 110, 32, 0.5);
-  --text-primary: #1A1A2E;
-  --text-secondary: #6B7280;
-  --text-muted: #9CA3AF;
+  --green-primary: #d4a058;
+  --green-hover: #c08f4a;
+  --green-muted: #f5e8cf;
+  --green-border: rgba(212, 160, 88, 0.25);
+  --bg-base: #ffffff;
+  --bg-surface: #faf8f2;
+  --bg-card: #faf8f2;
+  --bg-input: #ffffff;
+  --border-subtle: #e8e4d8;
+  --border-focus: rgba(212, 160, 88, 0.5);
+  --text-primary: #0f1117;
+  --text-secondary: #2c2f3a;
+  --text-muted: #6b6e7a;
 }
 
 /* ── Auto mode — follows OS preference, matches data-theme="auto" ─────────── */
@@ -42,15 +46,19 @@ html[data-theme="auto"] {
 
 @media (prefers-color-scheme: light) {
   html[data-theme="auto"] {
-    --bg-base: #F5F5F5;
-    --bg-surface: #FFFFFF;
-    --bg-card: #FFFFFF;
-    --bg-input: #FFFFFF;
-    --border-subtle: #E5E7EB;
-    --border-focus: rgba(252, 110, 32, 0.5);
-    --text-primary: #1A1A2E;
-    --text-secondary: #6B7280;
-    --text-muted: #9CA3AF;
+    --green-primary: #d4a058;
+    --green-hover: #c08f4a;
+    --green-muted: #f5e8cf;
+    --green-border: rgba(212, 160, 88, 0.25);
+    --bg-base: #ffffff;
+    --bg-surface: #faf8f2;
+    --bg-card: #faf8f2;
+    --bg-input: #ffffff;
+    --border-subtle: #e8e4d8;
+    --border-focus: rgba(212, 160, 88, 0.5);
+    --text-primary: #0f1117;
+    --text-secondary: #2c2f3a;
+    --text-muted: #6b6e7a;
   }
 }
 
@@ -91,9 +99,9 @@ input:-webkit-autofill:focus {
 html[data-theme="claro"] input:-webkit-autofill,
 html[data-theme="claro"] input:-webkit-autofill:hover,
 html[data-theme="claro"] input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
-  -webkit-text-fill-color: #1A1A2E !important;
-  caret-color: #1A1A2E;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f1117 !important;
+  caret-color: #0f1117;
 }
 
 /* Autofill — auto mode when system is light */
@@ -101,8 +109,8 @@ html[data-theme="claro"] input:-webkit-autofill:focus {
   html[data-theme="auto"] input:-webkit-autofill,
   html[data-theme="auto"] input:-webkit-autofill:hover,
   html[data-theme="auto"] input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
-    -webkit-text-fill-color: #1A1A2E !important;
-    caret-color: #1A1A2E;
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+    -webkit-text-fill-color: #0f1117 !important;
+    caret-color: #0f1117;
   }
 }

@@ -185,8 +185,8 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── tema ────────────────────────────────────────────────────────────────────
-  const [corSalva, setCorSalva] = useState(perfil.cor_tema || '#FC6E20')
-  const [corPreview, setCorPreview] = useState(perfil.cor_tema || '#FC6E20')
+  const [corSalva, setCorSalva] = useState(perfil.cor_tema || '#e0b066')
+  const [corPreview, setCorPreview] = useState(perfil.cor_tema || '#e0b066')
   const [corLoading, setCorLoading] = useState(false)
   const [corDone, setCorDone] = useState(false)
   const [customCor, setCustomCor] = useState(
@@ -390,7 +390,7 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
             onKeyDown={e => e.key === 'Enter' && handleSaveNome()}
             className="h-11 rounded-xl px-4 text-sm outline-none w-full"
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
-            onFocus={e => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.08)' }}
+            onFocus={e => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(224, 176, 102,0.08)' }}
             onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
           />
         </div>

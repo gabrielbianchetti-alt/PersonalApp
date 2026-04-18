@@ -84,7 +84,7 @@ export function StepSaude({ data, errors, onChange }: Props) {
             color: 'var(--text-primary)',
             lineHeight: '1.6',
           }}
-          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.08)' }}
+          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(224, 176, 102,0.08)' }}
           onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
         />
       </div>
@@ -108,7 +108,7 @@ export function StepSaude({ data, errors, onChange }: Props) {
             color: 'var(--text-primary)',
             lineHeight: '1.6',
           }}
-          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(252,110,32,0.08)' }}
+          onFocus={(e) => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 3px rgba(224, 176, 102,0.08)' }}
           onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
         />
       </div>
