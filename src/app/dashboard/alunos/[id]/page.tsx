@@ -27,6 +27,17 @@ export default async function AlunoPerfilPage({
 
   if (!aluno) notFound()
 
+  // Active pacote (for pacote-model students) — used to pre-fill edit form
+  const { data: pacoteAtivo } = await supabase
+    .from('pacotes')
+    .select('quantidade_total, validade_dias, data_inicio, data_cobranca')
+    .eq('professor_id', user.id)
+    .eq('aluno_id', id)
+    .eq('status', 'ativo')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   // Last termo sent
   const { data: ultimoTermo } = await supabase
     .from('termos_enviados')
@@ -62,7 +73,7 @@ export default async function AlunoPerfilPage({
           </svg>
           Alunos
         </Link>
-        <EditAlunoButton aluno={aluno} />
+        <EditAlunoButton aluno={{ ...aluno, pacoteAtivo: pacoteAtivo ?? null }} />
       </div>
 
       {/* Header card */}

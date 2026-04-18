@@ -1,6 +1,6 @@
 'use client'
 
-import { AlunoFormData, DIAS_SEMANA, DURACAO_OPCOES, LOCAL_OPCOES, calcularPrevisaoMensal, formatCurrency, HorarioDia } from '@/types/aluno'
+import { AlunoFormData, DIAS_SEMANA, DURACAO_OPCOES, LOCAL_OPCOES, calcularPrevisaoMensal, formatCurrency, HorarioDia, addDays } from '@/types/aluno'
 
 interface Props {
   data: AlunoFormData
@@ -43,6 +43,7 @@ function ToggleGroup({
 
 export function StepTreino({ data, errors, onChange }: Props) {
   const previsao = calcularPrevisaoMensal(data)
+  const isPacote = data.modelo_cobranca === 'pacote'
 
   function toggleDia(key: string) {
     const already = data.horarios.find(h => h.dia === key)
@@ -62,6 +63,11 @@ export function StepTreino({ data, errors, onChange }: Props) {
     .map(d => data.horarios.find(h => h.dia === d.key))
     .filter((h): h is HorarioDia => h !== undefined)
 
+  // Pacote: vencimento calculado
+  const pacoteVencimento = isPacote && data.pacote_data_inicio && data.pacote_validade_dias
+    ? addDays(data.pacote_data_inicio, parseInt(data.pacote_validade_dias) || 0)
+    : ''
+
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -73,7 +79,8 @@ export function StepTreino({ data, errors, onChange }: Props) {
         </p>
       </div>
 
-      {/* Dias da semana */}
+      {/* Dias da semana (hidden para pacote — aulas são avulsas) */}
+      {!isPacote && (
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
           Dias da semana *
@@ -102,9 +109,10 @@ export function StepTreino({ data, errors, onChange }: Props) {
           <p className="text-xs" style={{ color: '#EF4444' }}>{errors.horarios}</p>
         )}
       </div>
+      )}
 
       {/* Per-day time inputs */}
-      {selectedInOrder.length > 0 && (
+      {!isPacote && selectedInOrder.length > 0 && (
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
             Horários por dia *
@@ -238,17 +246,25 @@ export function StepTreino({ data, errors, onChange }: Props) {
         <ToggleGroup
           options={[
             { value: 'por_aula', label: 'Por aula' },
-            { value: 'mensalidade', label: 'Mensalidade fixa' },
+            { value: 'mensalidade', label: 'Mensalidade' },
+            { value: 'pacote', label: 'Pacote' },
           ]}
           value={data.modelo_cobranca}
           onChange={(v) => onChange('modelo_cobranca', v)}
         />
+        {isPacote && (
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            Aulas avulsas agendadas individualmente. Cobrança única no início do pacote.
+          </p>
+        )}
       </div>
 
       {/* Valor */}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="valor" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-          {data.modelo_cobranca === 'mensalidade' ? 'Valor da mensalidade *' : 'Valor por aula *'}
+          {data.modelo_cobranca === 'mensalidade' ? 'Valor da mensalidade *'
+            : data.modelo_cobranca === 'pacote' ? 'Valor do pacote *'
+            : 'Valor por aula *'}
         </label>
         <div className="relative">
           <span
@@ -279,7 +295,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
       </div>
 
       {/* Previsão mensal */}
-      {data.valor && parseFloat(data.valor) > 0 && data.horarios.length > 0 && (
+      {!isPacote && data.valor && parseFloat(data.valor) > 0 && data.horarios.length > 0 && (
         <div
           className="flex items-center justify-between px-4 py-3 rounded-xl"
           style={{ background: 'var(--green-muted)', border: '1px solid rgba(16, 185, 129,0.2)' }}
@@ -291,6 +307,94 @@ export function StepTreino({ data, errors, onChange }: Props) {
             {formatCurrency(previsao)}
           </span>
         </div>
+      )}
+
+      {/* Campos do Pacote */}
+      {isPacote && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="pacote_qtd" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Qtd. de aulas *
+              </label>
+              <input id="pacote_qtd" type="number" min="1" step="1" placeholder="10"
+                value={data.pacote_quantidade}
+                onChange={(e) => onChange('pacote_quantidade', e.target.value)}
+                className="h-12 rounded-xl px-4 text-sm outline-none"
+                style={{
+                  background: 'var(--bg-input)',
+                  border: `1px solid ${errors.pacote_quantidade ? '#EF4444' : 'var(--border-subtle)'}`,
+                  color: 'var(--text-primary)',
+                }}/>
+              {errors.pacote_quantidade && <p className="text-xs" style={{ color: '#EF4444' }}>{errors.pacote_quantidade}</p>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="pacote_val" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Validade (dias) *
+              </label>
+              <input id="pacote_val" type="number" min="1" step="1" placeholder="30"
+                value={data.pacote_validade_dias}
+                onChange={(e) => onChange('pacote_validade_dias', e.target.value)}
+                className="h-12 rounded-xl px-4 text-sm outline-none"
+                style={{
+                  background: 'var(--bg-input)',
+                  border: `1px solid ${errors.pacote_validade_dias ? '#EF4444' : 'var(--border-subtle)'}`,
+                  color: 'var(--text-primary)',
+                }}/>
+              {errors.pacote_validade_dias && <p className="text-xs" style={{ color: '#EF4444' }}>{errors.pacote_validade_dias}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="pacote_ini" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Início do pacote *
+              </label>
+              <input id="pacote_ini" type="date"
+                value={data.pacote_data_inicio}
+                onChange={(e) => onChange('pacote_data_inicio', e.target.value)}
+                className="h-12 rounded-xl px-4 text-sm outline-none"
+                style={{
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                }}/>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="pacote_cob" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Data de cobrança *
+              </label>
+              <input id="pacote_cob" type="date"
+                value={data.pacote_data_cobranca}
+                onChange={(e) => onChange('pacote_data_cobranca', e.target.value)}
+                className="h-12 rounded-xl px-4 text-sm outline-none"
+                style={{
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                }}/>
+            </div>
+          </div>
+
+          {/* Resumo do pacote */}
+          {data.pacote_quantidade && data.valor && parseFloat(data.valor) > 0 && pacoteVencimento && (
+            <div className="flex flex-col gap-1.5 px-4 py-3 rounded-xl"
+              style={{ background: 'var(--green-muted)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Pacote</span>
+                <span className="text-base font-bold" style={{ color: 'var(--green-primary)' }}>
+                  {data.pacote_quantidade} aulas · {formatCurrency(parseFloat(data.valor))}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Vencimento</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  {pacoteVencimento.split('-').reverse().join('/')}
+                </span>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Forma de pagamento */}
@@ -308,7 +412,8 @@ export function StepTreino({ data, errors, onChange }: Props) {
         />
       </div>
 
-      {/* Dia de cobrança */}
+      {/* Dia de cobrança (hidden para pacote — usa pacote_data_cobranca) */}
+      {!isPacote && (
       <div className="flex flex-col gap-1.5">
         <label htmlFor="dia_cobranca" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
           Dia de cobrança{' '}
@@ -338,6 +443,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
           onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none' }}
         />
       </div>
+      )}
     </div>
   )
 }

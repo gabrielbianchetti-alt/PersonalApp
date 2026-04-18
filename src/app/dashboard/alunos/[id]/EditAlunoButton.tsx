@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { EditAlunoModal } from './EditAlunoModal'
-import type { AlunoFormData } from '@/types/aluno'
+import type { AlunoFormData, ModeloCobranca } from '@/types/aluno'
 
 export interface AlunoRow {
   id: string
@@ -18,13 +18,20 @@ export interface AlunoRow {
   duracao: number | null
   local: string | null
   endereco: string | null
-  modelo_cobranca: 'por_aula' | 'mensalidade' | null
+  modelo_cobranca: ModeloCobranca | null
   valor: number | null
   forma_pagamento: 'pix' | 'cartao' | null
   dia_cobranca: number | null
   objetivos: string[] | null
   restricoes: string | null
   observacoes: string | null
+  /** Pacote ativo, se existir (carregado junto no server) */
+  pacoteAtivo?: {
+    quantidade_total: number
+    validade_dias: number
+    data_inicio: string
+    data_cobranca: string
+  } | null
 }
 
 function maskPhone(raw: string | null, length: 11 | 10 = 11): string {
@@ -37,6 +44,7 @@ function maskPhone(raw: string | null, length: 11 | 10 = 11): string {
 }
 
 function alunoToFormData(aluno: AlunoRow): AlunoFormData {
+  const hoje = new Date().toISOString().split('T')[0]
   return {
     nome: aluno.nome ?? '',
     whatsapp: maskPhone(aluno.whatsapp),
@@ -53,6 +61,10 @@ function alunoToFormData(aluno: AlunoRow): AlunoFormData {
     valor: aluno.valor != null ? String(aluno.valor) : '',
     forma_pagamento: aluno.forma_pagamento ?? 'pix',
     dia_cobranca: aluno.dia_cobranca ? String(aluno.dia_cobranca) : '1',
+    pacote_quantidade:    aluno.pacoteAtivo ? String(aluno.pacoteAtivo.quantidade_total) : '10',
+    pacote_validade_dias: aluno.pacoteAtivo ? String(aluno.pacoteAtivo.validade_dias) : '30',
+    pacote_data_inicio:   aluno.pacoteAtivo?.data_inicio ?? hoje,
+    pacote_data_cobranca: aluno.pacoteAtivo?.data_cobranca ?? hoje,
     objetivos: aluno.objetivos ?? [],
     restricoes: aluno.restricoes ?? '',
     observacoes: aluno.observacoes ?? '',

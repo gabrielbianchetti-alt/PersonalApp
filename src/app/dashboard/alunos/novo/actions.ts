@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { AlunoFormData } from '@/types/aluno'
+import { AlunoFormData, addDays } from '@/types/aluno'
 
 export async function criarAlunoAction(
   data: AlunoFormData
@@ -11,6 +11,8 @@ export async function criarAlunoAction(
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada. Faça login novamente.' }
+
+  const isPacote = data.modelo_cobranca === 'pacote'
 
   const { data: row, error } = await supabase
     .from('alunos')
@@ -25,7 +27,8 @@ export async function criarAlunoAction(
       emergencia_telefone: data.emergencia_telefone.replace(/\D/g, '') || null,
       emergencia_parentesco: data.emergencia_parentesco.trim() || null,
 
-      horarios: data.horarios,
+      // Pacote não usa horários fixos
+      horarios: isPacote ? [] : data.horarios,
       duracao: parseInt(data.duracao),
       local: data.local,
       endereco: data.endereco.trim() || null,
@@ -46,6 +49,27 @@ export async function criarAlunoAction(
     return { error: 'Erro ao salvar aluno. Tente novamente.' }
   }
 
+  // Cria o primeiro pacote para alunos tipo pacote
+  if (isPacote && row) {
+    const qtd        = parseInt(data.pacote_quantidade) || 0
+    const validade   = parseInt(data.pacote_validade_dias) || 30
+    const vencimento = addDays(data.pacote_data_inicio, validade)
+    const { error: pacoteErr } = await supabase.from('pacotes').insert({
+      professor_id:     user.id,
+      aluno_id:         (row as { id: string }).id,
+      quantidade_total: qtd,
+      quantidade_usada: 0,
+      valor:            parseFloat(data.valor),
+      validade_dias:    validade,
+      data_inicio:      data.pacote_data_inicio,
+      data_vencimento:  vencimento,
+      data_cobranca:    data.pacote_data_cobranca,
+      status:           'ativo',
+    })
+    if (pacoteErr) console.error('Erro ao criar pacote inicial:', pacoteErr)
+  }
+
   revalidatePath('/dashboard/alunos')
+  revalidatePath('/dashboard/pacotes')
   return { data: row as Record<string, unknown> }
 }

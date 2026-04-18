@@ -11,7 +11,7 @@ import { FaltaQuickActionModal } from './faltas/FaltaQuickActionModal'
 
 type AlertIconId =
   | 'calendar' | 'clock' | 'check-circle' | 'clipboard'
-  | 'book-open' | 'cake' | 'party' | 'trending-up'
+  | 'book-open' | 'cake' | 'party' | 'trending-up' | 'package'
 
 interface AlertaItem {
   id:   string
@@ -42,6 +42,14 @@ interface AlunoCobranca {
   diasDesdeEnvio: number | null
 }
 
+interface PacoteAlertaInfo {
+  aluno_nome:       string
+  quantidade_total: number
+  quantidade_usada: number
+  data_vencimento:  string
+  status:           'ativo' | 'vencido' | 'finalizado'
+}
+
 interface Props {
   professorNome:         string
   faturamento:           number
@@ -54,6 +62,7 @@ interface Props {
   aniversariosAmanha:    string[]
   aniversariosMes:       string[]
   novosAlunosMes:        number
+  pacotesAlertas?:       PacoteAlertaInfo[]
 }
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -151,6 +160,14 @@ function AlertIcon({ id, size = 22 }: { id: AlertIconId; size?: number }) {
         <svg {...common}>
           <polyline points="3 17 9 11 13 15 21 7" />
           <polyline points="15 7 21 7 21 13" />
+        </svg>
+      )
+    case 'package':
+      return (
+        <svg {...common}>
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+          <line x1="12" y1="22.08" x2="12" y2="12" />
         </svg>
       )
   }
@@ -260,6 +277,7 @@ export function DashboardHome({
   aniversariosAmanha,
   aniversariosMes,
   novosAlunosMes,
+  pacotesAlertas = [],
 }: Props) {
   const [alunosCobranca, setAlunosCobranca] = useState<AlunoCobranca[]>(todosAlunosInit)
   const [cobrancaTab, setCobrancaTab]       = useState<CobrancaTab>('pendente')
@@ -340,6 +358,26 @@ export function DashboardHome({
   // h) Novos alunos
   if (novosAlunosMes > 0) {
     alertas.push({ id: 'novos', icon: 'trending-up', text: `${novosAlunosMes} aluno${novosAlunosMes !== 1 ? 's' : ''} novo${novosAlunosMes !== 1 ? 's' : ''} este mês`, href: '/dashboard/alunos' })
+  }
+
+  // i) Pacotes — avisos de baixa, fim, ou vencimento próximo
+  {
+    const hojeIso = today.toISOString().split('T')[0]
+    const hojeMs  = new Date(hojeIso + 'T00:00:00').getTime()
+    for (const p of pacotesAlertas) {
+      const restantes = Math.max(0, p.quantidade_total - p.quantidade_usada)
+      const diasAteVenc = Math.round((new Date(p.data_vencimento + 'T00:00:00').getTime() - hojeMs) / 86_400_000)
+
+      if (p.status === 'vencido' && restantes > 0) {
+        alertas.push({ id: `pkg-venc-${p.aluno_nome}`, icon: 'package', text: `Pacote de ${p.aluno_nome} venceu com ${restantes} aula${restantes === 1 ? '' : 's'} não utilizada${restantes === 1 ? '' : 's'}`, href: '/dashboard/pacotes' })
+      } else if (restantes === 0 && p.status !== 'vencido') {
+        alertas.push({ id: `pkg-fim-${p.aluno_nome}`, icon: 'package', text: `Pacote de ${p.aluno_nome} finalizado. Renovar?`, href: '/dashboard/pacotes' })
+      } else if (restantes > 0 && restantes <= 2) {
+        alertas.push({ id: `pkg-low-${p.aluno_nome}`, icon: 'package', text: `${p.aluno_nome} tem apenas ${restantes} aula${restantes === 1 ? '' : 's'} restante${restantes === 1 ? '' : 's'} no pacote`, href: '/dashboard/pacotes' })
+      } else if (diasAteVenc > 0 && diasAteVenc <= 5 && restantes > 0) {
+        alertas.push({ id: `pkg-exp-${p.aluno_nome}`, icon: 'package', text: `Pacote de ${p.aluno_nome} vence em ${diasAteVenc} dia${diasAteVenc === 1 ? '' : 's'} — ainda tem ${restantes} aula${restantes === 1 ? '' : 's'} restante${restantes === 1 ? '' : 's'}`, href: '/dashboard/pacotes' })
+      }
+    }
   }
 
   // limit 5

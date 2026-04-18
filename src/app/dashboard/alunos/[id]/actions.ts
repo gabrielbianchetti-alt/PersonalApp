@@ -12,6 +12,8 @@ export async function updateAlunoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
+  const isPacote = data.modelo_cobranca === 'pacote'
+
   const { error } = await supabase
     .from('alunos')
     .update({
@@ -22,7 +24,7 @@ export async function updateAlunoAction(
       emergencia_nome: data.emergencia_nome.trim() || null,
       emergencia_telefone: data.emergencia_telefone.replace(/\D/g, '') || null,
       emergencia_parentesco: data.emergencia_parentesco.trim() || null,
-      horarios: data.horarios,
+      horarios: isPacote ? [] : data.horarios,
       duracao: parseInt(data.duracao) || null,
       local: data.local || null,
       endereco: data.endereco.trim() || null,
@@ -66,7 +68,7 @@ export async function deleteAlunoAction(
 
   // Delete all related records in parallel
   const tables = [
-    'faltas', 'cobrancas', 'termos_enviados', 'suspensoes', 'eventos_agenda',
+    'faltas', 'cobrancas', 'termos_enviados', 'suspensoes', 'eventos_agenda', 'pacotes',
   ] as const
 
   await Promise.all(

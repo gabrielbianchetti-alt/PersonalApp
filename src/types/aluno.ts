@@ -16,6 +16,8 @@ export function getPrimeiroHorario(horarios: HorarioDia[]): string {
   return horarios[0]?.horario ?? ''
 }
 
+export type ModeloCobranca = 'por_aula' | 'mensalidade' | 'pacote'
+
 export interface AlunoFormData {
   // Etapa 1
   nome: string
@@ -31,10 +33,16 @@ export interface AlunoFormData {
   duracao: string
   local: string
   endereco: string
-  modelo_cobranca: 'por_aula' | 'mensalidade'
+  modelo_cobranca: ModeloCobranca
   valor: string
   forma_pagamento: 'pix' | 'cartao'
-  dia_cobranca: string   // 1-28, dia do mês para cobrar
+  dia_cobranca: string   // 1-28, dia do mês para cobrar (mensalidade/por_aula)
+
+  // Etapa 2 — pacote-only fields
+  pacote_quantidade:   string   // ex "10"
+  pacote_validade_dias: string  // ex "30"
+  pacote_data_inicio:  string   // YYYY-MM-DD
+  pacote_data_cobranca: string  // YYYY-MM-DD
 
   // Etapa 3
   objetivos: string[]
@@ -43,11 +51,12 @@ export interface AlunoFormData {
 }
 
 export function initialFormData(): AlunoFormData {
+  const hoje = new Date().toISOString().split('T')[0]
   return {
     nome: '',
     whatsapp: '',
     data_nascimento: '',
-    data_inicio: new Date().toISOString().split('T')[0],
+    data_inicio: hoje,
     emergencia_nome: '',
     emergencia_telefone: '',
     emergencia_parentesco: '',
@@ -59,10 +68,21 @@ export function initialFormData(): AlunoFormData {
     valor: '',
     forma_pagamento: 'pix',
     dia_cobranca: '1',
+    pacote_quantidade: '10',
+    pacote_validade_dias: '30',
+    pacote_data_inicio: hoje,
+    pacote_data_cobranca: hoje,
     objetivos: [],
     restricoes: '',
     observacoes: '',
   }
+}
+
+/** Soma N dias a uma data ISO (YYYY-MM-DD) e devolve ISO */
+export function addDays(iso: string, days: number): string {
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
 }
 
 export const DIAS_SEMANA = [
@@ -107,6 +127,13 @@ export const OBJETIVOS_OPCOES = [
 export function calcularPrevisaoMensal(formData: AlunoFormData): number {
   const valor = parseFloat(formData.valor) || 0
   if (formData.modelo_cobranca === 'mensalidade') return valor
+  if (formData.modelo_cobranca === 'pacote') {
+    const qtd = parseInt(formData.pacote_quantidade) || 0
+    const dias = parseInt(formData.pacote_validade_dias) || 1
+    if (qtd === 0 || valor === 0) return 0
+    // Normaliza para mês (30 dias)
+    return Math.round((valor * 30 / dias) * 100) / 100
+  }
   return Math.round(formData.horarios.length * 4.3 * valor * 100) / 100
 }
 

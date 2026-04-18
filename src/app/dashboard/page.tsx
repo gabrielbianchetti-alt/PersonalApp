@@ -43,6 +43,7 @@ export default async function DashboardPage() {
     { data: eventosHoje },
     { data: creditos },
     { data: faltasUrgentes },
+    { data: pacotesRaw },
   ] = await Promise.all([
     supabase
       .from('alunos')
@@ -76,6 +77,12 @@ export default async function DashboardPage() {
       .eq('status', 'pendente')
       .gte('prazo_vencimento', todayStr)
       .lte('prazo_vencimento', nextWeekStr),
+    // Pacotes (active or recently expired) for alert panel
+    supabase
+      .from('pacotes')
+      .select('aluno_id, quantidade_total, quantidade_usada, data_vencimento, status, alunos:aluno_id(nome)')
+      .eq('professor_id', user.id)
+      .in('status', ['ativo', 'vencido']),
   ])
 
   const alunos = (alunosRaw ?? []) as {
@@ -193,6 +200,19 @@ export default async function DashboardPage() {
     return order[a.status] - order[b.status]
   })
 
+  // ── pacotes alertas ───────────────────────────────────────────────────────
+  const pacotesAlertas = (pacotesRaw ?? []).map(p => {
+    const al = (p as unknown as { alunos: { nome: string } | { nome: string }[] | null }).alunos
+    const nome = Array.isArray(al) ? al[0]?.nome : al?.nome
+    return {
+      aluno_nome:       nome ?? '—',
+      quantidade_total: p.quantidade_total as number,
+      quantidade_usada: p.quantidade_usada as number,
+      data_vencimento:  p.data_vencimento as string,
+      status:           p.status as 'ativo' | 'vencido' | 'finalizado',
+    }
+  })
+
   return (
     <DashboardHome
       professorNome={professorNome}
@@ -206,6 +226,7 @@ export default async function DashboardPage() {
       aniversariosAmanha={aniversariosAmanha}
       aniversariosMes={aniversariosMes}
       novosAlunosMes={novosAlunosMes}
+      pacotesAlertas={pacotesAlertas}
     />
   )
 }

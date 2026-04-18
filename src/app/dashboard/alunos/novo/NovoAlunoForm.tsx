@@ -25,10 +25,18 @@ function validateStep(step: number, data: AlunoFormData): Record<string, string>
   }
 
   if (step === 1) {
-    if (data.horarios.length === 0) errors.horarios = 'Selecione ao menos um dia'
-    data.horarios.forEach(h => {
-      if (!h.horario) errors[`horarios_${h.dia}`] = 'Informe o horário'
-    })
+    // Pacote pula a validação de horários fixos
+    if (data.modelo_cobranca !== 'pacote') {
+      if (data.horarios.length === 0) errors.horarios = 'Selecione ao menos um dia'
+      data.horarios.forEach(h => {
+        if (!h.horario) errors[`horarios_${h.dia}`] = 'Informe o horário'
+      })
+    } else {
+      const qtd = parseInt(data.pacote_quantidade)
+      if (!data.pacote_quantidade || isNaN(qtd) || qtd <= 0) errors.pacote_quantidade = 'Informe a quantidade'
+      const val = parseInt(data.pacote_validade_dias)
+      if (!data.pacote_validade_dias || isNaN(val) || val <= 0) errors.pacote_validade_dias = 'Informe a validade'
+    }
     if (!data.local) errors.local = 'Local é obrigatório'
     const valorNum = parseFloat(data.valor)
     if (!data.valor || isNaN(valorNum) || valorNum <= 0) errors.valor = 'Informe um valor válido'

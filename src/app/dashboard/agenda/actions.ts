@@ -19,6 +19,7 @@ export interface EventoAgendaRow {
   observacao: string | null
   valor: number | null
   serie_id: string | null
+  pacote_id: string | null
   created_at: string
   updated_at: string
 }
@@ -35,6 +36,7 @@ type CreateInput = {
   observacao?: string | null
   valor?: number | null
   serie_id?: string | null
+  pacote_id?: string | null
 }
 
 export async function createEventoAction(
@@ -44,9 +46,50 @@ export async function createEventoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
+  let pacoteIdFinal: string | null = data.pacote_id ?? null
+
+  // Auto-detect: aulas/reposições de alunos pacote consomem o pacote ativo
+  if (!pacoteIdFinal && data.aluno_id && (data.tipo === 'aula' || data.tipo === 'reposicao')) {
+    const { data: aluno } = await supabase
+      .from('alunos')
+      .select('modelo_cobranca')
+      .eq('id', data.aluno_id)
+      .eq('professor_id', user.id)
+      .single()
+    if (aluno?.modelo_cobranca === 'pacote') {
+      const { data: pkg } = await supabase
+        .from('pacotes')
+        .select('id')
+        .eq('aluno_id', data.aluno_id)
+        .eq('professor_id', user.id)
+        .eq('status', 'ativo')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (!pkg) return { error: 'Este aluno é pacote mas não tem pacote ativo. Renove o pacote primeiro.' }
+      pacoteIdFinal = pkg.id as string
+    }
+  }
+
+  // If linked to a pacote, validate capacity and expiration.
+  if (pacoteIdFinal && (data.tipo === 'aula' || data.tipo === 'reposicao')) {
+    const { data: p } = await supabase
+      .from('pacotes')
+      .select('quantidade_total, quantidade_usada, data_vencimento, status')
+      .eq('id', pacoteIdFinal)
+      .eq('professor_id', user.id)
+      .single()
+    if (!p) return { error: 'Pacote não encontrado.' }
+    const restantes = p.quantidade_total - p.quantidade_usada
+    if (restantes <= 0)                                        return { error: 'Pacote sem aulas restantes.' }
+    const today = new Date().toISOString().split('T')[0]
+    if (p.data_vencimento < today || p.status === 'vencido')   return { error: 'Pacote vencido.' }
+    if (p.status === 'finalizado')                             return { error: 'Pacote já finalizado.' }
+  }
+
   const { data: row, error } = await supabase
     .from('eventos_agenda')
-    .insert({ professor_id: user.id, ...data })
+    .insert({ professor_id: user.id, ...data, pacote_id: pacoteIdFinal })
     .select()
     .single()
 
@@ -54,6 +97,26 @@ export async function createEventoAction(
     console.error('createEvento error:', error.code, error.message, error.details, error.hint)
     return { error: `Erro ao criar evento: ${error.message ?? error.code}` }
   }
+
+  // Consumir aula do pacote
+  if (pacoteIdFinal && (data.tipo === 'aula' || data.tipo === 'reposicao')) {
+    const { data: p } = await supabase
+      .from('pacotes')
+      .select('quantidade_total, quantidade_usada')
+      .eq('id', pacoteIdFinal)
+      .eq('professor_id', user.id)
+      .single()
+    if (p) {
+      const novaUsada = (p.quantidade_usada ?? 0) + 1
+      const novoStatus = novaUsada >= p.quantidade_total ? 'finalizado' : 'ativo'
+      await supabase
+        .from('pacotes')
+        .update({ quantidade_usada: novaUsada, status: novoStatus, updated_at: new Date().toISOString() })
+        .eq('id', pacoteIdFinal)
+        .eq('professor_id', user.id)
+    }
+  }
+
   return { data: row as EventoAgendaRow }
 }
 
@@ -124,6 +187,14 @@ export async function deleteEventoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
+  // Fetch the event first to check if it's linked to a pacote (so we can refund)
+  const { data: evt } = await supabase
+    .from('eventos_agenda')
+    .select('pacote_id')
+    .eq('id', id)
+    .eq('professor_id', user.id)
+    .single()
+
   const { error } = await supabase
     .from('eventos_agenda')
     .delete()
@@ -131,6 +202,25 @@ export async function deleteEventoAction(
     .eq('professor_id', user.id)
 
   if (error) { console.error('deleteEvento:', error); return { error: 'Erro ao remover evento.' } }
+
+  // Return aula to pacote
+  if (evt?.pacote_id) {
+    const { data: p } = await supabase
+      .from('pacotes')
+      .select('quantidade_usada')
+      .eq('id', evt.pacote_id)
+      .eq('professor_id', user.id)
+      .single()
+    if (p) {
+      const novaUsada = Math.max(0, (p.quantidade_usada ?? 0) - 1)
+      await supabase
+        .from('pacotes')
+        .update({ quantidade_usada: novaUsada, status: 'ativo', updated_at: new Date().toISOString() })
+        .eq('id', evt.pacote_id)
+        .eq('professor_id', user.id)
+    }
+  }
+
   return {}
 }
 
