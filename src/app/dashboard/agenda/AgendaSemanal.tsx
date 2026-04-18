@@ -22,8 +22,8 @@ import {
 
 const HOUR_PX    = 64
 const MIN_PX     = HOUR_PX / 60
-const GRID_START = 5 * 60 + 30   // 330 min = 5:30
-const GRID_END   = 22 * 60       // 1320 min = 22:00
+const GRID_START = 5 * 60        // 300 min = 5:00
+const GRID_END   = 23 * 60       // 1380 min = 23:00
 const GRID_TOTAL = GRID_END - GRID_START
 
 const WEEK_KEYS   = ['seg','ter','qua','qui','sex','sab','dom'] as const
@@ -1305,7 +1305,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
   const [dropTarget, setDropTarget]     = useState<DropTarget | null>(null)
   const [moveSaving, setMoveSaving]     = useState(false)
   const [overlayXY, setOverlayXY]       = useState<{ x: number; y: number } | null>(null)
-  const [mobileView, setMobileView]     = useState<'dia' | 'semana'>('dia')
+  const [mobileView, setMobileView]     = useState<'dia' | 'semana'>('semana')
 
   useEffect(() => {
     const stored = localStorage.getItem('agenda-mobile-view')
@@ -1491,18 +1491,42 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     scrollToMinOffset(n.getHours() * 60 + n.getMinutes())
   }
 
-  // Auto-scroll to current time on mount + update the time line every 60 s
+  // Auto-scroll to first class of today (or current time) on mount + mobileView change
+  // Also ticks the time line every 60s.
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
-      if (scrollContainerRef.current) {
+      const c = scrollContainerRef.current
+      if (!c) return
+
+      // Priority: first class of today → current time → 8:00 fallback
+      let targetMin: number | null = null
+      const todayIdx = weekDays.findIndex(d => toDateStr(d) === todayStr)
+      if (todayIdx >= 0) {
+        const todayKey = WEEK_KEYS[todayIdx]
+        const todayDateStr = toDateStr(weekDays[todayIdx])
+        const classMins: number[] = []
+        for (const a of alunos) {
+          const h = a.horarios.find(x => x.dia === todayKey)
+          if (h) classMins.push(timeToMin(h.horario))
+        }
+        for (const ev of eventos) {
+          if (ev.dia_semana === todayKey || ev.data_especifica === todayDateStr) {
+            classMins.push(timeToMin(ev.horario_inicio))
+          }
+        }
+        if (classMins.length > 0) targetMin = Math.min(...classMins)
+      }
+      if (targetMin === null) {
         const n   = new Date()
         const min = n.getHours() * 60 + n.getMinutes()
-        if (min >= GRID_START && min <= GRID_END) {
-          const px     = (min - GRID_START) * MIN_PX
-          const offset = Math.max(0, px - scrollContainerRef.current.clientHeight * 0.4)
-          scrollContainerRef.current.scrollTop = offset
-        }
+        targetMin = (min >= GRID_START && min <= GRID_END) ? min : 8 * 60
       }
+
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+      const pxScale  = isMobile && mobileView === 'semana' ? COMPACT_MIN_PX : MIN_PX
+      const px       = (targetMin - GRID_START) * pxScale
+      const offset   = Math.max(0, px - c.clientHeight * 0.25)
+      c.scrollTop    = offset
     })
     const interval = setInterval(() => {
       const n = new Date()
@@ -1510,7 +1534,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     }, 60_000)
     return () => { cancelAnimationFrame(raf); clearInterval(interval) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [mobileView, weekOffset])
 
   // ── DnD handlers ─────────────────────────────────────────────────────────────
 
@@ -1700,7 +1724,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
 
   // ── grid rendering ─────────────────────────────────────────────────────────
 
-  const hourLabels  = Array.from({ length: 17 }, (_, i) => ({ label: `${i+6}:00`, top: toPx((i+6)*60 - GRID_START) }))
+  const hourLabels  = Array.from({ length: 19 }, (_, i) => ({ label: `${i+5}:00`, top: toPx((i+5)*60 - GRID_START) }))
   const gridHeight  = toPx(GRID_TOTAL)
 
   function renderDayColumn(dayIdx: number) {
@@ -1947,26 +1971,26 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
       setModal({ type: 'add', dayIdx, date: weekDays[dayIdx], timeMin: snapped })
     }
 
-    const cHourLabels = Array.from({ length: 17 }, (_, i) => ({
-      label: `${i + 6}`,
-      top: cToPx((i + 6) * 60 - GRID_START),
+    const cHourLabels = Array.from({ length: 19 }, (_, i) => ({
+      label: `${i + 5}`,
+      top: cToPx((i + 5) * 60 - GRID_START),
     }))
 
     return (
-      <div style={{ minWidth: 576 }}>
+      <div style={{ width: '100%' }}>
 
         {/* Sticky day headers */}
         <div className="flex sticky top-0 z-10 shrink-0"
           style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ width: 32, flexShrink: 0 }} />
+          <div style={{ width: 28, flexShrink: 0 }} />
           {weekDays.map((day, i) => {
             const isTodayDay = toDateStr(day) === todayStr
             return (
-              <div key={i} className="flex-1 flex flex-col items-center py-1.5 border-l"
-                style={{ borderColor: 'var(--border-subtle)', minWidth: 78, textAlign: 'center' }}>
+              <div key={i} className="flex-1 min-w-0 flex flex-col items-center py-1.5 border-l"
+                style={{ borderColor: 'var(--border-subtle)', textAlign: 'center' }}>
                 <span className="text-[10px] font-medium"
                   style={{ color: isTodayDay ? 'var(--green-primary)' : 'var(--text-muted)' }}>
-                  {WEEK_LABELS[i]}
+                  {WEEK_LABELS[i][0]}
                 </span>
                 <span style={{
                   fontSize: 13, fontWeight: 700, lineHeight: 1,
@@ -1987,7 +2011,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         <div className="flex" style={{ height: COMPACT_GRID_H }}>
 
           {/* Hour labels */}
-          <div className="relative shrink-0" style={{ width: 32, height: COMPACT_GRID_H }}>
+          <div className="relative shrink-0" style={{ width: 28, height: COMPACT_GRID_H }}>
             {cHourLabels.map(({ label, top }) => (
               <div key={label} className="absolute right-1 -translate-y-2"
                 style={{ top, fontSize: 9, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -2036,8 +2060,8 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
             return (
               <div key={dayIdx}
                 ref={(el) => { compactColRefs.current[dayIdx] = el }}
-                className="relative flex-1 border-l cursor-crosshair"
-                style={{ height: COMPACT_GRID_H, borderColor: 'var(--border-subtle)', minWidth: 78, touchAction: 'pan-y' }}
+                className="relative flex-1 min-w-0 border-l cursor-crosshair"
+                style={{ height: COMPACT_GRID_H, borderColor: 'var(--border-subtle)', touchAction: 'pan-y' }}
                 onClick={(e) => handleCompactClick(e, dayIdx)}
                 onPointerDown={(e) => handleColumnPointerDown(e, dayIdx, COMPACT_MIN_PX)}
                 onPointerMove={(e) => handleColumnPointerMove(e, dayIdx, COMPACT_MIN_PX)}
@@ -2146,12 +2170,12 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                           setModal({ type: 'aluno-card', aluno: a, dayIdx, date: day })
                         }}>
                         <div className="w-full h-full rounded overflow-hidden"
-                          style={{ background: color + '20', borderLeft: `2px solid ${color}`, padding: '1px 3px', cursor: 'grab' }}>
-                          <p style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.2, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                          style={{ background: color + '26', borderLeft: `2px solid ${color}`, padding: '2px 3px', cursor: 'grab' }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.15, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                             {a.nome.split(' ')[0]}
                           </p>
-                          {height > 22 && (
-                            <p style={{ fontSize: 8, color: color + 'aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                          {height > 28 && (
+                            <p style={{ fontSize: 8, lineHeight: 1.1, color: color + 'aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                               {a.horarios.find(x => x.dia === dayKey)?.horario ?? ''}
                             </p>
                           )}
@@ -2182,12 +2206,12 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                           setModal({ type: 'evento-card', evento: ev, alunoNome })
                         }}>
                         <div className="w-full h-full rounded overflow-hidden"
-                          style={{ background: color + '20', borderLeft: `2px solid ${color}`, padding: '1px 3px', cursor: 'grab' }}>
-                          <p style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.2, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                          style={{ background: color + '26', borderLeft: `2px solid ${color}`, padding: '2px 3px', cursor: 'grab' }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.15, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                             {ev.aluno_id && alunoNome ? alunoNome.split(' ')[0] : ev.titulo}
                           </p>
-                          {height > 22 && (
-                            <p style={{ fontSize: 8, color: color + 'aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                          {height > 28 && (
+                            <p style={{ fontSize: 8, lineHeight: 1.1, color: color + 'aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                               {ev.horario_inicio}
                             </p>
                           )}
@@ -2368,7 +2392,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
 
             {/* Mobile — Semana view */}
             {mobileView === 'semana' && (
-              <div className="md:hidden">
+              <div className="md:hidden" style={{ paddingRight: 22 }}>
                 {renderMobileWeekView()}
               </div>
             )}
@@ -2376,8 +2400,8 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
 
           {/* Mobile scroll helper bar — right side, overlays the grid */}
           <div className="md:hidden absolute right-0 top-0 bottom-0 z-30 flex flex-col items-center justify-between py-3 pointer-events-auto"
-            style={{ width: 26, background: 'rgba(12,12,18,0.72)', backdropFilter: 'blur(6px)' }}>
-            {[6,8,10,12,14,16,18,20,22].map(h => {
+            style={{ width: 22, background: 'rgba(12,12,18,0.72)', backdropFilter: 'blur(6px)' }}>
+            {[5,7,9,11,13,15,17,19,21,23].map(h => {
               const nowHour   = new Date().getHours()
               const isCurrent = nowHour >= h && nowHour < h + 2
               return (
