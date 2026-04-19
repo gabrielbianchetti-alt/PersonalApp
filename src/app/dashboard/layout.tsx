@@ -3,11 +3,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { themeStyle } from '@/lib/color'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
+import { DemoBanner } from '@/components/dashboard/DemoBanner'
 import { getOrCreateAssinaturaAction } from '@/app/dashboard/configuracoes/assinatura-actions'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 import { ADMIN_EMAILS } from '@/lib/constants'
+import { isDemoMode } from '@/lib/demo/mode'
+import { DEMO_PROFESSOR_NOME, getDemoPerfil } from '@/lib/demo/fixtures'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const demo = await isDemoMode()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -15,22 +19,25 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let db = supabase as Awaited<ReturnType<typeof createClient>>
   try { db = createAdminClient() as unknown as typeof db } catch { /* fallback to user-scoped client */ }
 
-  // Fetch professor profile for theme + avatar
-  const { data: perfil } = user
+  // Fetch professor profile for theme + avatar (pula em demo mode)
+  const { data: perfil } = !demo && user
     ? await db
         .from('professor_perfil')
         .select('foto_url, nome, cor_tema, modo_tema')
         .eq('professor_id', user.id)
         .maybeSingle()
-    : { data: null }
+    : { data: demo ? getDemoPerfil() : null }
 
   const corTema: string   = (perfil?.cor_tema  as string | null) ?? '#10B981'
   const modoTema: ModoTema = ((perfil?.modo_tema as string | null) ?? 'escuro') as ModoTema
   const fotoUrl: string | null = (perfil?.foto_url as string | null) ?? null
-  const professorNome: string =
-    (perfil?.nome as string | null) ??
-    (user?.user_metadata?.full_name as string | undefined) ??
-    'Professor'
+  const professorNome: string = demo
+    ? DEMO_PROFESSOR_NOME
+    : (
+      (perfil?.nome as string | null) ??
+      (user?.user_metadata?.full_name as string | undefined) ??
+      'Professor'
+    )
 
   const isAdmin = ADMIN_EMAILS.includes(user?.email ?? '')
 
@@ -60,7 +67,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
         modoTema={modoTema}
         isAdmin={isAdmin}
       >
-        {assinatura && !isAdmin && <TrialBanner assinatura={assinatura} isAdmin={isAdmin} />}
+        {demo && <DemoBanner />}
+        {!demo && assinatura && !isAdmin && <TrialBanner assinatura={assinatura} isAdmin={isAdmin} />}
         {children}
       </DashboardShell>
     </>

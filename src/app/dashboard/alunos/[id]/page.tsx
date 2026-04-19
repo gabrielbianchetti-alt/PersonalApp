@@ -7,6 +7,8 @@ import { DeleteAlunoButton } from './DeleteAlunoButton'
 import { EditAlunoButton } from './EditAlunoButton'
 import { AlunoPacoteCard } from './AlunoPacoteCard'
 import type { PacoteRow, AulaUsada } from '../../pacotes/actions'
+import { isDemoMode } from '@/lib/demo/mode'
+import { getDemoAlunos, getDemoPacotes, getDemoEventos } from '@/lib/demo/fixtures'
 
 export const metadata: Metadata = { title: 'Perfil do Aluno — PersonalHub' }
 
@@ -16,16 +18,19 @@ export default async function AlunoPerfilPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const demo = await isDemoMode()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user && !demo) return null
 
-  const { data: aluno } = await supabase
-    .from('alunos')
-    .select('*')
-    .eq('id', id)
-    .eq('professor_id', user.id)
-    .single()
+  const aluno = demo
+    ? getDemoAlunos().find(a => a.id === id) ?? null
+    : (await supabase
+        .from('alunos')
+        .select('*')
+        .eq('id', id)
+        .eq('professor_id', user!.id)
+        .single()).data
 
   if (!aluno) notFound()
 
@@ -34,30 +39,45 @@ export default async function AlunoPerfilPage({
   let pacoteFull: PacoteRow | null = null
   let aulasPacote: AulaUsada[] = []
   if (isPacote) {
-    const { data: pkg } = await supabase
-      .from('pacotes')
-      .select('*')
-      .eq('professor_id', user.id)
-      .eq('aluno_id', id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    pacoteFull = (pkg ?? null) as PacoteRow | null
+    if (demo) {
+      const demoPkg = getDemoPacotes().find(p => p.aluno_id === id)
+      pacoteFull = (demoPkg ?? null) as PacoteRow | null
+      if (pacoteFull) {
+        aulasPacote = getDemoEventos()
+          .filter(e => e.pacote_id === pacoteFull!.id)
+          .map(a => ({
+            evento_id:       a.id,
+            data_especifica: a.data_especifica,
+            horario_inicio:  a.horario_inicio,
+            duracao:         a.duracao,
+          }))
+      }
+    } else {
+      const { data: pkg } = await supabase
+        .from('pacotes')
+        .select('*')
+        .eq('professor_id', user!.id)
+        .eq('aluno_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      pacoteFull = (pkg ?? null) as PacoteRow | null
 
-    if (pacoteFull) {
-      const { data: aulas } = await supabase
-        .from('eventos_agenda')
-        .select('id, data_especifica, horario_inicio, duracao')
-        .eq('professor_id', user.id)
-        .eq('pacote_id', pacoteFull.id)
-        .order('data_especifica', { ascending: false })
-        .order('horario_inicio', { ascending: false })
-      aulasPacote = (aulas ?? []).map(a => ({
-        evento_id:       a.id,
-        data_especifica: a.data_especifica,
-        horario_inicio:  a.horario_inicio,
-        duracao:         a.duracao,
-      }))
+      if (pacoteFull) {
+        const { data: aulas } = await supabase
+          .from('eventos_agenda')
+          .select('id, data_especifica, horario_inicio, duracao')
+          .eq('professor_id', user!.id)
+          .eq('pacote_id', pacoteFull.id)
+          .order('data_especifica', { ascending: false })
+          .order('horario_inicio', { ascending: false })
+        aulasPacote = (aulas ?? []).map(a => ({
+          evento_id:       a.id,
+          data_especifica: a.data_especifica,
+          horario_inicio:  a.horario_inicio,
+          duracao:         a.duracao,
+        }))
+      }
     }
   }
 
@@ -71,20 +91,20 @@ export default async function AlunoPerfilPage({
     : null
 
   // Last termo sent
-  const { data: ultimoTermo } = await supabase
+  const { data: ultimoTermo } = demo ? { data: null } : await supabase
     .from('termos_enviados')
     .select('enviado_em, modelo_usado')
-    .eq('professor_id', user.id)
+    .eq('professor_id', user!.id)
     .eq('aluno_id', id)
     .order('enviado_em', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   // Pending faltas
-  const { data: faltasPendentes } = await supabase
+  const { data: faltasPendentes } = demo ? { data: [] as { id: string }[] } : await supabase
     .from('faltas')
     .select('id')
-    .eq('professor_id', user.id)
+    .eq('professor_id', user!.id)
     .eq('aluno_id', id)
     .eq('status', 'pendente')
 

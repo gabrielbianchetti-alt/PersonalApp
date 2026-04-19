@@ -11,6 +11,12 @@ import {
   type ReceitaExtraRow,
   type HistoricoMes,
 } from './actions'
+import { isDemoMode } from '@/lib/demo/mode'
+import {
+  getDemoAlunos, getDemoCobrancas, getDemoCustos, getDemoPacotes,
+  getDemoPreferencias, getDemoReceitasExtras, getDemoHistorico,
+} from '@/lib/demo/fixtures'
+import type { PacoteComAluno } from '../pacotes/actions'
 
 export const metadata: Metadata = { title: 'Financeiro — PersonalHub' }
 
@@ -20,9 +26,10 @@ export default async function FinanceiroPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const params = await searchParams
+  const demo = await isDemoMode()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user && !demo) return null
 
   const today    = new Date()
   const mesAtual = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
@@ -43,7 +50,31 @@ export default async function FinanceiroPage({
   const mesesHistorico = getLast6Months(mesAtual)
 
   // Replicate active fixos into the current month before the parallel fetch
-  await ensureFixosForMesAction(mesAtual)
+  if (!demo) await ensureFixosForMesAction(mesAtual)
+
+  // Mapeia histórico com receita calculada dos alunos demo (aulas do mês)
+  const demoAlunosList = demo ? getDemoAlunos() : []
+  const demoPacotesList = demo ? getDemoPacotes() : []
+  const demoHistoricoBase = demo ? getDemoHistorico() : []
+  const demoHistorico: HistoricoMes[] = demoHistoricoBase.map(h => ({
+    mes: h.mes,
+    custos: h.custos,
+    receitas_extras: h.receitas_extras,
+  })) as HistoricoMes[]
+
+  const demoData = demo ? {
+    alunos:         demoAlunosList,
+    custos:         getDemoCustos(),
+    cobrancas:      getDemoCobrancas(),
+    prefs:          getDemoPreferencias(),
+    creditos:       [],
+    receitasExtras: getDemoReceitasExtras(),
+    historico:      demoHistorico,
+    pacotes:        demoPacotesList.map(p => ({
+      ...p,
+      aluno_nome: demoAlunosList.find(a => a.id === p.aluno_id)?.nome ?? '—',
+    })) as PacoteComAluno[],
+  } : null
 
   const [
     { data: alunos },
@@ -54,34 +85,43 @@ export default async function FinanceiroPage({
     { data: receitasExtras },
     { data: historico },
     pacotesRes,
-  ] = await Promise.all([
+  ] = demo ? [
+    { data: demoData!.alunos },
+    { data: demoData!.custos },
+    { data: demoData!.cobrancas },
+    { data: demoData!.prefs },
+    { data: demoData!.creditos },
+    { data: demoData!.receitasExtras },
+    { data: demoData!.historico },
+    { data: demoData!.pacotes, error: undefined },
+  ] as const : await Promise.all([
     supabase
       .from('alunos')
       .select('id, nome, whatsapp, horarios, modelo_cobranca, valor, forma_pagamento, dia_cobranca')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('status', 'ativo')
       .order('nome'),
     supabase
       .from('custos')
       .select('*')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('mes_referencia', mesAtual)
       .or('ativo.is.null,ativo.eq.true')
       .order('created_at', { ascending: false }),
     supabase
       .from('cobrancas')
       .select('*')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('mes_referencia', mesAtual),
     supabase
       .from('preferencias_cobranca')
       .select('*')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .maybeSingle(),
     supabase
       .from('faltas')
       .select('aluno_id, credito_valor')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('status', 'credito')
       .or(`mes_validade.is.null,mes_validade.eq.${mesAtual}`),
     getReceitasExtrasForMesAction(mesAtual),

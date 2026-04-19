@@ -4,6 +4,8 @@ import { processVencidosAction } from '../faltas/actions'
 import { AgendaHub } from './AgendaHub'
 import type { AgendaTab } from './AgendaHub'
 import type { FaltaRow, PrefsF } from '../faltas/actions'
+import { isDemoMode } from '@/lib/demo/mode'
+import { getDemoAlunos, getDemoEventos, getDemoFaltas } from '@/lib/demo/fixtures'
 
 export const metadata: Metadata = { title: 'Agenda — PersonalHub' }
 
@@ -13,12 +15,13 @@ export default async function AgendaPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const params = await searchParams
+  const demo = await isDemoMode()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user && !demo) return null
 
-  // Auto-process expired faltas on page load
-  await processVencidosAction()
+  // Auto-process expired faltas on page load (pula em demo mode)
+  if (!demo) await processVencidosAction()
 
   // Current week Mon–Sun
   const today = new Date()
@@ -47,28 +50,33 @@ export default async function AgendaPage({
     { data: eventos },
     { data: faltas },
     { data: prefs },
-  ] = await Promise.all([
+  ] = demo ? [
+    { data: getDemoAlunos() },
+    { data: getDemoEventos() },
+    { data: getDemoFaltas() },
+    { data: { ativo: true, prazo_dias: 30, alerta_dias: 5 } as PrefsF },
+  ] as const : await Promise.all([
     supabase
       .from('alunos')
       .select('id, nome, horarios, duracao, local, modelo_cobranca, observacoes')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('status', 'ativo')
       .order('nome'),
     supabase
       .from('eventos_agenda')
       .select('*')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .or(`dia_semana.not.is.null,and(data_especifica.gte.${weekStart},data_especifica.lte.${weekEnd})`),
     supabase
       .from('faltas')
       .select('*, alunos(nome)')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .or(`data_falta.gte.${faltasFrom},status.in.(pendente,credito,reposicao_agendada)`)
       .order('data_falta', { ascending: false }),
     supabase
       .from('preferencias_faltas')
       .select('ativo, prazo_dias, alerta_dias')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .single(),
   ])
 

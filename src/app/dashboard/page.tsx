@@ -3,21 +3,28 @@ import { createClient } from '@/lib/supabase/server'
 import { DashboardHome } from './DashboardHome'
 import { gerarNotificacoesAutomaticasAction } from './notificacoes/auto-notif'
 import { countWeekdaysInMonth, toDateStr, DOW_TO_KEY } from '@/lib/utils/date'
+import { isDemoMode } from '@/lib/demo/mode'
+import {
+  getDemoAlunos, getDemoCobrancas, getDemoEventos, getDemoFaltas, getDemoPacotes,
+  DEMO_PROFESSOR_NOME,
+} from '@/lib/demo/fixtures'
 
 export const metadata: Metadata = { title: 'Dashboard — PersonalHub' }
 
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
+  const demo = await isDemoMode()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user && !demo) return null
 
-  // Generate auto-notifications (non-blocking)
-  void gerarNotificacoesAutomaticasAction()
+  // Generate auto-notifications (non-blocking) — só em modo real
+  if (!demo) void gerarNotificacoesAutomaticasAction()
 
-  const professorNome: string =
-    (user.user_metadata?.full_name as string | undefined) ?? 'Professor'
+  const professorNome: string = demo
+    ? DEMO_PROFESSOR_NOME
+    : ((user!.user_metadata?.full_name as string | undefined) ?? 'Professor')
 
   const now      = new Date()
   const year     = now.getFullYear()
@@ -36,7 +43,7 @@ export default async function DashboardPage() {
   nextWeek.setDate(now.getDate() + 7)
   const nextWeekStr  = toDateStr(nextWeek)
 
-  // ── parallel fetches ──────────────────────────────────────────────────────
+  // ── parallel fetches (ou dados de demo) ──────────────────────────────────
   const [
     { data: alunosRaw },
     { data: cobrancas },
@@ -44,44 +51,40 @@ export default async function DashboardPage() {
     { data: creditos },
     { data: faltasUrgentes },
     { data: pacotesRaw },
-  ] = await Promise.all([
+  ] = demo ? await buildDemoDataBundle(todayStr, nextWeekStr) : await Promise.all([
     supabase
       .from('alunos')
       .select('id, nome, horarios, duracao, local, modelo_cobranca, valor, whatsapp, status, dia_cobranca, data_nascimento, created_at')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('status', 'ativo'),
     supabase
       .from('cobrancas')
       .select('id, aluno_id, status, valor, created_at')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('mes_referencia', mesRef),
-    // Today's one-off events (reposição + aula extra)
     supabase
       .from('eventos_agenda')
       .select('id, aluno_id, horario_inicio, tipo')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('data_especifica', todayStr)
       .in('tipo', ['reposicao', 'aula_extra']),
-    // Credits valid this month
     supabase
       .from('faltas')
       .select('aluno_id, credito_valor')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('status', 'credito')
       .or(`mes_validade.is.null,mes_validade.eq.${mesRef}`),
-    // Pending faltas with deadline within the next 7 days
     supabase
       .from('faltas')
       .select('id')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('status', 'pendente')
       .gte('prazo_vencimento', todayStr)
       .lte('prazo_vencimento', nextWeekStr),
-    // Pacotes (active or recently expired) for alert panel
     supabase
       .from('pacotes')
       .select('aluno_id, quantidade_total, quantidade_usada, data_vencimento, status, alunos:aluno_id(nome)')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .in('status', ['ativo', 'vencido']),
   ])
 
@@ -227,6 +230,46 @@ export default async function DashboardPage() {
       aniversariosMes={aniversariosMes}
       novosAlunosMes={novosAlunosMes}
       pacotesAlertas={pacotesAlertas}
+      showDemoEmptyState={!demo && alunos.length === 0}
     />
   )
+}
+
+// ─── Demo data bundle (matches the shape of the real Supabase responses) ─────
+
+async function buildDemoDataBundle(todayStr: string, nextWeekStr: string) {
+  const alunosDemo     = getDemoAlunos()
+  const cobrancasDemo  = getDemoCobrancas()
+  const eventosDemo    = getDemoEventos()
+  const faltasDemo     = getDemoFaltas()
+  const pacotesDemo    = getDemoPacotes()
+
+  const eventosHoje = eventosDemo
+    .filter(e => e.data_especifica === todayStr && (e.tipo === 'reposicao' || e.tipo === 'aula_extra'))
+    .map(e => ({ id: e.id, aluno_id: e.aluno_id, horario_inicio: e.horario_inicio, tipo: e.tipo }))
+
+  const creditos = faltasDemo
+    .filter(f => f.status === 'credito')
+    .map(f => ({ aluno_id: f.aluno_id, credito_valor: f.credito_valor }))
+
+  const faltasUrgentes = faltasDemo
+    .filter(f => f.status === 'pendente' && f.prazo_vencimento
+      && f.prazo_vencimento >= todayStr && f.prazo_vencimento <= nextWeekStr)
+    .map(f => ({ id: f.id }))
+
+  // Shape dos pacotes com o join alunos:aluno_id(nome)
+  const alunosMap = new Map(alunosDemo.map(a => [a.id, a.nome]))
+  const pacotesShaped = pacotesDemo.map(p => ({
+    ...p,
+    alunos: { nome: alunosMap.get(p.aluno_id) ?? '—' },
+  }))
+
+  return [
+    { data: alunosDemo },
+    { data: cobrancasDemo },
+    { data: eventosHoje },
+    { data: creditos },
+    { data: faltasUrgentes },
+    { data: pacotesShaped },
+  ] as const
 }

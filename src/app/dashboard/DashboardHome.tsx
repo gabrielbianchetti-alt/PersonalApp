@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Hand, CheckCircle2 } from 'lucide-react'
+import { Hand, CheckCircle2, Sparkles } from 'lucide-react'
 import { formatCurrency } from '@/types/aluno'
+import { AtivarDemoButton } from '@/components/dashboard/AtivarDemoButton'
 import { upsertCobrancaPagoAction, desfazerPagoAction } from './actions'
 import { FaltaQuickActionModal } from './faltas/FaltaQuickActionModal'
 
@@ -64,6 +65,8 @@ interface Props {
   aniversariosMes:       string[]
   novosAlunosMes:        number
   pacotesAlertas?:       PacoteAlertaInfo[]
+  /** Quando true, mostra um CTA para ativar o Modo Demo (nenhum aluno real cadastrado) */
+  showDemoEmptyState?:   boolean
 }
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -279,6 +282,7 @@ export function DashboardHome({
   aniversariosMes,
   novosAlunosMes,
   pacotesAlertas = [],
+  showDemoEmptyState = false,
 }: Props) {
   const [alunosCobranca, setAlunosCobranca] = useState<AlunoCobranca[]>(todosAlunosInit)
   const [cobrancaTab, setCobrancaTab]       = useState<CobrancaTab>('pendente')
@@ -439,6 +443,32 @@ export function DashboardHome({
           ║  BLOCO 2 — CARROSSEL DE ALERTAS                              ║
           ╚══════════════════════════════════════════════════════════════╝ */}
       <AlertaCarrossel alertas={alertasVisiveis} />
+
+      {/* Empty state — sem alunos cadastrados → CTA para explorar em demo */}
+      {showDemoEmptyState && (
+        <div
+          className="flex flex-col items-center text-center gap-3 rounded-2xl p-6"
+          style={{ background: 'var(--bg-card)', border: '1px dashed rgba(16, 185, 129, 0.35)' }}
+        >
+          <div className="w-11 h-11 rounded-full flex items-center justify-center"
+            style={{ background: 'var(--green-muted)' }}>
+            <Sparkles size={20} strokeWidth={1.75} style={{ color: 'var(--green-primary)' }} aria-hidden />
+          </div>
+          <div>
+            <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+              Explore com dados de exemplo
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+              Veja como o PersonalHub funciona com alunos, agenda e financeiro fictícios antes de cadastrar os seus.
+            </p>
+          </div>
+          <AtivarDemoButton label="Ver demonstração" />
+          <Link href="/dashboard/alunos/novo" className="text-xs font-medium"
+            style={{ color: 'var(--text-muted)' }}>
+            ou cadastre seu primeiro aluno
+          </Link>
+        </div>
+      )}
 
       {/* ╔══════════════════════════════════════════════════════════════╗
           ║  BLOCO 3 — SAUDAÇÃO + TIMELINE DO DIA                        ║

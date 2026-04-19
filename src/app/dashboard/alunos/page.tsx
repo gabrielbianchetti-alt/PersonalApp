@@ -6,6 +6,8 @@ import type { AlunosTab, AlunoFull, AlunoMinimal } from './AlunosHub'
 import type { SuspensaoRow } from '../suspensoes/types'
 import type { HorarioDia } from '@/types/aluno'
 import type { ModeloTermo, TermoEnviado } from '../termos/types'
+import { isDemoMode } from '@/lib/demo/mode'
+import { getDemoAlunos } from '@/lib/demo/fixtures'
 
 export const metadata: Metadata = { title: 'Alunos — PersonalHub' }
 
@@ -15,12 +17,13 @@ export default async function AlunosPage({
   searchParams: Promise<{ tab?: string; success?: string; aluno_id?: string }>
 }) {
   const params = await searchParams
+  const demo = await isDemoMode()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user && !demo) return null
 
-  // Seed default termo templates on first access
-  await seedModelosIfNeeded(user.id)
+  // Seed default termo templates on first access (não em modo demo)
+  if (!demo && user) await seedModelosIfNeeded(user.id)
 
   const [
     { data: alunos },
@@ -28,33 +31,39 @@ export default async function AlunosPage({
     { data: suspensoes },
     { data: modelos },
     { data: historico },
-  ] = await Promise.all([
+  ] = demo ? [
+    { data: getDemoAlunos() },
+    { data: [] as AlunoMinimal[] },
+    { data: [] as Record<string, unknown>[] },
+    { data: [] as ModeloTermo[] },
+    { data: [] as Record<string, unknown>[] },
+  ] as const : await Promise.all([
     supabase
       .from('alunos')
       .select('id, nome, whatsapp, horarios, local, valor, modelo_cobranca, data_inicio, status, duracao')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('status', 'ativo')
       .order('nome'),
     supabase
       .from('alunos')
       .select('id, nome, horarios')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .eq('status', 'pausado')
       .order('nome'),
     supabase
       .from('suspensoes')
       .select('id, professor_id, aluno_id, tipo, status, data_inicio, data_retorno, motivo, acao_horario, created_at, updated_at, alunos(nome, horarios)')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .order('created_at', { ascending: false }),
     supabase
       .from('modelos_termo')
       .select('id, professor_id, nome, conteudo, tipo, created_at, updated_at')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .order('created_at'),
     supabase
       .from('termos_enviados')
       .select('id, professor_id, aluno_id, conteudo, modelo_usado, enviado_em, created_at, alunos(nome)')
-      .eq('professor_id', user.id)
+      .eq('professor_id', user!.id)
       .order('enviado_em', { ascending: false }),
   ])
 

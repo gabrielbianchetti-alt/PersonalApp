@@ -7,6 +7,7 @@ import { saveNomeAction, saveFotoUrlAction, saveCorTemaAction, saveModoTemaActio
 import { COR_PRESETS } from './types'
 import type { ModoTema, ProfessorPerfil } from './types'
 import type { AssinaturaData } from './assinatura-actions'
+import { AtivarDemoButton } from '@/components/dashboard/AtivarDemoButton'
 
 // ─── section wrapper ─────────────────────────────────────────────────────────
 
@@ -523,6 +524,16 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
           <AssinaturaSection assinatura={assinatura} />
         </Section>
       )}
+
+      {/* ── Modo demonstração ──────────────────────────────────────────────── */}
+      <Section title="Modo demonstração" icon="✨">
+        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+          Ativar o modo demonstração carrega a app com dados fictícios (alunos,
+          agenda, financeiro, pacotes) para você explorar as funcionalidades.
+          Nenhum dado é salvo no banco — é seguro testar o quanto quiser.
+        </p>
+        <AtivarDemoButton label="Ativar modo demo" />
+      </Section>
 
       {/* ── Indicação ───────────────────────────────────────────────────────── */}
       <Section title="Indique o PersonalHub" icon="🔗">
