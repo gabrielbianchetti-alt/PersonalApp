@@ -79,6 +79,27 @@ export function StepTreino({ data, errors, onChange }: Props) {
         </p>
       </div>
 
+      {/* Modelo de cobrança — definido primeiro para que os campos condicionais aparecam corretos */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+          Modelo de cobrança *
+        </label>
+        <ToggleGroup
+          options={[
+            { value: 'por_aula', label: 'Por aula' },
+            { value: 'mensalidade', label: 'Mensalidade' },
+            { value: 'pacote', label: 'Pacote' },
+          ]}
+          value={data.modelo_cobranca}
+          onChange={(v) => onChange('modelo_cobranca', v)}
+        />
+        {isPacote && (
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            Aulas avulsas agendadas individualmente. Cobrança única no início do pacote.
+          </p>
+        )}
+      </div>
+
       {/* Dias da semana (hidden para pacote — aulas são avulsas) */}
       {!isPacote && (
       <div className="flex flex-col gap-2">
@@ -161,7 +182,8 @@ export function StepTreino({ data, errors, onChange }: Props) {
         </div>
       )}
 
-      {/* Duração */}
+      {/* Duração (hidden para pacote) */}
+      {!isPacote && (
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
           Duração
@@ -184,6 +206,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
           ))}
         </div>
       </div>
+      )}
 
       {/* Local */}
       <div className="flex flex-col gap-1.5">
@@ -237,27 +260,6 @@ export function StepTreino({ data, errors, onChange }: Props) {
 
       {/* Separador */}
       <div className="h-px" style={{ background: 'var(--border-subtle)' }} />
-
-      {/* Modelo de cobrança */}
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-          Modelo de cobrança *
-        </label>
-        <ToggleGroup
-          options={[
-            { value: 'por_aula', label: 'Por aula' },
-            { value: 'mensalidade', label: 'Mensalidade' },
-            { value: 'pacote', label: 'Pacote' },
-          ]}
-          value={data.modelo_cobranca}
-          onChange={(v) => onChange('modelo_cobranca', v)}
-        />
-        {isPacote && (
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Aulas avulsas agendadas individualmente. Cobrança única no início do pacote.
-          </p>
-        )}
-      </div>
 
       {/* Valor */}
       <div className="flex flex-col gap-1.5">

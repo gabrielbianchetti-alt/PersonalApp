@@ -5,6 +5,8 @@ import { TabBar } from '@/components/dashboard/TabBar'
 import { CalculoMensal } from '../calculo/CalculoMensal'
 import { CobrancaMensal } from '../cobranca/CobrancaMensal'
 import { Financeiro as CustosLucro } from './Financeiro'
+import { PacotesHub } from '../pacotes/PacotesHub'
+import type { PacoteComAluno } from '../pacotes/actions'
 import type { CustoRow, ReceitaExtraRow, HistoricoMes } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -53,7 +55,7 @@ interface AlunoFin {
   horarios: { dia: string; horario: string }[]
 }
 
-export type FinanceiroTab = 'calculo' | 'cobranca' | 'custos'
+export type FinanceiroTab = 'calculo' | 'cobranca' | 'custos' | 'pacotes'
 
 interface Props {
   initialTab: FinanceiroTab
@@ -70,12 +72,15 @@ interface Props {
   custosIniciais: CustoRow[]
   receitasExtrasIniciais: ReceitaExtraRow[]
   historicoIniciais: HistoricoMes[]
+  // Pacotes
+  pacotes: PacoteComAluno[]
 }
 
 const TABS = [
   { key: 'calculo',  label: 'Cálculo Mensal' },
   { key: 'cobranca', label: 'Cobrança' },
   { key: 'custos',   label: 'Custos e Lucro' },
+  { key: 'pacotes',  label: 'Pacotes' },
 ]
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -92,6 +97,7 @@ export function FinanceiroHub({
   custosIniciais,
   receitasExtrasIniciais,
   historicoIniciais,
+  pacotes,
 }: Props) {
   const [tab, setTab] = useState<FinanceiroTab>(initialTab)
 
@@ -135,6 +141,11 @@ export function FinanceiroHub({
             historicoIniciais={historicoIniciais}
             mesInicial={mesInicial}
           />
+        )}
+
+        {/* ── Pacotes ── */}
+        {tab === 'pacotes' && (
+          <PacotesHub pacotes={pacotes} initialError={null} embedded />
         )}
 
       </div>

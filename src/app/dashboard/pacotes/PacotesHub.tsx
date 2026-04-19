@@ -11,7 +11,7 @@ import {
   type AulaUsada,
 } from './actions'
 
-type Filter = 'todos' | 'ativo' | 'vencido' | 'finalizado'
+type Filter = 'ativo' | 'vencendo' | 'finalizado' | 'todos'
 
 const STATUS_CFG: Record<'ativo' | 'vencido' | 'finalizado', { label: string; color: string; bg: string }> = {
   ativo:       { label: 'Ativo',      color: '#10B981', bg: 'rgba(16, 185, 129, 0.12)' },
@@ -25,12 +25,24 @@ function daysBetween(iso1: string, iso2: string): number {
   return Math.round((d1.getTime() - d2.getTime()) / 86_400_000)
 }
 
+/** Classifica urgência para ordenação: 0 = vencendo em breve, 1 = ativo, 2 = vencido, 3 = finalizado */
+function urgencyRank(p: PacoteComAluno, todayStr: string): number {
+  const days = daysBetween(p.data_vencimento, todayStr)
+  if (p.status === 'ativo' && days >= 0 && days <= 7) return 0
+  if (p.status === 'ativo')     return 1
+  if (p.status === 'vencido')   return 2
+  return 3
+}
+
 export function PacotesHub({
   pacotes,
   initialError,
+  embedded = false,
 }: {
   pacotes: PacoteComAluno[]
   initialError: string | null
+  /** When true, skips the page header (used when embedded inside Financeiro tab) */
+  embedded?: boolean
 }) {
   const [filter, setFilter] = useState<Filter>('ativo')
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -38,7 +50,27 @@ export function PacotesHub({
   const [renovar, setRenovar] = useState<PacoteComAluno | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
-  const filtered = pacotes.filter(p => filter === 'todos' || p.status === filter)
+
+  const filteredRaw = pacotes.filter(p => {
+    if (filter === 'todos')      return true
+    if (filter === 'ativo')      return p.status === 'ativo'
+    if (filter === 'finalizado') return p.status === 'finalizado' || p.status === 'vencido'
+    // vencendo: ativo com até 7 dias para vencer
+    if (filter === 'vencendo') {
+      if (p.status !== 'ativo') return false
+      const days = daysBetween(p.data_vencimento, today)
+      return days >= 0 && days <= 7
+    }
+    return true
+  })
+
+  // Sort by urgency, then by vencimento asc
+  const filtered = [...filteredRaw].sort((a, b) => {
+    const ra = urgencyRank(a, today)
+    const rb = urgencyRank(b, today)
+    if (ra !== rb) return ra - rb
+    return a.data_vencimento.localeCompare(b.data_vencimento)
+  })
 
   async function toggleExpand(p: PacoteComAluno) {
     if (expanded === p.id) {
@@ -55,16 +87,19 @@ export function PacotesHub({
   }
 
   return (
-    <div className="p-4 md:p-6 flex flex-col" style={{ gap: 16, maxWidth: 800, margin: '0 auto', width: '100%' }}>
-      {/* Header */}
-      <div className="flex items-end justify-between px-1">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Pacotes</h1>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-            Pacotes de aulas avulsas dos seus alunos
-          </p>
+    <div className={embedded ? 'p-4 md:p-6 flex flex-col' : 'p-4 md:p-6 flex flex-col'}
+      style={{ gap: 16, maxWidth: 800, margin: '0 auto', width: '100%' }}>
+      {/* Header — apenas no modo standalone */}
+      {!embedded && (
+        <div className="flex items-end justify-between px-1">
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Pacotes</h1>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+              Pacotes de aulas avulsas dos seus alunos
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {initialError && (
         <div className="px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>
@@ -73,14 +108,22 @@ export function PacotesHub({
       )}
 
       {/* Filter tabs */}
-      <div className="flex gap-1 p-1 rounded-xl self-start" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+      <div className="flex gap-1 p-1 rounded-xl self-start flex-wrap" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
         {([
           { id: 'ativo',      label: 'Ativos' },
-          { id: 'vencido',    label: 'Vencidos' },
+          { id: 'vencendo',   label: 'Vencendo em breve' },
           { id: 'finalizado', label: 'Finalizados' },
           { id: 'todos',      label: 'Todos' },
         ] as const).map(f => {
-          const n = f.id === 'todos' ? pacotes.length : pacotes.filter(p => p.status === f.id).length
+          const n =
+            f.id === 'todos'       ? pacotes.length :
+            f.id === 'ativo'       ? pacotes.filter(p => p.status === 'ativo').length :
+            f.id === 'finalizado'  ? pacotes.filter(p => p.status === 'finalizado' || p.status === 'vencido').length :
+            /* vencendo */          pacotes.filter(p => {
+                                      if (p.status !== 'ativo') return false
+                                      const d = daysBetween(p.data_vencimento, today)
+                                      return d >= 0 && d <= 7
+                                    }).length
           return (
             <button key={f.id} onClick={() => setFilter(f.id)}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"

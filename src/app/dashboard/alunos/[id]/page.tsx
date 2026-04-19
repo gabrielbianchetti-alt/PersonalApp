@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { DIAS_LABEL, formatCurrency, formatDate } from '@/types/aluno'
 import { DeleteAlunoButton } from './DeleteAlunoButton'
 import { EditAlunoButton } from './EditAlunoButton'
+import { AlunoPacoteCard } from './AlunoPacoteCard'
+import type { PacoteRow, AulaUsada } from '../../pacotes/actions'
 
 export const metadata: Metadata = { title: 'Perfil do Aluno — PersonalHub' }
 
@@ -27,16 +29,46 @@ export default async function AlunoPerfilPage({
 
   if (!aluno) notFound()
 
-  // Active pacote (for pacote-model students) — used to pre-fill edit form
-  const { data: pacoteAtivo } = await supabase
-    .from('pacotes')
-    .select('quantidade_total, validade_dias, data_inicio, data_cobranca')
-    .eq('professor_id', user.id)
-    .eq('aluno_id', id)
-    .eq('status', 'ativo')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  // Active pacote (for pacote-model students) — full data for card + edit prefill
+  const isPacote = aluno.modelo_cobranca === 'pacote'
+  let pacoteFull: PacoteRow | null = null
+  let aulasPacote: AulaUsada[] = []
+  if (isPacote) {
+    const { data: pkg } = await supabase
+      .from('pacotes')
+      .select('*')
+      .eq('professor_id', user.id)
+      .eq('aluno_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    pacoteFull = (pkg ?? null) as PacoteRow | null
+
+    if (pacoteFull) {
+      const { data: aulas } = await supabase
+        .from('eventos_agenda')
+        .select('id, data_especifica, horario_inicio, duracao')
+        .eq('professor_id', user.id)
+        .eq('pacote_id', pacoteFull.id)
+        .order('data_especifica', { ascending: false })
+        .order('horario_inicio', { ascending: false })
+      aulasPacote = (aulas ?? []).map(a => ({
+        evento_id:       a.id,
+        data_especifica: a.data_especifica,
+        horario_inicio:  a.horario_inicio,
+        duracao:         a.duracao,
+      }))
+    }
+  }
+
+  const pacoteAtivo = pacoteFull && pacoteFull.status === 'ativo'
+    ? {
+        quantidade_total: pacoteFull.quantidade_total,
+        validade_dias:    pacoteFull.validade_dias,
+        data_inicio:      pacoteFull.data_inicio,
+        data_cobranca:    pacoteFull.data_cobranca,
+      }
+    : null
 
   // Last termo sent
   const { data: ultimoTermo } = await supabase
@@ -111,7 +143,11 @@ export default async function AlunoPerfilPage({
           {[
             { label: 'Horários', value: horarios.length === 0 ? '—' : horarios.map(h => `${DIAS_LABEL[h.dia] ?? h.dia} ${h.horario}`).join(' · ') },
             { label: 'Local', value: aluno.local || '—' },
-            { label: 'Valor', value: formatCurrency(Number(aluno.valor)) + (aluno.modelo_cobranca === 'mensalidade' ? '/mês' : '/aula') },
+            { label: 'Valor', value: formatCurrency(Number(aluno.valor)) + (
+              aluno.modelo_cobranca === 'mensalidade' ? '/mês'
+              : aluno.modelo_cobranca === 'pacote'    ? '/pacote'
+              : '/aula'
+            ) },
             { label: 'Início', value: aluno.data_inicio ? formatDate(aluno.data_inicio) : '—' },
             { label: 'Duração', value: aluno.duracao ? `${aluno.duracao} min` : '—' },
           ].map(({ label, value }) => (
@@ -122,6 +158,11 @@ export default async function AlunoPerfilPage({
           ))}
         </div>
       </div>
+
+      {/* Pacote card — só quando o aluno é modelo pacote */}
+      {isPacote && (
+        <AlunoPacoteCard pacote={pacoteFull} aulas={aulasPacote} alunoNome={aluno.nome} />
+      )}
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3 mb-4">

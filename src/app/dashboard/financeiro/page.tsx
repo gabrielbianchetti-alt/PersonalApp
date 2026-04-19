@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { FinanceiroHub } from './FinanceiroHub'
 import type { FinanceiroTab } from './FinanceiroHub'
+import { listPacotesAction } from '../pacotes/actions'
 import {
   ensureFixosForMesAction,
   getReceitasExtrasForMesAction,
@@ -52,6 +53,7 @@ export default async function FinanceiroPage({
     { data: creditos },
     { data: receitasExtras },
     { data: historico },
+    pacotesRes,
   ] = await Promise.all([
     supabase
       .from('alunos')
@@ -84,6 +86,7 @@ export default async function FinanceiroPage({
       .or(`mes_validade.is.null,mes_validade.eq.${mesAtual}`),
     getReceitasExtrasForMesAction(mesAtual),
     getHistoricoFinanceiroAction(mesesHistorico),
+    listPacotesAction(),
   ])
 
   // Build creditos map
@@ -95,7 +98,7 @@ export default async function FinanceiroPage({
   }
 
   // Determine initial tab
-  const validTabs: FinanceiroTab[] = ['calculo', 'cobranca', 'custos']
+  const validTabs: FinanceiroTab[] = ['calculo', 'cobranca', 'custos', 'pacotes']
   const rawTab = params.tab as FinanceiroTab
   const initialTab: FinanceiroTab = validTabs.includes(rawTab) ? rawTab : 'calculo'
 
@@ -114,6 +117,7 @@ export default async function FinanceiroPage({
       custosIniciais={(custos ?? []) as CustoRow[]}
       receitasExtrasIniciais={(receitasExtras ?? []) as ReceitaExtraRow[]}
       historicoIniciais={(historico ?? []) as HistoricoMes[]}
+      pacotes={pacotesRes.data ?? []}
     />
   )
 }

@@ -370,13 +370,13 @@ export function DashboardHome({
       const diasAteVenc = Math.round((new Date(p.data_vencimento + 'T00:00:00').getTime() - hojeMs) / 86_400_000)
 
       if (p.status === 'vencido' && restantes > 0) {
-        alertas.push({ id: `pkg-venc-${p.aluno_nome}`, icon: 'package', text: `Pacote de ${p.aluno_nome} venceu com ${restantes} aula${restantes === 1 ? '' : 's'} não utilizada${restantes === 1 ? '' : 's'}`, href: '/dashboard/pacotes' })
+        alertas.push({ id: `pkg-venc-${p.aluno_nome}`, icon: 'package', text: `Pacote de ${p.aluno_nome} venceu com ${restantes} aula${restantes === 1 ? '' : 's'} não utilizada${restantes === 1 ? '' : 's'}`, href: '/dashboard/financeiro?tab=pacotes' })
       } else if (restantes === 0 && p.status !== 'vencido') {
-        alertas.push({ id: `pkg-fim-${p.aluno_nome}`, icon: 'package', text: `Pacote de ${p.aluno_nome} finalizado. Renovar?`, href: '/dashboard/pacotes' })
+        alertas.push({ id: `pkg-fim-${p.aluno_nome}`, icon: 'package', text: `Pacote de ${p.aluno_nome} finalizado. Renovar?`, href: '/dashboard/financeiro?tab=pacotes' })
       } else if (restantes > 0 && restantes <= 2) {
-        alertas.push({ id: `pkg-low-${p.aluno_nome}`, icon: 'package', text: `${p.aluno_nome} tem apenas ${restantes} aula${restantes === 1 ? '' : 's'} restante${restantes === 1 ? '' : 's'} no pacote`, href: '/dashboard/pacotes' })
+        alertas.push({ id: `pkg-low-${p.aluno_nome}`, icon: 'package', text: `${p.aluno_nome} tem apenas ${restantes} aula${restantes === 1 ? '' : 's'} restante${restantes === 1 ? '' : 's'} no pacote`, href: '/dashboard/financeiro?tab=pacotes' })
       } else if (diasAteVenc > 0 && diasAteVenc <= 5 && restantes > 0) {
-        alertas.push({ id: `pkg-exp-${p.aluno_nome}`, icon: 'package', text: `Pacote de ${p.aluno_nome} vence em ${diasAteVenc} dia${diasAteVenc === 1 ? '' : 's'} — ainda tem ${restantes} aula${restantes === 1 ? '' : 's'} restante${restantes === 1 ? '' : 's'}`, href: '/dashboard/pacotes' })
+        alertas.push({ id: `pkg-exp-${p.aluno_nome}`, icon: 'package', text: `Pacote de ${p.aluno_nome} vence em ${diasAteVenc} dia${diasAteVenc === 1 ? '' : 's'} — ainda tem ${restantes} aula${restantes === 1 ? '' : 's'} restante${restantes === 1 ? '' : 's'}`, href: '/dashboard/financeiro?tab=pacotes' })
       }
     }
   }
