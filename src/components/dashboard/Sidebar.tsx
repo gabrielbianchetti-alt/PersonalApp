@@ -92,6 +92,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
 
   return (
     <aside
+      data-demo-tour="sidebar"
       className={`
         fixed top-0 left-0 z-30 w-60 flex flex-col
         transition-transform duration-200 ease-in-out

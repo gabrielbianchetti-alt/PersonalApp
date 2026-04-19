@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +43,7 @@ function isColumnMissing(err: { code?: string; message?: string } | null): boole
 export async function createCustoAction(
   data: CreateInput
 ): Promise<{ data?: CustoRow; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -81,6 +84,7 @@ export async function updateCustoAction(
   id: string,
   data: Partial<CreateInput>
 ): Promise<{ data?: CustoRow; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -100,6 +104,7 @@ export async function updateCustoAction(
 export async function deleteCustoAction(
   id: string
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -211,6 +216,7 @@ export async function getCustosForMesAction(
 export async function ensureFixosForMesAction(
   mesRef: string
 ): Promise<{ inserted: number; error?: string }> {
+  if (await shouldBlockInDemo()) return { inserted: 0, error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { inserted: 0, error: 'Sessão expirada.' }
@@ -350,6 +356,7 @@ export async function createReceitaExtraAction(input: {
   data?: string | null
   mes_referencia: string
 }): Promise<{ data?: ReceitaExtraRow; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -385,6 +392,7 @@ export async function getReceitasExtrasForMesAction(
 export async function deleteReceitaExtraAction(
   id: string
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }

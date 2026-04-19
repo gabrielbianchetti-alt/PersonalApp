@@ -3,10 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { AlunoFormData, addDays } from '@/types/aluno'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 
 export async function criarAlunoAction(
   data: AlunoFormData
 ): Promise<{ data?: Record<string, unknown>; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
+
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()

@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { addDays } from '@/types/aluno'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 
 export interface PacoteRow {
   id:                string
@@ -141,6 +143,7 @@ export async function renovarPacoteAction(params: {
   data_cobranca:    string
   transferir_saldo: boolean
 }): Promise<{ data?: PacoteRow; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -192,6 +195,7 @@ export async function renovarPacoteAction(params: {
 
 // ─── Incrementar quantidade_usada (chamado quando aula de pacote é criada) ────
 export async function consumirAulaPacoteAction(pacoteId: string): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -222,6 +226,7 @@ export async function consumirAulaPacoteAction(pacoteId: string): Promise<{ erro
 
 // ─── Devolve aula ao pacote (cancelamento pelo professor) ─────────────────────
 export async function devolverAulaPacoteAction(pacoteId: string): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }

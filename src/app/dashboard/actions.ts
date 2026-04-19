@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 
 // Upsert a cobrança record with status 'pago' (creates if not exists)
 export async function upsertCobrancaPagoAction(
@@ -8,6 +10,7 @@ export async function upsertCobrancaPagoAction(
   mesRef: string,
   valor: number,
 ): Promise<{ error?: string; id?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -36,6 +39,7 @@ export async function upsertCobrancaPagoAction(
 export async function desfazerPagoAction(
   cobrancaId: string,
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }

@@ -8,6 +8,8 @@ import { COR_PRESETS } from './types'
 import type { ModoTema, ProfessorPerfil } from './types'
 import type { AssinaturaData } from './assinatura-actions'
 import { AtivarDemoButton } from '@/components/dashboard/AtivarDemoButton'
+import { notifyDemoSimulated } from '@/components/dashboard/DemoToast'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 
 // ─── section wrapper ─────────────────────────────────────────────────────────
 
@@ -218,6 +220,7 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
     setNomeLoading(true)
     const res = await saveNomeAction(nome)
     setNomeLoading(false)
+    if (res.error === DEMO_ERROR_SENTINEL) { notifyDemoSimulated('Salvar nome'); return }
     if (!res.error) { setNomeDone(true); setTimeout(() => setNomeDone(false), 3000) }
   }
 
@@ -275,6 +278,7 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
     setCorLoading(true)
     const res = await saveCorTemaAction(corPreview)
     setCorLoading(false)
+    if (res.error === DEMO_ERROR_SENTINEL) { notifyDemoSimulated('Salvar cor do tema'); return }
     if (!res.error) {
       setCorSalva(corPreview)
       setCorDone(true)
@@ -288,6 +292,7 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
     setModoLoading(true)
     const res = await saveModoTemaAction(novo)
     setModoLoading(false)
+    if (res.error === DEMO_ERROR_SENTINEL) { notifyDemoSimulated('Trocar tema'); return }
     if (!res.error) {
       setModoDone(true)
       setTimeout(() => setModoDone(false), 2000)

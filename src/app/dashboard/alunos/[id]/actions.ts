@@ -3,11 +3,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { AlunoFormData } from '@/types/aluno'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 
 export async function updateAlunoAction(
   alunoId: string,
   data: AlunoFormData
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
+
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -52,6 +56,8 @@ export async function updateAlunoAction(
 export async function deleteAlunoAction(
   alunoId: string
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
+
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }

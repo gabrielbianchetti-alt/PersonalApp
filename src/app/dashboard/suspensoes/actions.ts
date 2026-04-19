@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 import type { SuspensaoTipo, SuspensaoStatus, AcaoHorario, SuspensaoRow, Conflitante } from './types'
 
 export type { SuspensaoTipo, SuspensaoStatus, AcaoHorario, SuspensaoRow, AlunoSuspenso, Conflitante } from './types'
@@ -52,6 +54,7 @@ export async function criarSuspensaoAction(input: {
   motivo?: string | null
   acao_horario: AcaoHorario
 }): Promise<{ data?: SuspensaoRow; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -142,6 +145,7 @@ export async function reativarAlunoAction(
   suspensaoId: string,
   alunoId: string
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -175,6 +179,7 @@ export async function reativarAlunoAction(
 export async function encerrarSuspensaoAction(
   suspensaoId: string
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -199,6 +204,7 @@ export async function excluirSuspensaoAction(
   alunoId: string,
   isAtiva: boolean
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -234,6 +240,7 @@ export async function excluirSuspensaoAction(
 // ─── limpar histórico (apaga todas as encerradas) ─────────────────────────────
 
 export async function limparHistoricoAction(): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }

@@ -2,6 +2,8 @@
 
 import { randomUUID } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 
 export type EventoTipo = 'aula' | 'reposicao' | 'reuniao' | 'bloqueado' | 'refeicao' | 'outro' | 'aula_extra'
 
@@ -42,6 +44,7 @@ type CreateInput = {
 export async function createEventoAction(
   data: CreateInput
 ): Promise<{ data?: EventoAgendaRow; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -124,6 +127,7 @@ export async function updateEventoAction(
   id: string,
   data: Partial<CreateInput>
 ): Promise<{ data?: EventoAgendaRow; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -146,6 +150,7 @@ export async function updateAlunoScheduleAction(
   newDayKey: string,
   newHorario: string
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -183,6 +188,7 @@ export async function updateAlunoScheduleAction(
 export async function deleteEventoAction(
   id: string
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -233,6 +239,7 @@ export async function createEventoSerieAction(
   events: CreateInput[]
 ): Promise<{ data?: EventoAgendaRow[]; serieId?: string; error?: string }> {
   if (!events.length) return { error: 'Nenhum evento para criar.' }
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -263,6 +270,7 @@ export async function createEventoSerieAction(
 export async function deleteEventoSerieAction(
   serieId: string
 ): Promise<{ deletedIds?: string[]; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }

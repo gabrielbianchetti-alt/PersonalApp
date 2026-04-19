@@ -7,7 +7,9 @@ import type { SuspensaoRow } from '../suspensoes/types'
 import type { HorarioDia } from '@/types/aluno'
 import type { ModeloTermo, TermoEnviado } from '../termos/types'
 import { isDemoMode } from '@/lib/demo/mode'
-import { getDemoAlunos } from '@/lib/demo/fixtures'
+import {
+  getDemoAlunos, getDemoSuspensoes, getDemoModelosTermo, getDemoTermosEnviados,
+} from '@/lib/demo/fixtures'
 
 export const metadata: Metadata = { title: 'Alunos — PersonalHub' }
 
@@ -34,9 +36,15 @@ export default async function AlunosPage({
   ] = demo ? [
     { data: getDemoAlunos() },
     { data: [] as AlunoMinimal[] },
-    { data: [] as Record<string, unknown>[] },
-    { data: [] as ModeloTermo[] },
-    { data: [] as Record<string, unknown>[] },
+    { data: getDemoSuspensoes().map(s => ({
+        ...s,
+        alunos: { nome: s.aluno_nome, horarios: s.aluno_horarios },
+      })) as Record<string, unknown>[] },
+    { data: getDemoModelosTermo() as unknown as ModeloTermo[] },
+    { data: getDemoTermosEnviados().map(t => ({
+        ...t,
+        alunos: { nome: t.aluno_nome },
+      })) as Record<string, unknown>[] },
   ] as const : await Promise.all([
     supabase
       .from('alunos')

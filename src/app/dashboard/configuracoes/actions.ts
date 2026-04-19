@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 import type { ModoTema, ProfessorPerfil } from './types'
 
 // ─── get or create ────────────────────────────────────────────────────────────
@@ -93,6 +95,7 @@ async function getAuthAndAdmin() {
 // ─── save nome ────────────────────────────────────────────────────────────────
 
 export async function saveNomeAction(nome: string): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const { user, supabase, admin } = await getAuthAndAdmin()
   if (!user) return { error: 'Sessão expirada.' }
 
@@ -113,6 +116,7 @@ export async function saveNomeAction(nome: string): Promise<{ error?: string }> 
 // ─── save foto URL ────────────────────────────────────────────────────────────
 
 export async function saveFotoUrlAction(url: string): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const { user, admin } = await getAuthAndAdmin()
   if (!user) return { error: 'Sessão expirada.' }
 
@@ -130,6 +134,7 @@ export async function saveFotoUrlAction(url: string): Promise<{ error?: string }
 // ─── save cor tema ────────────────────────────────────────────────────────────
 
 export async function saveCorTemaAction(cor: string): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   if (!/^#[0-9A-Fa-f]{6}$/.test(cor)) return { error: 'Cor inválida.' }
 
   const { user, admin } = await getAuthAndAdmin()
@@ -149,6 +154,7 @@ export async function saveCorTemaAction(cor: string): Promise<{ error?: string }
 // ─── save modo tema ───────────────────────────────────────────────────────────
 
 export async function saveModoTemaAction(modo: ModoTema): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   if (!['escuro', 'claro', 'auto'].includes(modo)) return { error: 'Modo inválido.' }
 
   const { user, admin } = await getAuthAndAdmin()

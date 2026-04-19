@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Calendar, RefreshCw, Zap, Plus, FileText, Wallet, CheckCircle2,
 } from 'lucide-react'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
+import { notifyDemoSimulated } from '@/components/dashboard/DemoToast'
 import {
   createEventoAction,
   createEventoSerieAction,
@@ -470,6 +472,11 @@ function AddEventModal({
         }))
         const res = await createEventoSerieAction(events)
         setSaving(false)
+        if (res.error === DEMO_ERROR_SENTINEL) {
+          notifyDemoSimulated('Criar série de eventos')
+          onClose()
+          return
+        }
         if (res.error) { setErr(res.error); return }
         res.data!.forEach(onSaved)
         return
@@ -483,6 +490,11 @@ function AddEventModal({
     }
     const res = await createEventoAction(payload)
     setSaving(false)
+    if (res.error === DEMO_ERROR_SENTINEL) {
+      notifyDemoSimulated('Criar evento')
+      onClose()
+      return
+    }
     if (res.error) { setErr(res.error); return }
     onSaved(res.data!)
   }

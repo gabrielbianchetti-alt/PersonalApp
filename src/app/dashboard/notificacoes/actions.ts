@@ -2,6 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 import type { NotificacaoComLeitura } from '@/types/notificacao'
 
 export async function fetchNotificacoesAction(): Promise<{
@@ -43,6 +45,7 @@ export async function fetchNotificacoesAction(): Promise<{
 }
 
 export async function marcarLidaAction(notifUsuarioId: string): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Não autenticado.' }
@@ -59,6 +62,7 @@ export async function marcarLidaAction(notifUsuarioId: string): Promise<{ error?
 }
 
 export async function marcarTodasLidasAction(): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Não autenticado.' }

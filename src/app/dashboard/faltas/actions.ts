@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +52,7 @@ export async function getPreferenciasAction(): Promise<{ data?: PrefsF; error?: 
 export async function savePreferenciasAction(
   prefs: PrefsF
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -94,6 +97,7 @@ export async function createFaltaAction(input: {
   horario_falta?: string | null
   observacao?: string
 }): Promise<{ data?: FaltaRow; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -130,6 +134,7 @@ export async function resolveFaltaAction(
     | { tipo: 'credito'; credito_valor: number }
     | { tipo: 'cobranca' }
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -189,6 +194,7 @@ export async function desfazerFaltaAction(
   data_falta: string,
   prazoDias: number,
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -216,6 +222,7 @@ export async function desfazerFaltaAction(
 }
 
 export async function deleteFaltaAction(id: string): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -234,6 +241,7 @@ export async function deleteFaltaAction(id: string): Promise<{ error?: string }>
 // Marks all pendentes past their prazo_vencimento as 'vencida'.
 
 export async function processVencidosAction(): Promise<{ updated: number; error?: string }> {
+  if (await shouldBlockInDemo()) return { updated: 0, error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { updated: 0, error: 'Sessão expirada.' }

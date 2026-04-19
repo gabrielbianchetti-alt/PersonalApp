@@ -137,6 +137,43 @@ export interface DemoNotificacao {
   created_at: string
 }
 
+export interface DemoSuspensao {
+  id: string
+  professor_id: string
+  aluno_id: string
+  aluno_nome: string
+  aluno_horarios: { dia: string; horario: string }[]
+  tipo: 'pausa_temporaria' | 'afastamento' | 'ferias'
+  status: 'ativa' | 'encerrada'
+  data_inicio: string
+  data_retorno: string | null
+  motivo: string | null
+  acao_horario: 'manter' | 'liberar'
+  created_at: string
+  updated_at: string
+}
+
+export interface DemoModeloTermo {
+  id: string
+  professor_id: string
+  nome: string
+  conteudo: string
+  tipo: 'padrao' | 'custom'
+  created_at: string
+  updated_at: string
+}
+
+export interface DemoTermoEnviado {
+  id: string
+  professor_id: string
+  aluno_id: string
+  aluno_nome: string
+  conteudo: string
+  modelo_usado: string
+  enviado_em: string
+  created_at: string
+}
+
 // ─── constantes ───────────────────────────────────────────────────────────────
 
 export const DEMO_PROFESSOR_ID   = 'demo-prof-00000000'
@@ -509,6 +546,94 @@ export function getDemoNotificacoes(): DemoNotificacao[] {
       link: '/dashboard/alunos/demo-aluno-01',
       lida: true,
       created_at: daysAgo(2),
+    },
+  ]
+}
+
+// ─── SUSPENSÕES ───────────────────────────────────────────────────────────────
+
+export function getDemoSuspensoes(): DemoSuspensao[] {
+  const inicio = daysAgo(12)
+  const retorno = daysAhead(18)
+  return [
+    {
+      id: 'demo-susp-01',
+      professor_id: DEMO_PROFESSOR_ID,
+      aluno_id: 'demo-aluno-07', // Thiago
+      aluno_nome: 'Thiago Ferreira',
+      aluno_horarios: [{ dia: 'ter', horario: '07:00' }, { dia: 'sex', horario: '07:00' }],
+      tipo: 'ferias',
+      status: 'ativa',
+      data_inicio: inicio,
+      data_retorno: retorno,
+      motivo: 'Férias de fim de ano',
+      acao_horario: 'liberar',
+      created_at: inicio,
+      updated_at: inicio,
+    },
+  ]
+}
+
+// ─── TERMOS (modelos + histórico) ─────────────────────────────────────────────
+
+const DEMO_MODELO_CONTEUDO = `Olá {nome}!
+
+📋 *TERMO DE SERVIÇO*
+
+Bem-vindo(a) aos treinos comigo! Aqui está tudo o que você precisa saber:
+
+🏋️ *Sobre os nossos treinos:*
+• Duração: 60 minutos por sessão
+• Frequência conforme combinado
+• Local: Academia
+
+✅ *O que você pode esperar de mim:*
+• Avaliação inicial completa
+• Treinos personalizados
+• Acompanhamento constante
+
+⚠️ *Combinados importantes:*
+• Avisar cancelamento com 24h de antecedência
+• Pagamento até o dia combinado
+
+Qualquer dúvida, estou à disposição! 💪`
+
+export function getDemoModelosTermo(): DemoModeloTermo[] {
+  const base = daysAgo(60)
+  return [
+    {
+      id: 'demo-modelo-01',
+      professor_id: DEMO_PROFESSOR_ID,
+      nome: 'Termo padrão',
+      conteudo: DEMO_MODELO_CONTEUDO,
+      tipo: 'padrao',
+      created_at: base,
+      updated_at: base,
+    },
+  ]
+}
+
+export function getDemoTermosEnviados(): DemoTermoEnviado[] {
+  return [
+    {
+      id: 'demo-termo-01',
+      professor_id: DEMO_PROFESSOR_ID,
+      aluno_id: 'demo-aluno-01',
+      aluno_nome: 'Ana Silva',
+      conteudo: DEMO_MODELO_CONTEUDO.replace('{nome}', 'Ana'),
+      modelo_usado: 'Termo padrão',
+      enviado_em: daysAgo(30),
+      created_at: daysAgo(30),
+    },
+    {
+      id: 'demo-termo-02',
+      professor_id: DEMO_PROFESSOR_ID,
+      aluno_id: 'demo-aluno-04',
+      aluno_nome: 'Marina Santos',
+      conteudo: DEMO_MODELO_CONTEUDO.replace('{nome}', 'Marina'),
+      modelo_usado: 'Termo padrão',
+      enviado_em: daysAgo(15),
+      created_at: daysAgo(15),
     },
   ]
 }

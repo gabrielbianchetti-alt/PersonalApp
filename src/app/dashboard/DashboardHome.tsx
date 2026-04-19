@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Hand, CheckCircle2, Sparkles } from 'lucide-react'
 import { formatCurrency } from '@/types/aluno'
 import { AtivarDemoButton } from '@/components/dashboard/AtivarDemoButton'
+import { notifyDemoSimulated } from '@/components/dashboard/DemoToast'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 import { upsertCobrancaPagoAction, desfazerPagoAction } from './actions'
 import { FaltaQuickActionModal } from './faltas/FaltaQuickActionModal'
 
@@ -394,6 +396,10 @@ export function DashboardHome({
     if (!aluno) return
     setAlunosCobranca(prev => prev.map(a => a.alunoId === alunoId ? { ...a, status: 'pago' } : a))
     const res = await upsertCobrancaPagoAction(alunoId, mesRef, aluno.valor)
+    if (res.error === DEMO_ERROR_SENTINEL) {
+      notifyDemoSimulated('Marcar como pago')
+      return
+    }
     if (res.id) setAlunosCobranca(prev => prev.map(a => a.alunoId === alunoId ? { ...a, cobrancaId: res.id! } : a))
   }
 
@@ -401,7 +407,10 @@ export function DashboardHome({
     const aluno = alunosCobranca.find(a => a.alunoId === alunoId)
     if (!aluno?.cobrancaId) return
     setAlunosCobranca(prev => prev.map(a => a.alunoId === alunoId ? { ...a, status: 'pendente' } : a))
-    await desfazerPagoAction(aluno.cobrancaId)
+    const res = await desfazerPagoAction(aluno.cobrancaId)
+    if (res.error === DEMO_ERROR_SENTINEL) {
+      notifyDemoSimulated('Desfazer pagamento')
+    }
   }
 
   function buildWhatsApp(a: AlunoCobranca): string {
@@ -428,7 +437,7 @@ export function DashboardHome({
       {/* ╔══════════════════════════════════════════════════════════════╗
           ║  BLOCO 1 — DATA + HORA                                       ║
           ╚══════════════════════════════════════════════════════════════╝ */}
-      <div className="flex items-end justify-between px-1">
+      <div className="flex items-end justify-between px-1" data-demo-tour="dashboard-header">
         <p className="leading-none"
           style={{ fontSize: 'clamp(2rem, 6.5vw, 2.75rem)', fontWeight: 300, color: 'var(--green-primary)', letterSpacing: '-0.02em' }}>
           {diaAbr} {dayNum} {mesAbr}
@@ -442,7 +451,9 @@ export function DashboardHome({
       {/* ╔══════════════════════════════════════════════════════════════╗
           ║  BLOCO 2 — CARROSSEL DE ALERTAS                              ║
           ╚══════════════════════════════════════════════════════════════╝ */}
-      <AlertaCarrossel alertas={alertasVisiveis} />
+      <div data-demo-tour="dashboard-alertas">
+        <AlertaCarrossel alertas={alertasVisiveis} />
+      </div>
 
       {/* Empty state — sem alunos cadastrados → CTA para explorar em demo */}
       {showDemoEmptyState && (
@@ -473,7 +484,7 @@ export function DashboardHome({
       {/* ╔══════════════════════════════════════════════════════════════╗
           ║  BLOCO 3 — SAUDAÇÃO + TIMELINE DO DIA                        ║
           ╚══════════════════════════════════════════════════════════════╝ */}
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 20, padding: '18px 20px' }}>
+      <div data-demo-tour="dashboard-timeline" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 20, padding: '18px 20px' }}>
 
         {/* Saudação */}
         <div className="flex items-center gap-1.5 mb-4 flex-wrap">

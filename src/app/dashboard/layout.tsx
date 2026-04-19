@@ -4,6 +4,8 @@ import { themeStyle } from '@/lib/color'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
 import { DemoBanner } from '@/components/dashboard/DemoBanner'
+import { DemoToast } from '@/components/dashboard/DemoToast'
+import { DemoTour } from '@/components/dashboard/DemoTour'
 import { getOrCreateAssinaturaAction } from '@/app/dashboard/configuracoes/assinatura-actions'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 import { ADMIN_EMAILS } from '@/lib/constants'
@@ -70,6 +72,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {demo && <DemoBanner />}
         {!demo && assinatura && !isAdmin && <TrialBanner assinatura={assinatura} isAdmin={isAdmin} />}
         {children}
+        {demo && (
+          <>
+            <DemoToast />
+            <DemoTour />
+          </>
+        )}
       </DashboardShell>
     </>
   )

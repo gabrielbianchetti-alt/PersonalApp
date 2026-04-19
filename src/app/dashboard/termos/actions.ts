@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { shouldBlockInDemo } from '@/lib/demo/guard'
+import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 import {
   MODELO_FORMAL_CONTEUDO,
   MODELO_DESCONTRAIDO_CONTEUDO,
@@ -82,6 +84,7 @@ export async function getModelosAction(): Promise<{ data?: ModeloTermo[]; error?
 export async function saveModeloAction(
   input: { id?: string; nome: string; conteudo: string; tipo: ModeloTipo }
 ): Promise<{ data?: ModeloTermo; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -110,6 +113,7 @@ export async function saveModeloAction(
 export async function deleteModeloAction(
   modeloId: string
 ): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
@@ -152,6 +156,7 @@ export async function registrarEnvioAction(input: {
   conteudo: string
   modelo_usado: ModeloTipo
 }): Promise<{ data?: TermoEnviado; error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
