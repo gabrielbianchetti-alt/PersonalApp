@@ -28,7 +28,7 @@ const STEPS: Step[] = [
   {
     target: null,
     title: 'Bem-vindo ao modo demonstração',
-    body: 'Você está explorando o PersonalHub com 8 alunos fictícios. Nada do que você fizer é salvo no banco. Vamos dar um tour rápido.',
+    body: 'Você está explorando o PersonalHub com 8 alunos fictícios. Nada do que você fizer é salvo no banco de dados. Vamos dar um tour rápido.',
     route: '/dashboard',
   },
   {
@@ -46,7 +46,7 @@ const STEPS: Step[] = [
   {
     target: '[data-demo-tour="dashboard-timeline"]',
     title: 'Aulas de hoje',
-    body: 'Clique em qualquer aula pra registrar uma falta, cancelamento ou marcar como pago.',
+    body: 'Clique em qualquer aula pra registrar uma falta, cancelamento ou remarcação.',
     route: '/dashboard',
   },
   {
