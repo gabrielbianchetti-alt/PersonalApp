@@ -69,6 +69,42 @@ html[data-theme="auto"] {
   box-sizing: border-box;
 }
 
+/* ── Date/time inputs ──────────────────────────────────────────────────────
+ * Native date/time inputs on iOS Safari have an intrinsic min-width based on
+ * the placeholder and native picker chrome that ignores `width: 100%` inside
+ * CSS grid or flexbox, causing overflow on narrow mobile viewports. Forcing
+ * `min-width: 0` + `-webkit-appearance: none` (paired with our own padding
+ * via Tailwind classes) lets them respect the parent width.
+ */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"] {
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-width: 0;
+}
+/* Invert the native calendar/clock picker indicator on dark mode so it stays
+ * visible against our dark backgrounds. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+html[data-theme="claro"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="claro"] input[type="time"]::-webkit-calendar-picker-indicator,
+html[data-theme="claro"] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
 body {
   background-color: var(--bg-base);
   color: var(--text-primary);

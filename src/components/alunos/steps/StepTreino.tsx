@@ -348,28 +348,28 @@ export function StepTreino({ data, errors, onChange }: Props) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 min-w-0">
               <label htmlFor="pacote_ini" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
                 Início do pacote *
               </label>
               <input id="pacote_ini" type="date"
                 value={data.pacote_data_inicio}
                 onChange={(e) => onChange('pacote_data_inicio', e.target.value)}
-                className="h-12 rounded-xl px-4 text-sm outline-none"
+                className="w-full h-12 rounded-xl px-4 text-sm outline-none"
                 style={{
                   background: 'var(--bg-input)',
                   border: '1px solid var(--border-subtle)',
                   color: 'var(--text-primary)',
                 }}/>
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 min-w-0">
               <label htmlFor="pacote_cob" className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
                 Data de cobrança *
               </label>
               <input id="pacote_cob" type="date"
                 value={data.pacote_data_cobranca}
                 onChange={(e) => onChange('pacote_data_cobranca', e.target.value)}
-                className="h-12 rounded-xl px-4 text-sm outline-none"
+                className="w-full h-12 rounded-xl px-4 text-sm outline-none"
                 style={{
                   background: 'var(--bg-input)',
                   border: '1px solid var(--border-subtle)',

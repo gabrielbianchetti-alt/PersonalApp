@@ -110,14 +110,14 @@ function NovaFaltaModal({
           </div>
 
           {/* Data */}
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 min-w-0">
             <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Data da Falta</label>
             <input
               type="date"
               value={dataFalta}
               max={today()}
               onChange={e => setDataFalta(e.target.value)}
-              className="rounded-lg px-3 py-2 text-sm outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
             />
           </div>
@@ -288,24 +288,24 @@ function ResolverModal({
             <div className="flex flex-col gap-3">
               {/* Date + Time pickers */}
               <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 min-w-0">
                   <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Data</label>
                   <input
                     type="date"
                     value={dataRep}
                     min={today()}
                     onChange={e => setDataRep(e.target.value)}
-                    className="rounded-lg px-3 py-2 text-sm outline-none"
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none"
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
                   />
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 min-w-0">
                   <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Horário</label>
                   <input
                     type="time"
                     value={horaRep}
                     onChange={e => setHoraRep(e.target.value)}
-                    className="rounded-lg px-3 py-2 text-sm outline-none"
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none"
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
                   />
                 </div>

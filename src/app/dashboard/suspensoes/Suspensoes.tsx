@@ -149,25 +149,25 @@ function NovaSuspensaoModal({
 
           {/* Datas */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 min-w-0">
               <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Data de início</label>
               <input
                 type="date"
                 value={dataInicio}
                 onChange={e => setDataInicio(e.target.value)}
                 required
-                className="rounded-lg px-3 py-2 text-sm outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 min-w-0">
               <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Retorno previsto <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcional)</span></label>
               <input
                 type="date"
                 value={dataRetorno}
                 min={dataInicio}
                 onChange={e => setDataRetorno(e.target.value)}
-                className="rounded-lg px-3 py-2 text-sm outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
               />
             </div>

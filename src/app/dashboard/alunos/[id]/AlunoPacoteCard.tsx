@@ -302,10 +302,10 @@ function Field({
   label: string; type?: string; value: string; onChange: (v: string) => void; step?: string
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 min-w-0">
       <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</label>
       <input type={type} step={step} value={value} onChange={e => onChange(e.target.value)}
-        className="h-11 rounded-xl px-3 text-sm outline-none"
+        className="w-full h-11 rounded-xl px-3 text-sm outline-none"
         style={{
           background: 'var(--bg-input)',
           border: '1px solid var(--border-subtle)',

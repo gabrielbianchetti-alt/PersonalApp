@@ -93,7 +93,7 @@ export function StepDadosPessoais({ data, errors, onChange }: Props) {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 min-w-0">
           <Input
             id="data_nascimento"
             label="Data de nascimento *"
