@@ -77,9 +77,9 @@ interface Props {
 }
 
 const TABS = [
-  { key: 'calculo',  label: 'Cálculo Mensal' },
+  { key: 'calculo',  label: 'Cálculo Mensal',  shortLabel: 'Cálculo' },
   { key: 'cobranca', label: 'Cobrança' },
-  { key: 'custos',   label: 'Custos e Lucro' },
+  { key: 'custos',   label: 'Custos e Lucro',  shortLabel: 'Custos' },
   { key: 'pacotes',  label: 'Pacotes' },
 ]
 

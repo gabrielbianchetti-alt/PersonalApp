@@ -3,6 +3,8 @@
 export interface TabItem {
   key: string
   label: string
+  /** Optional shorter label shown on mobile (<sm). Falls back to `label` when absent. */
+  shortLabel?: string
 }
 
 interface Props {
@@ -23,7 +25,7 @@ export function TabBar({ tabs, active, onChange }: Props) {
             key={t.key}
             type="button"
             onClick={() => onChange(t.key)}
-            className="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-colors shrink-0"
+            className="whitespace-nowrap px-3 sm:px-4 py-2.5 text-sm font-medium transition-colors shrink-0"
             style={
               active === t.key
                 ? {
@@ -38,7 +40,14 @@ export function TabBar({ tabs, active, onChange }: Props) {
                   }
             }
           >
-            {t.label}
+            {t.shortLabel ? (
+              <>
+                <span className="sm:hidden">{t.shortLabel}</span>
+                <span className="hidden sm:inline">{t.label}</span>
+              </>
+            ) : (
+              t.label
+            )}
           </button>
         ))}
       </div>
