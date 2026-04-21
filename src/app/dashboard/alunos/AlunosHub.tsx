@@ -2,14 +2,28 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { TabBar } from '@/components/dashboard/TabBar'
 import { AlunosGrid } from '@/components/alunos/AlunosGrid'
-import { NovoAlunoForm } from './novo/NovoAlunoForm'
-import { Suspensoes } from '../suspensoes/Suspensoes'
-import { Termos } from '../termos/Termos'
+import { TabSkeleton } from '@/components/ui/TabSkeleton'
 import { DIAS_SEMANA, DURACAO_OPCOES } from '@/types/aluno'
 import type { SuspensaoRow } from '../suspensoes/types'
 import type { ModeloTermo, TermoEnviado } from '../termos/types'
+
+// Abas secundárias viram chunks separados — só baixam na primeira visita.
+// A lista principal (AlunosGrid) continua eager porque é o landing da rota.
+const NovoAlunoForm = dynamic(
+  () => import('./novo/NovoAlunoForm').then(m => ({ default: m.NovoAlunoForm })),
+  { loading: () => <TabSkeleton /> },
+)
+const Suspensoes = dynamic(
+  () => import('../suspensoes/Suspensoes').then(m => ({ default: m.Suspensoes })),
+  { loading: () => <TabSkeleton /> },
+)
+const Termos = dynamic(
+  () => import('../termos/Termos').then(m => ({ default: m.Termos })),
+  { loading: () => <TabSkeleton /> },
+)
 
 // ─── types ────────────────────────────────────────────────────────────────────
 

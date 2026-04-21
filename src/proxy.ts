@@ -3,7 +3,21 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const ADMIN_EMAILS = ['gabrielbianchetti@hotmail.com', 'suporte.personalhub@outlook.com']
 
+// Cache curto do resultado do check de assinatura (cookie). Evita N queries
+// Supabase pra cada navegação. 3 min é suficiente — quando a assinatura muda
+// de status, os server actions que alteram assinatura limpam esse cookie.
+const ASSINATURA_CACHE_COOKIE = 'ph-assin-ok'
+const CACHE_TTL_SECONDS = 3 * 60
+
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // ── Fast-path: rotas que não precisam de nenhum check Supabase ────────────
+  // API routes de Stripe, webhooks e assets internos.
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -29,7 +43,6 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
   const authRoutes = ['/login', '/register', '/forgot-password', '/register/success']
 
   // ── Unauthenticated: redirect to /login (except public routes) ────────────
@@ -48,8 +61,18 @@ export async function proxy(request: NextRequest) {
 
   // ── Dashboard routes: verify subscription ────────────────────────────────
   if (user && pathname.startsWith('/dashboard')) {
-    // Admin always has access
+    // Admin sempre tem acesso (sem query ao banco)
     if (ADMIN_EMAILS.includes(user.email ?? '')) {
+      return supabaseResponse
+    }
+
+    // Modo demo — pula verificação de assinatura
+    if (request.cookies.get('ph-demo-mode')?.value === '1') {
+      return supabaseResponse
+    }
+
+    // Cache curto: se o cookie "ok" estiver setado, libera sem ir ao Supabase
+    if (request.cookies.get(ASSINATURA_CACHE_COOKIE)?.value === '1') {
       return supabaseResponse
     }
 
@@ -72,10 +95,22 @@ export async function proxy(request: NextRequest) {
     }
 
     // Access allowed conditions
-    if (status === 'active') return supabaseResponse
-    if (status === 'past_due') return supabaseResponse  // banner warns them
-    if (status === 'trial' && trial_fim && new Date(trial_fim) > now) return supabaseResponse
-    if (status === 'canceled' && periodo_fim && new Date(periodo_fim) > now) return supabaseResponse
+    const allowed =
+      status === 'active' ||
+      status === 'past_due' ||   // banner warns them
+      (status === 'trial'    && trial_fim   && new Date(trial_fim)   > now) ||
+      (status === 'canceled' && periodo_fim && new Date(periodo_fim) > now)
+
+    if (allowed) {
+      // Grava cache pra próximas navegações (TTL curto)
+      supabaseResponse.cookies.set(ASSINATURA_CACHE_COOKIE, '1', {
+        maxAge: CACHE_TTL_SECONDS,
+        httpOnly: false,
+        sameSite: 'lax',
+        path: '/',
+      })
+      return supabaseResponse
+    }
 
     // Expired → redirect to subscription page
     return NextResponse.redirect(new URL('/assinar', request.url))

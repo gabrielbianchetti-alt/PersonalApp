@@ -1,11 +1,22 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { TabBar } from '@/components/dashboard/TabBar'
-import { AgendaSemanal } from './AgendaSemanal'
-import { Faltas } from '../faltas/Faltas'
+import { TabSkeleton } from '@/components/ui/TabSkeleton'
 import type { EventoAgendaRow } from './actions'
 import type { FaltaRow, PrefsF } from '../faltas/actions'
+
+// AgendaSemanal tem ~2.7k linhas + DnD — chunk separado reduz JS inicial.
+// Faltas (1.3k linhas) também vai em chunk próprio; só carrega ao trocar aba.
+const AgendaSemanal = dynamic(
+  () => import('./AgendaSemanal').then(m => ({ default: m.AgendaSemanal })),
+  { loading: () => <TabSkeleton /> },
+)
+const Faltas = dynamic(
+  () => import('../faltas/Faltas').then(m => ({ default: m.Faltas })),
+  { loading: () => <TabSkeleton /> },
+)
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +59,12 @@ export function AgendaHub({
   prefsIniciais,
 }: Props) {
   const [tab, setTab] = useState<AgendaTab>(initialTab)
+  const [visited, setVisited] = useState<Set<AgendaTab>>(new Set([initialTab]))
+
+  function go(next: AgendaTab) {
+    setTab(next)
+    if (!visited.has(next)) setVisited(prev => new Set(prev).add(next))
+  }
 
   return (
     <div className="flex flex-col min-h-full">
@@ -58,31 +75,30 @@ export function AgendaHub({
         style={{ background: 'var(--bg-surface)' }}
       >
         <h1 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Agenda</h1>
-        <TabBar tabs={TABS} active={tab} onChange={(k) => setTab(k as AgendaTab)} />
+        <TabBar tabs={TABS} active={tab} onChange={(k) => go(k as AgendaTab)} />
       </div>
 
-      {/* Tab content */}
+      {/* Tab content — abas visitadas ficam montadas (hidden) pra preservar estado */}
       <div className="flex-1">
-
-        {/* ── Grade Semanal ── */}
-        {tab === 'grade' && (
-          <AgendaSemanal
-            alunos={alunos}
-            eventosIniciais={eventosIniciais}
-            faltasIniciais={faltasIniciais}
-            onGoToFaltas={() => setTab('faltas')}
-          />
+        {visited.has('grade') && (
+          <div style={{ display: tab === 'grade' ? 'block' : 'none' }}>
+            <AgendaSemanal
+              alunos={alunos}
+              eventosIniciais={eventosIniciais}
+              faltasIniciais={faltasIniciais}
+              onGoToFaltas={() => go('faltas')}
+            />
+          </div>
         )}
-
-        {/* ── Remarcações Pendentes ── */}
-        {tab === 'faltas' && (
-          <Faltas
-            alunos={alunos}
-            faltasIniciais={faltasIniciais}
-            prefsIniciais={prefsIniciais}
-          />
+        {visited.has('faltas') && (
+          <div style={{ display: tab === 'faltas' ? 'block' : 'none' }}>
+            <Faltas
+              alunos={alunos}
+              faltasIniciais={faltasIniciais}
+              prefsIniciais={prefsIniciais}
+            />
+          </div>
         )}
-
       </div>
     </div>
   )

@@ -1,13 +1,29 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { TabBar } from '@/components/dashboard/TabBar'
-import { CalculoMensal } from '../calculo/CalculoMensal'
-import { CobrancaMensal } from '../cobranca/CobrancaMensal'
-import { Financeiro as CustosLucro } from './Financeiro'
-import { PacotesHub } from '../pacotes/PacotesHub'
+import { TabSkeleton } from '@/components/ui/TabSkeleton'
 import type { PacoteComAluno } from '../pacotes/actions'
 import type { CustoRow, ReceitaExtraRow, HistoricoMes } from './actions'
+
+// Cada aba vira um chunk separado — só baixa quando selecionada
+const CalculoMensal = dynamic(
+  () => import('../calculo/CalculoMensal').then(m => ({ default: m.CalculoMensal })),
+  { loading: () => <TabSkeleton /> },
+)
+const CobrancaMensal = dynamic(
+  () => import('../cobranca/CobrancaMensal').then(m => ({ default: m.CobrancaMensal })),
+  { loading: () => <TabSkeleton /> },
+)
+const CustosLucro = dynamic(
+  () => import('./Financeiro').then(m => ({ default: m.Financeiro })),
+  { loading: () => <TabSkeleton /> },
+)
+const PacotesHub = dynamic(
+  () => import('../pacotes/PacotesHub').then(m => ({ default: m.PacotesHub })),
+  { loading: () => <TabSkeleton /> },
+)
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -100,6 +116,14 @@ export function FinanceiroHub({
   pacotes,
 }: Props) {
   const [tab, setTab] = useState<FinanceiroTab>(initialTab)
+  // Mantém as abas já visitadas montadas (hidden) para evitar re-fetch/re-render
+  // ao alternar. Só monta cada chunk na primeira visita à aba.
+  const [visited, setVisited] = useState<Set<FinanceiroTab>>(new Set([initialTab]))
+
+  function go(next: FinanceiroTab) {
+    setTab(next)
+    if (!visited.has(next)) setVisited(prev => new Set(prev).add(next))
+  }
 
   return (
     <div className="flex flex-col min-h-full">
@@ -110,44 +134,44 @@ export function FinanceiroHub({
         style={{ background: 'var(--bg-surface)' }}
       >
         <h1 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Financeiro</h1>
-        <TabBar tabs={TABS} active={tab} onChange={(k) => setTab(k as FinanceiroTab)} />
+        <TabBar tabs={TABS} active={tab} onChange={(k) => go(k as FinanceiroTab)} />
       </div>
 
-      {/* Tab content */}
+      {/* Tab content — abas visitadas ficam montadas (com display:none) pra preservar
+          estado ao alternar; abas não-visitadas ainda não baixaram o chunk. */}
       <div className="flex-1">
-
-        {/* ── Cálculo Mensal ── */}
-        {tab === 'calculo' && (
-          <CalculoMensal alunos={alunosCalculo} />
+        {visited.has('calculo') && (
+          <div style={{ display: tab === 'calculo' ? 'block' : 'none' }}>
+            <CalculoMensal alunos={alunosCalculo} />
+          </div>
         )}
-
-        {/* ── Cobrança ── */}
-        {tab === 'cobranca' && (
-          <CobrancaMensal
-            alunos={alunosCobranca}
-            cobrancasIniciais={cobrancasIniciais}
-            preferencias={preferencias}
-            mesInicial={mesInicial}
-            creditosPorAluno={creditosPorAluno}
-          />
+        {visited.has('cobranca') && (
+          <div style={{ display: tab === 'cobranca' ? 'block' : 'none' }}>
+            <CobrancaMensal
+              alunos={alunosCobranca}
+              cobrancasIniciais={cobrancasIniciais}
+              preferencias={preferencias}
+              mesInicial={mesInicial}
+              creditosPorAluno={creditosPorAluno}
+            />
+          </div>
         )}
-
-        {/* ── Custos e Lucro ── */}
-        {tab === 'custos' && (
-          <CustosLucro
-            alunos={alunosCustos}
-            custosIniciais={custosIniciais}
-            receitasExtrasIniciais={receitasExtrasIniciais}
-            historicoIniciais={historicoIniciais}
-            mesInicial={mesInicial}
-          />
+        {visited.has('custos') && (
+          <div style={{ display: tab === 'custos' ? 'block' : 'none' }}>
+            <CustosLucro
+              alunos={alunosCustos}
+              custosIniciais={custosIniciais}
+              receitasExtrasIniciais={receitasExtrasIniciais}
+              historicoIniciais={historicoIniciais}
+              mesInicial={mesInicial}
+            />
+          </div>
         )}
-
-        {/* ── Pacotes ── */}
-        {tab === 'pacotes' && (
-          <PacotesHub pacotes={pacotes} initialError={null} embedded />
+        {visited.has('pacotes') && (
+          <div style={{ display: tab === 'pacotes' ? 'block' : 'none' }}>
+            <PacotesHub pacotes={pacotes} initialError={null} embedded />
+          </div>
         )}
-
       </div>
     </div>
   )
