@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 import { notifyDemoSimulated } from '@/components/dashboard/DemoToast'
+import { MonthPicker } from '@/components/dashboard/MonthPicker'
+import { feriadoEmData } from '@/lib/utils/feriados'
 import {
   createEventoAction,
   createEventoSerieAction,
@@ -160,6 +162,20 @@ function getWeekDays(offset: number): Date[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday); d.setDate(d.getDate() + i); return d
   })
+}
+
+/** Calcula weekOffset a partir de qualquer data (0 = semana atual) */
+function weekOffsetForDate(target: Date): number {
+  function weekStartMon(d: Date): Date {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    const dow = x.getDay()
+    const diff = dow === 0 ? -6 : 1 - dow
+    x.setDate(x.getDate() + diff)
+    return x
+  }
+  const a = weekStartMon(new Date())
+  const b = weekStartMon(target)
+  return Math.round((b.getTime() - a.getTime()) / (7 * 24 * 60 * 60 * 1000))
 }
 
 function formatDay(d: Date): string {
@@ -1407,12 +1423,13 @@ function SlotSelectionBottomSheet({
             </span>
           </p>
 
-          {/* 3 option buttons */}
+          {/* 4 option buttons */}
           <div className="flex flex-col gap-2 mt-4">
             {([
-              { id: 'aula' as const,      label: 'Marcar aula', Icon: Calendar,  color: TIPO_COLOR.aula },
-              { id: 'reposicao' as const, label: 'Reposição',   Icon: RefreshCw, color: TIPO_COLOR.reposicao },
-              { id: 'outro' as const,     label: 'Outros',      Icon: Plus,      color: TIPO_COLOR.outro },
+              { id: 'aula' as const,       label: 'Marcar aula', Icon: Calendar,  color: TIPO_COLOR.aula },
+              { id: 'reposicao' as const,  label: 'Reposição',   Icon: RefreshCw, color: TIPO_COLOR.reposicao },
+              { id: 'aula_extra' as const, label: 'Aula Extra',  Icon: Zap,       color: TIPO_COLOR.aula_extra },
+              { id: 'outro' as const,      label: 'Outros',      Icon: Plus,      color: TIPO_COLOR.outro },
             ]).map(opt => (
               <button key={opt.id} onClick={() => onChoose(opt.id)}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors"
@@ -1610,6 +1627,34 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
   const isFirstMount = useRef(true)
   const weekDays     = getWeekDays(weekOffset)
   const todayStr     = toDateStr(new Date())
+
+  // ── Datas que têm aulas (pro MonthPicker exibir dots) ────────────────────────
+  const datesWithAulaSet = new Set<string>()
+  for (const ev of eventos) {
+    if (ev.data_especifica && (ev.tipo === 'aula' || ev.tipo === 'reposicao' || ev.tipo === 'aula_extra')) {
+      datesWithAulaSet.add(ev.data_especifica)
+    }
+  }
+  // Também inclui horários fixos dos alunos para o mês visível
+  {
+    const monthRefs = new Set<string>()
+    for (const d of weekDays) monthRefs.add(`${d.getFullYear()}-${d.getMonth()}`)
+    // Aproximação: marca as próximas 5 semanas de horários fixos (suficiente pra UI do MonthPicker)
+    for (const a of alunos) {
+      for (const h of (a.horarios ?? [])) {
+        for (let wo = -2; wo <= 8; wo++) {
+          const days = getWeekDays(weekOffset + wo)
+          for (const d of days) {
+            const keyIdx = (d.getDay() + 6) % 7 // seg=0..dom=6
+            const DAY_KEYS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom']
+            if (DAY_KEYS[keyIdx] === h.dia) {
+              datesWithAulaSet.add(toDateStr(d))
+            }
+          }
+        }
+      }
+    }
+  }
 
   // ── Fetch eventos on week change ─────────────────────────────────────────────
   useEffect(() => {
@@ -2016,6 +2061,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     const closedBottom = toPx(GRID_END - cfg.end)
     const isHovered    = hoverPos?.dayIdx === dayIdx
     const isToday      = dateStr === todayStr
+    const isFeriado    = !!feriadoEmData(dateStr)
 
     // Drop highlight in this column
     const dropHere = dropTarget?.dayIdx === dayIdx ? dropTarget : null
@@ -2025,7 +2071,10 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         key={dayIdx}
         colRef={(el) => { colRefs.current[dayIdx] = el }}
         className="relative flex-1 border-l cursor-crosshair min-w-0"
-        style={{ height: gridHeight, borderColor: 'var(--border-subtle)', minWidth: 120 }}
+        style={{
+          height: gridHeight, borderColor: 'var(--border-subtle)', minWidth: 120,
+          background: isFeriado ? 'rgba(236, 72, 153, 0.06)' : undefined,
+        }}
         onClick={(e) => handleColumnClick(e, dayIdx)}
         onMouseMove={(e) => handleMouseMove(e, dayIdx)}
         onMouseLeave={() => { if (!pressTrackingRef.current) setHoverPos(null) }}
@@ -2242,16 +2291,20 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
           <div style={{ width: 40, flexShrink: 0 }} />
           {weekDays.map((day, i) => {
             const isTodayDay = toDateStr(day) === todayStr
+            const feriado    = feriadoEmData(toDateStr(day))
             return (
               <div key={i} className="flex-1 min-w-0 flex flex-col items-center py-1.5 border-l"
-                style={{ borderColor: 'var(--border-subtle)', textAlign: 'center' }}>
+                style={{
+                  borderColor: 'var(--border-subtle)', textAlign: 'center',
+                  background: feriado ? 'rgba(236, 72, 153, 0.10)' : undefined,
+                }}>
                 <span className="text-[10px] font-medium"
-                  style={{ color: isTodayDay ? 'var(--green-primary)' : 'var(--text-muted)' }}>
+                  style={{ color: feriado ? '#EC4899' : isTodayDay ? 'var(--green-primary)' : 'var(--text-muted)' }}>
                   {WEEK_LABELS[i][0]}
                 </span>
                 <span style={{
                   fontSize: 13, fontWeight: 700, lineHeight: 1,
-                  color: isTodayDay ? '#000' : 'var(--text-primary)',
+                  color: isTodayDay ? '#000' : feriado ? '#EC4899' : 'var(--text-primary)',
                   background: isTodayDay ? 'var(--green-primary)' : 'transparent',
                   borderRadius: '50%', width: 22, height: 22,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -2259,6 +2312,14 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                 }}>
                   {day.getDate()}
                 </span>
+                {feriado && (
+                  <span
+                    title={feriado.nome}
+                    className="text-[8px] font-medium mt-0.5 px-1 truncate max-w-full"
+                    style={{ color: '#EC4899', lineHeight: 1.1 }}>
+                    {feriado.nome.split(' ')[0]}
+                  </span>
+                )}
               </div>
             )
           })}
@@ -2359,6 +2420,12 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                 {isToday && (
                   <div className="absolute inset-0 pointer-events-none"
                     style={{ background: 'rgba(16, 185, 129,0.03)', zIndex: 0 }} />
+                )}
+
+                {/* Feriado tint (rosa) */}
+                {feriadoEmData(dateStr) && (
+                  <div className="absolute inset-0 pointer-events-none"
+                    style={{ background: 'rgba(236, 72, 153, 0.08)', zIndex: 0 }} />
                 )}
 
                 {/* Current time line (compact) */}
@@ -2497,11 +2564,18 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
     <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
 
         {/* Top bar */}
-        <div className="flex items-center justify-between px-4 md:px-6 py-3 shrink-0"
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 shrink-0 gap-3 flex-wrap"
           style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-          <div>
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Agenda</h1>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Semana {weekLabel}</p>
+            <MonthPicker
+              selected={weekDays[0]}
+              datesWithAula={datesWithAulaSet}
+              onSelectDate={(d) => setWeekOffset(weekOffsetForDate(d))}
+            />
+            <p className="text-xs hidden md:block" style={{ color: 'var(--text-secondary)' }}>
+              Semana {weekLabel}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setModal({ type: 'slots' })}
@@ -2607,20 +2681,33 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                 {weekDays.map((day, i) => {
                   const isTodayDay = toDateStr(day) === todayStr
                   const key        = WEEK_KEYS[i]
+                  const feriado    = feriadoEmData(toDateStr(day))
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center py-2 border-l text-center"
-                      style={{ borderColor: 'var(--border-subtle)', minWidth: 120 }}>
+                      style={{
+                        borderColor: 'var(--border-subtle)', minWidth: 120,
+                        background: feriado ? 'rgba(236, 72, 153, 0.10)' : undefined,
+                      }}>
                       <span className="text-xs font-medium"
-                        style={{ color: isTodayDay ? 'var(--green-primary)' : 'var(--text-muted)' }}>{WEEK_LABELS[i]}</span>
+                        style={{ color: feriado ? '#EC4899' : isTodayDay ? 'var(--green-primary)' : 'var(--text-muted)' }}>
+                        {WEEK_LABELS[i]}
+                      </span>
                       <span className="text-lg font-bold mt-0.5"
-                        style={{ color: isTodayDay ? 'var(--green-primary)' : 'var(--text-primary)' }}>{day.getDate()}</span>
+                        style={{ color: isTodayDay ? 'var(--green-primary)' : feriado ? '#EC4899' : 'var(--text-primary)' }}>{day.getDate()}</span>
                       <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                         {String(day.getMonth()+1).padStart(2,'0')}/{day.getFullYear()}
                       </span>
-                      <span className="text-[10px] mt-0.5 px-1.5 py-px rounded"
-                        style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}>
-                        {minToTime(DAY_CFG[key].start)}–{minToTime(DAY_CFG[key].end)}
-                      </span>
+                      {feriado ? (
+                        <span title={feriado.nome} className="text-[10px] mt-0.5 px-1.5 py-px rounded font-semibold"
+                          style={{ background: 'rgba(236, 72, 153, 0.15)', color: '#EC4899' }}>
+                          {feriado.nome.length > 14 ? feriado.nome.split(' ')[0] : feriado.nome}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] mt-0.5 px-1.5 py-px rounded"
+                          style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}>
+                          {minToTime(DAY_CFG[key].start)}–{minToTime(DAY_CFG[key].end)}
+                        </span>
+                      )}
                     </div>
                   )
                 })}

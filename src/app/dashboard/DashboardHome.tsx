@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Hand, CheckCircle2, Sparkles } from 'lucide-react'
 import { formatCurrency } from '@/types/aluno'
+import { getFeriadosDoMes } from '@/lib/utils/feriados'
 import { AtivarDemoButton } from '@/components/dashboard/AtivarDemoButton'
 import { notifyDemoSimulated } from '@/components/dashboard/DemoToast'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
@@ -15,7 +16,7 @@ import { FaltaQuickActionModal } from './faltas/FaltaQuickActionModal'
 
 type AlertIconId =
   | 'calendar' | 'clock' | 'check-circle' | 'clipboard'
-  | 'book-open' | 'cake' | 'party' | 'trending-up' | 'package'
+  | 'book-open' | 'cake' | 'party' | 'trending-up' | 'package' | 'feriado'
 
 interface AlertaItem {
   id:   string
@@ -176,6 +177,15 @@ function AlertIcon({ id, size = 22 }: { id: AlertIconId; size?: number }) {
           <line x1="12" y1="22.08" x2="12" y2="12" />
         </svg>
       )
+    case 'feriado':
+      return (
+        <svg {...common}>
+          <path d="M3 11v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V11" />
+          <rect x="2" y="7" width="20" height="4" rx="1" />
+          <path d="M12 22V7" />
+          <path d="M12 7c-2 0-4-1.5-4-3.5S10 1 12 3s4-1.5 4 .5-2 3.5-4 3.5z" />
+        </svg>
+      )
   }
 }
 
@@ -329,6 +339,20 @@ export function DashboardHome({
   // b) Novo mês (primeiros 3 dias)
   if (today.getDate() <= 3) {
     alertas.push({ id: 'novo-mes', icon: 'calendar', text: 'Novo mês! Hora de gerar as cobranças', href: '/dashboard/financeiro?tab=cobranca' })
+  }
+
+  // b1) Feriados do mês (só no início do mês)
+  if (today.getDate() <= 5) {
+    const feriadosMes = getFeriadosDoMes(mesRef)
+    if (feriadosMes.length > 0) {
+      const nomes = feriadosMes.map(f => `${f.nome} (${f.data.split('-')[2]}/${f.data.split('-')[1]})`).join(', ')
+      alertas.push({
+        id:   'feriados-mes',
+        icon: 'feriado',
+        text: `${feriadosMes.length === 1 ? 'Este mês tem 1 feriado' : `Este mês tem ${feriadosMes.length} feriados`}: ${nomes}. Revise o cálculo mensal.`,
+        href: '/dashboard/financeiro?tab=calculo',
+      })
+    }
   }
 
   // a) Pagamentos pendentes

@@ -1,9 +1,12 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { DIAS_SEMANA, formatCurrency } from '@/types/aluno'
 import { countWeekdaysInMonth } from '@/lib/utils/date'
+import { getFeriadosDoMes, diaSemanaKey, diaSemanaLabel, formatDM } from '@/lib/utils/feriados'
+import { getFeriadoDecisoesAction, saveFeriadoDecisaoAction } from '../feriados/actions'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -43,6 +46,27 @@ export function CalculoMensal({ alunos }: Props) {
   // aulas_extra do mês ANTERIOR: aluno_id → { count, totalValor }
   const [extras, setExtras] = useState<Record<string, { count: number; totalValor: number }>>({})
   const isFirstMount = useRef(true)
+
+  // Feriados do mês + decisões do professor (data → dar_aula)
+  const mesRef = `${year}-${String(month + 1).padStart(2, '0')}`
+  const feriadosMes = useMemo(() => getFeriadosDoMes(mesRef), [mesRef])
+  const [decisoes, setDecisoes] = useState<Record<string, boolean>>({})
+
+  // Carrega decisões ao trocar de mês
+  useEffect(() => {
+    getFeriadoDecisoesAction(mesRef).then(res => {
+      if (res.data) {
+        const map: Record<string, boolean> = {}
+        for (const d of res.data) map[d.data_feriado] = d.dar_aula
+        setDecisoes(map)
+      }
+    })
+  }, [mesRef])
+
+  async function toggleFeriado(data: string, checked: boolean) {
+    setDecisoes(prev => ({ ...prev, [data]: checked }))
+    await saveFeriadoDecisaoAction(data, checked)
+  }
 
   // ── navegação de mês ──────────────────────────────────────────────────────
 
@@ -100,7 +124,16 @@ export function CalculoMensal({ alunos }: Props) {
 
   function getFixedAulas(aluno: Aluno): number {
     if (aluno.modelo_cobranca === 'mensalidade') return 0
-    return aluno.horarios.reduce((sum, h) => sum + (weekdayCounts[h.dia] ?? 0), 0)
+    if (aluno.modelo_cobranca === 'pacote')      return 0
+    let total = aluno.horarios.reduce((sum, h) => sum + (weekdayCounts[h.dia] ?? 0), 0)
+    // Desconta feriados onde o aluno treina e o professor NÃO decidiu dar aula
+    for (const f of feriadosMes) {
+      const darAula = decisoes[f.data] === true
+      if (darAula) continue
+      const diaKey = diaSemanaKey(f.data)
+      if (aluno.horarios.some(h => h.dia === diaKey)) total -= 1
+    }
+    return Math.max(0, total)
   }
 
   function getCalculatedAulas(aluno: Aluno): number {
@@ -208,6 +241,56 @@ export function CalculoMensal({ alunos }: Props) {
           </svg>
         </button>
       </div>
+
+      {/* ── Banner de feriados do mês ─────────────────────────────────── */}
+      {feriadosMes.length > 0 && (
+        <div className="rounded-2xl mb-6 overflow-hidden"
+          style={{ background: 'var(--bg-card)', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
+          <div className="flex items-center gap-2 px-4 py-3" style={{ background: 'rgba(236, 72, 153, 0.1)', borderBottom: '1px solid rgba(236, 72, 153, 0.2)' }}>
+            <AlertTriangle size={16} strokeWidth={1.75} style={{ color: '#EC4899' }} aria-hidden />
+            <p className="text-sm font-semibold" style={{ color: '#EC4899' }}>
+              Este mês tem {feriadosMes.length === 1 ? '1 feriado' : `${feriadosMes.length} feriados`}
+            </p>
+          </div>
+          <div className="p-4 flex flex-col gap-2">
+            <p className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Por padrão, alunos que pagam por aula não são cobrados em feriados.
+              Marque abaixo os feriados em que você dará aula normalmente.
+            </p>
+            {feriadosMes.map(f => {
+              const diaKey = diaSemanaKey(f.data)
+              const alunosAfetados = alunos.filter(a =>
+                a.modelo_cobranca === 'por_aula' && a.horarios.some(h => h.dia === diaKey)
+              )
+              const checked = decisoes[f.data] === true
+              return (
+                <label key={f.data} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
+                  style={{ background: 'var(--bg-input)' }}>
+                  <input type="checkbox" checked={checked}
+                    onChange={e => toggleFeriado(f.data, e.target.checked)}
+                    style={{ accentColor: '#EC4899', width: 16, height: 16 }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {formatDM(f.data)} ({diaSemanaLabel(f.data)}) — {f.nome}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {alunosAfetados.length === 0
+                        ? 'Nenhum aluno treina nesse dia.'
+                        : alunosAfetados.length === 1
+                        ? `1 aluno treina nesse dia (${alunosAfetados[0].nome.split(' ')[0]}).`
+                        : `${alunosAfetados.length} alunos treinam nesse dia.`}
+                      {' '}
+                      <span style={{ color: checked ? 'var(--green-primary)' : '#EC4899', fontWeight: 600 }}>
+                        {checked ? 'Dando aula normalmente.' : 'Descontando do cálculo.'}
+                      </span>
+                    </p>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Contagem de dias da semana ─────────────────────────────────── */}
       <div
