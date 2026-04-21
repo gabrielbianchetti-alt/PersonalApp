@@ -3,12 +3,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import { Link2, UserPlus } from 'lucide-react'
 import { TabBar } from '@/components/dashboard/TabBar'
 import { AlunosGrid } from '@/components/alunos/AlunosGrid'
 import { TabSkeleton } from '@/components/ui/TabSkeleton'
 import { DIAS_SEMANA, DURACAO_OPCOES } from '@/types/aluno'
+import { ConvidarAlunoModal } from './ConvidarAlunoModal'
+import { AprovacaoCard, PendenteCard } from './AprovacoesSection'
 import type { SuspensaoRow } from '../suspensoes/types'
 import type { ModeloTermo, TermoEnviado } from '../termos/types'
+import type {
+  ConviteRow, ConvitePendenteComAluno,
+} from '../convites/actions'
 
 // Abas secundárias viram chunks separados — só baixam na primeira visita.
 // A lista principal (AlunosGrid) continua eager porque é o landing da rota.
@@ -46,7 +52,7 @@ export interface AlunoMinimal {
   horarios: { dia: string; horario: string }[]
 }
 
-export type AlunosTab = 'lista' | 'novo' | 'suspensos' | 'termos'
+export type AlunosTab = 'lista' | 'novo' | 'aprovacao' | 'suspensos' | 'termos'
 
 interface Props {
   initialTab: AlunosTab
@@ -56,15 +62,10 @@ interface Props {
   suspensoesIniciais: SuspensaoRow[]
   modelos: ModeloTermo[]
   historicoTermos: TermoEnviado[]
+  convitesIniciais?: ConviteRow[]
+  aprovacoesIniciais?: ConvitePendenteComAluno[]
   alunoIdInicial?: string
 }
-
-const TABS = [
-  { key: 'lista',     label: 'Lista' },
-  { key: 'novo',      label: '+ Novo Aluno' },
-  { key: 'suspensos', label: 'Suspensos' },
-  { key: 'termos',    label: 'Termos' },
-]
 
 // ─── inline toast (sem side-effects de roteamento) ───────────────────────────
 
@@ -126,6 +127,8 @@ export function AlunosHub({
   suspensoesIniciais,
   modelos,
   historicoTermos,
+  convitesIniciais = [],
+  aprovacoesIniciais = [],
   alunoIdInicial,
 }: Props) {
   const router = useRouter()
@@ -137,6 +140,24 @@ export function AlunosHub({
   // Toast: toastKey > 0 means "show toast"; increment to re-trigger
   const [toastKey, setToastKey] = useState(showSuccess ? 1 : 0)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Modal de gerar convite
+  const [convidarOpen, setConvidarOpen] = useState(false)
+
+  // Lists locais dos convites (para refresh sem reload)
+  const [convites, setConvites] = useState<ConviteRow[]>(convitesIniciais)
+  const [aprovacoes, setAprovacoes] = useState<ConvitePendenteComAluno[]>(aprovacoesIniciais)
+
+  const convitesPendentes = convites.filter(c => c.status === 'pendente' || c.status === 'expirado')
+  const aprovacoesCount   = aprovacoes.length
+
+  const TABS = [
+    { key: 'lista',      label: 'Lista' },
+    { key: 'novo',       label: '+ Novo' },
+    { key: 'aprovacao',  label: aprovacoesCount > 0 ? `Aprovações (${aprovacoesCount})` : 'Aprovações' },
+    { key: 'suspensos',  label: 'Suspensos' },
+    { key: 'termos',     label: 'Termos' },
+  ]
 
   // Called by NovoAlunoForm after a successful insert
   function handleAlunoCreated(raw: Record<string, unknown>) {
@@ -184,6 +205,27 @@ export function AlunosHub({
               </p>
             )}
           </div>
+          {/* Ações no topo — só na aba lista */}
+          {tab === 'lista' && (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setConvidarOpen(true)}
+                className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl text-xs font-semibold cursor-pointer"
+                style={{
+                  background: 'var(--green-muted)',
+                  color: 'var(--green-primary)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                }}>
+                <Link2 size={13} strokeWidth={1.75} aria-hidden />
+                Convidar
+              </button>
+              <button type="button" onClick={() => setTab('novo')}
+                className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl text-xs font-semibold cursor-pointer"
+                style={{ background: 'var(--green-primary)', color: '#000' }}>
+                <UserPlus size={13} strokeWidth={2} aria-hidden />
+                Novo aluno
+              </button>
+            </div>
+          )}
         </div>
         <TabBar tabs={TABS} active={tab} onChange={(k) => setTab(k as AlunosTab)} />
       </div>
@@ -237,6 +279,78 @@ export function AlunosHub({
           />
         )}
 
+        {/* ── Aprovação ── */}
+        {tab === 'aprovacao' && (
+          <div className="p-4 md:p-6 flex flex-col gap-4" style={{ maxWidth: 720, margin: '0 auto' }}>
+
+            {/* Seção: Aguardando aprovação */}
+            <div>
+              <p className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                Aguardando aprovação
+                {aprovacoes.length > 0 && (
+                  <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                    ({aprovacoes.length})
+                  </span>
+                )}
+              </p>
+              {aprovacoes.length === 0 ? (
+                <div className="rounded-2xl p-6 text-center"
+                  style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-subtle)' }}>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Nenhum aluno aguardando aprovação no momento.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {aprovacoes.map(c => (
+                    <AprovacaoCard key={c.id} convite={c}
+                      onChanged={() => {
+                        setAprovacoes(prev => prev.filter(x => x.id !== c.id))
+                        router.refresh()
+                      }} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Seção: Convites pendentes */}
+            <div className="mt-2">
+              <p className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                Convites pendentes
+                {convitesPendentes.length > 0 && (
+                  <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                    ({convitesPendentes.length})
+                  </span>
+                )}
+              </p>
+              {convitesPendentes.length === 0 ? (
+                <div className="rounded-2xl p-6 text-center"
+                  style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-subtle)' }}>
+                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                    Nenhum convite ativo.
+                  </p>
+                  <button type="button" onClick={() => setConvidarOpen(true)}
+                    className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold cursor-pointer"
+                    style={{ background: 'var(--green-primary)', color: '#000' }}>
+                    <Link2 size={12} strokeWidth={2} aria-hidden />
+                    Gerar convite
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {convitesPendentes.map(c => (
+                    <PendenteCard key={c.id} convite={c}
+                      onChanged={() => {
+                        setConvites(prev => prev.filter(x => x.id !== c.id))
+                        router.refresh()
+                      }} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Suspensos ── */}
         {tab === 'suspensos' && (
           <Suspensoes
@@ -257,6 +371,17 @@ export function AlunosHub({
         )}
 
       </div>
+
+      {/* Modal de convidar */}
+      {convidarOpen && (
+        <ConvidarAlunoModal
+          onClose={() => setConvidarOpen(false)}
+          onCreated={(c) => {
+            setConvites(prev => [c, ...prev])
+            router.refresh()
+          }}
+        />
+      )}
     </div>
   )
 }

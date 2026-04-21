@@ -10,6 +10,7 @@ import { isDemoMode } from '@/lib/demo/mode'
 import {
   getDemoAlunos, getDemoSuspensoes, getDemoModelosTermo, getDemoTermosEnviados,
 } from '@/lib/demo/fixtures'
+import { listConvitesAction, listConvitesAprovacaoAction } from '../convites/actions'
 
 export const metadata: Metadata = { title: 'Alunos — PersonalHub' }
 
@@ -102,9 +103,14 @@ export default async function AlunosPage({
   })) as TermoEnviado[]
 
   // Determine initial tab
-  const validTabs: AlunosTab[] = ['lista', 'novo', 'suspensos', 'termos']
+  const validTabs: AlunosTab[] = ['lista', 'novo', 'aprovacao', 'suspensos', 'termos']
   const rawTab = params.tab as AlunosTab
   const initialTab: AlunosTab = validTabs.includes(rawTab) ? rawTab : 'lista'
+
+  // Convites e aprovações (só em modo real — demo retorna vazio)
+  const [convitesRes, aprovacoesRes] = demo
+    ? [{ data: [] }, { data: [] }]
+    : await Promise.all([listConvitesAction(), listConvitesAprovacaoAction()])
 
   return (
     <AlunosHub
@@ -115,6 +121,8 @@ export default async function AlunosPage({
       suspensoesIniciais={suspensoesRows}
       modelos={(modelos ?? []) as ModeloTermo[]}
       historicoTermos={historicoRows}
+      convitesIniciais={convitesRes.data ?? []}
+      aprovacoesIniciais={aprovacoesRes.data ?? []}
       alunoIdInicial={params.aluno_id}
     />
   )

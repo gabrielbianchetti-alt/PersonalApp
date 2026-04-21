@@ -13,8 +13,8 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── Fast-path: rotas que não precisam de nenhum check Supabase ────────────
-  // API routes de Stripe, webhooks e assets internos.
-  if (pathname.startsWith('/api/')) {
+  // API routes, webhooks, assets internos e página pública de convite.
+  if (pathname.startsWith('/api/') || pathname.startsWith('/convite/')) {
     return NextResponse.next({ request })
   }
 
