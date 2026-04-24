@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition, type ReactNode } from 'react'
 import Link from 'next/link'
 import { CheckCircle2, DollarSign, XCircle, TrendingUp, RefreshCw, Zap, Users, Clock } from 'lucide-react'
-import { toggleBlockAction, cancelarAssinaturaAdminAction } from './actions'
+import { toggleBlockAction, cancelarAssinaturaAdminAction, estenderTrialAction } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +94,43 @@ function assExpira(ass: AssinaturaInfo | null): string {
   return '—'
 }
 
+/** Dias restantes do trial (pode ser negativo se expirado) ou null se não é trial */
+function daysUntilTrialEnd(ass: AssinaturaInfo | null): number | null {
+  if (!ass || !ass.trial_fim) return null
+  const end = new Date(ass.trial_fim).getTime()
+  const now = Date.now()
+  return Math.ceil((end - now) / (1000 * 60 * 60 * 24))
+}
+
+/** Descrição humana do status do trial/assinatura */
+function trialStatusText(ass: AssinaturaInfo | null): {
+  label: string
+  tone: 'active' | 'expired' | 'subscriber' | 'none'
+} {
+  if (!ass) return { label: 'Sem assinatura', tone: 'none' }
+  if (ass.status === 'active' && ass.stripe_subscription_id) {
+    return { label: 'Assinante', tone: 'subscriber' }
+  }
+  const days = daysUntilTrialEnd(ass)
+  if (ass.status === 'trial' && days !== null && days > 0) {
+    return { label: `Trial ativo (${days} dia${days === 1 ? '' : 's'} restantes)`, tone: 'active' }
+  }
+  if (ass.status === 'trial' && days !== null && days <= 0) {
+    return { label: 'Trial expirado', tone: 'expired' }
+  }
+  if (ass.status === 'expired' || ass.status === 'canceled') {
+    return { label: 'Trial expirado', tone: 'expired' }
+  }
+  return { label: ass.status, tone: 'none' }
+}
+
+/** Pode o admin estender o trial? */
+function canExtendTrial(ass: AssinaturaInfo | null): boolean {
+  if (!ass) return true
+  if (ass.status === 'active' && ass.stripe_subscription_id) return false
+  return true
+}
+
 // ─── StatCard ─────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, color, icon }: {
@@ -138,6 +175,97 @@ function BarChart({ data, labels, color = 'rgba(16, 185, 129,0.4)', accentColor 
   )
 }
 
+// ─── ExtendTrialPanel (inline no ProfessorDetailModal) ──────────────────────
+
+function ExtendTrialPanel({
+  professor, onCancel, onDone, onToast,
+}: {
+  professor: ProfessorRow
+  onCancel: () => void
+  onDone:   (newTrialFim: string) => void
+  onToast:  (msg: string) => void
+}) {
+  const [mode, setMode]     = useState<'preset' | 'custom'>('preset')
+  const [custom, setCustom] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]       = useState('')
+
+  async function doExtend(dias: number) {
+    if (dias <= 0) { setErr('Informe um valor válido'); return }
+    setSaving(true); setErr('')
+    const res = await estenderTrialAction(professor.id, dias)
+    setSaving(false)
+    if (res.error) { setErr(res.error); onToast(`Erro: ${res.error}`); return }
+    if (res.newTrialFim) onDone(res.newTrialFim)
+  }
+
+  return (
+    <div className="rounded-lg p-3 flex flex-col gap-2"
+      style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Estender por
+        </p>
+        <button onClick={onCancel} className="text-xs cursor-pointer"
+          style={{ color: 'var(--text-muted)' }}>
+          Cancelar
+        </button>
+      </div>
+
+      {mode === 'preset' ? (
+        <>
+          <div className="grid grid-cols-3 gap-1.5">
+            {[7, 15, 30].map(d => (
+              <button key={d} onClick={() => doExtend(d)} disabled={saving}
+                className="py-2.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50"
+                style={{ background: 'var(--green-primary)', color: '#000' }}>
+                {saving ? '…' : `+${d} dias`}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setMode('custom')}
+            className="text-xs font-medium py-1 cursor-pointer"
+            style={{ color: 'var(--green-primary)' }}>
+            Personalizado →
+          </button>
+        </>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <input type="number" min="1" max="365" placeholder="Ex: 45"
+              value={custom}
+              onChange={e => setCustom(e.target.value)}
+              className="flex-1 min-w-0 h-10 rounded-lg px-3 text-sm outline-none"
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-primary)',
+              }} />
+            <button
+              onClick={() => doExtend(parseInt(custom) || 0)}
+              disabled={saving || !custom}
+              className="px-4 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50"
+              style={{ background: 'var(--green-primary)', color: '#000' }}>
+              {saving ? '…' : 'Estender'}
+            </button>
+          </div>
+          <button onClick={() => { setMode('preset'); setCustom('') }}
+            className="text-xs font-medium cursor-pointer text-left"
+            style={{ color: 'var(--text-muted)' }}>
+            ← Voltar aos presets
+          </button>
+        </div>
+      )}
+
+      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+        A extensão é somada a partir de hoje (não da data atual de expiração).
+      </p>
+
+      {err && <p className="text-xs" style={{ color: '#EF4444' }}>{err}</p>}
+    </div>
+  )
+}
+
 // ─── ProfessorDetailModal ─────────────────────────────────────────────────────
 
 function ProfessorDetailModal({
@@ -145,18 +273,25 @@ function ProfessorDetailModal({
   onClose,
   onToggleBlock,
   onCancelarAssinatura,
+  onExtended,
+  onToast,
 }: {
   professor: ProfessorRow
   onClose: () => void
   onToggleBlock: (id: string, blocked: boolean) => Promise<void>
   onCancelarAssinatura: (professorId: string, subId: string | null) => Promise<void>
+  onExtended: (professorId: string, newTrialFim: string) => void
+  onToast: (msg: string) => void
 }) {
   const [blocking,    setBlocking]    = useState(false)
   const [canceling,   setCanceling]   = useState(false)
   const [confirmCanc, setConfirmCanc] = useState(false)
+  const [extendOpen,  setExtendOpen]  = useState(false)
   const active = isActive(professor.last_sign_in_at)
   const ass    = professor.assinatura
   const badge  = assStatusBadge(ass)
+  const trialInfo = trialStatusText(ass)
+  const canExtend = canExtendTrial(ass)
 
   async function handleBlock() {
     setBlocking(true)
@@ -326,6 +461,49 @@ function ProfessorDetailModal({
                   Sem registro de assinatura para este professor.
                 </p>
               )}
+
+              {/* ─── Estender trial ─────────────────────────────────────── */}
+              <div className="pt-3 mt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                      Status
+                    </p>
+                    <p className="text-xs font-semibold mt-0.5" style={{
+                      color: trialInfo.tone === 'active'     ? 'var(--green-primary)'
+                           : trialInfo.tone === 'expired'    ? '#EF4444'
+                           : trialInfo.tone === 'subscriber' ? '#8B5CF6'
+                           : 'var(--text-muted)',
+                    }}>
+                      {trialInfo.label}
+                    </p>
+                  </div>
+                  {canExtend && !extendOpen && (
+                    <button onClick={() => setExtendOpen(true)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+                      style={{
+                        background: 'var(--green-muted)',
+                        color: 'var(--green-primary)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                      }}>
+                      Estender trial
+                    </button>
+                  )}
+                </div>
+                {canExtend && extendOpen && (
+                  <ExtendTrialPanel
+                    professor={professor}
+                    onCancel={() => setExtendOpen(false)}
+                    onDone={(newFim) => {
+                      setExtendOpen(false)
+                      onExtended(professor.id, newFim)
+                      onToast(`Trial de ${professor.nome} estendido até ${fmtDate(newFim)}`)
+                      onClose()
+                    }}
+                    onToast={onToast}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
@@ -363,6 +541,7 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
   const [filter,      setFilter]      = useState<FilterStatus>('todos')
   const [assFilter,   setAssFilter]   = useState<AssFilter>('todos')
   const [selected,    setSelected]    = useState<ProfessorRow | null>(null)
+  const [toast,       setToast]       = useState<string | null>(null)
   const [tab,         setTab]         = useState<'professores' | 'metricas'>('professores')
   const [isPending,   startTransition] = useTransition()
 
@@ -659,6 +838,12 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
               {filtered.map(p => {
                 const active = isActive(p.last_sign_in_at)
                 const badge  = assStatusBadge(p.assinatura)
+                const trial  = trialStatusText(p.assinatura)
+                const trialColor =
+                  trial.tone === 'active'     ? 'var(--green-primary)' :
+                  trial.tone === 'expired'    ? '#EF4444' :
+                  trial.tone === 'subscriber' ? '#8B5CF6' :
+                  'var(--text-muted)'
                 return (
                   <div key={p.id} className="p-4 flex items-center gap-3 cursor-pointer" onClick={() => setSelected(p)}>
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
@@ -668,8 +853,11 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>{p.nome}</p>
                       <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{p.email}</p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {p.aluno_count} alunos · {fmtRelative(p.last_sign_in_at)}
+                      <p className="text-xs mt-0.5 truncate" style={{ color: trialColor, fontWeight: 600 }}>
+                        {trial.label}
+                        {p.assinatura?.trial_fim && trial.tone !== 'subscriber' && (
+                          <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}> · expira {fmtDate(p.assinatura.trial_fim)}</span>
+                        )}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
@@ -777,7 +965,38 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
           onClose={() => setSelected(null)}
           onToggleBlock={handleToggleBlock}
           onCancelarAssinatura={handleCancelarAssinatura}
+          onExtended={(professorId, newFim) => {
+            setProfessors(prev => prev.map(p => p.id === professorId ? {
+              ...p,
+              assinatura: {
+                status: 'trial',
+                plano: p.assinatura?.plano ?? null,
+                trial_fim: newFim,
+                periodo_fim: p.assinatura?.periodo_fim ?? null,
+                stripe_customer_id: p.assinatura?.stripe_customer_id ?? null,
+                stripe_subscription_id: p.assinatura?.stripe_subscription_id ?? null,
+              },
+            } : p))
+          }}
+          onToast={(msg) => {
+            setToast(msg)
+            setTimeout(() => setToast(null), 4000)
+          }}
         />
+      )}
+
+      {/* Toast global */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl"
+          style={{
+            background: 'var(--bg-card)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            maxWidth: 380,
+          }}>
+          <CheckCircle2 size={16} strokeWidth={2} style={{ color: '#10B981' }} aria-hidden />
+          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{toast}</span>
+        </div>
       )}
     </div>
   )
