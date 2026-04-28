@@ -25,13 +25,16 @@ function validateStep(step: number, data: AlunoFormData): Record<string, string>
   }
 
   if (step === 1) {
-    // Pacote pula a validação de horários fixos
-    if (data.modelo_cobranca !== 'pacote') {
+    const isPacote     = data.modelo_cobranca === 'pacote'
+    const isPacoteFixo = isPacote && data.pacote_tipo === 'fixo'
+    // Horários: obrigatórios para por_aula, mensalidade e pacote FIXO
+    if (!isPacote || isPacoteFixo) {
       if (data.horarios.length === 0) errors.horarios = 'Selecione ao menos um dia'
       data.horarios.forEach(h => {
         if (!h.horario) errors[`horarios_${h.dia}`] = 'Informe o horário'
       })
-    } else {
+    }
+    if (isPacote) {
       const qtd = parseInt(data.pacote_quantidade)
       if (!data.pacote_quantidade || isNaN(qtd) || qtd <= 0) errors.pacote_quantidade = 'Informe a quantidade'
       const val = parseInt(data.pacote_validade_dias)

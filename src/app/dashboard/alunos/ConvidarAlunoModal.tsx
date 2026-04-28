@@ -20,6 +20,7 @@ export function ConvidarAlunoModal({ onClose, onCreated }: Props) {
 
   // Pacote
   const hoje = new Date().toISOString().split('T')[0]
+  const [pacoteTipo, setPacoteTipo] = useState<'fixo' | 'alternado'>('alternado')
   const [pacoteQtd, setPacoteQtd] = useState('10')
   const [pacoteVal, setPacoteVal] = useState('30')
   const [pacoteIni, setPacoteIni] = useState(hoje)
@@ -29,7 +30,9 @@ export function ConvidarAlunoModal({ onClose, onCreated }: Props) {
   const [pending, startTransition] = useTransition()
   const [created, setCreated] = useState<ConviteRow | null>(null)
 
-  const isPacote = modelo === 'pacote'
+  const isPacote     = modelo === 'pacote'
+  const isPacoteFixo = isPacote && pacoteTipo === 'fixo'
+  const showHorarios = !isPacote || isPacoteFixo
 
   function toggleDia(k: string) {
     const found = horarios.find(h => h.dia === k)
@@ -44,13 +47,13 @@ export function ConvidarAlunoModal({ onClose, onCreated }: Props) {
     setErr('')
     const val = parseFloat(valor)
     if (isNaN(val) || val <= 0) return setErr('Informe um valor válido.')
-    if (!isPacote && horarios.length === 0) return setErr('Selecione ao menos um dia.')
-    if (!isPacote && horarios.some(h => !h.horario)) return setErr('Preencha todos os horários.')
+    if (showHorarios && horarios.length === 0) return setErr('Selecione ao menos um dia.')
+    if (showHorarios && horarios.some(h => !h.horario)) return setErr('Preencha todos os horários.')
 
     startTransition(async () => {
       const res = await createConviteAction({
         modelo_cobranca: modelo,
-        horarios:        isPacote ? [] : horarios,
+        horarios:        showHorarios ? horarios : [],
         duracao:         parseInt(duracao) || 60,
         local,
         valor:           val,
@@ -59,6 +62,7 @@ export function ConvidarAlunoModal({ onClose, onCreated }: Props) {
           validade_dias:    parseInt(pacoteVal) || 30,
           data_inicio:      pacoteIni,
           data_cobranca:    pacoteCob,
+          tipo_pacote:      pacoteTipo,
         } : null,
       })
       if (res.error) { setErr(res.error); return }
@@ -115,8 +119,35 @@ export function ConvidarAlunoModal({ onClose, onCreated }: Props) {
               </div>
             </div>
 
-            {/* Dias + horários — hidden se pacote */}
-            {!isPacote && (
+            {/* Sub-pills tipo de pacote (só quando modelo='pacote') */}
+            {isPacote && (
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Tipo de pacote *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { v: 'fixo'      as const, l: 'Fixo',      d: 'Dias e horários definidos agora' },
+                    { v: 'alternado' as const, l: 'Alternado', d: 'Marca as aulas quando quiser' },
+                  ]).map(opt => {
+                    const sel = pacoteTipo === opt.v
+                    return (
+                      <button key={opt.v} type="button" onClick={() => setPacoteTipo(opt.v)}
+                        className="flex flex-col gap-1 px-3 py-3 rounded-xl text-left cursor-pointer"
+                        style={{
+                          background: sel ? 'var(--green-muted)' : 'var(--bg-input)',
+                          border: `1px solid ${sel ? 'rgba(16, 185, 129, 0.35)' : 'var(--border-subtle)'}`,
+                          color: sel ? 'var(--green-primary)' : 'var(--text-secondary)',
+                        }}>
+                        <span className="text-sm font-bold">{opt.l}</span>
+                        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{opt.d}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Dias + horários — visíveis para por_aula, mensalidade e pacote fixo */}
+            {showHorarios && (
               <>
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Dias da semana *</label>

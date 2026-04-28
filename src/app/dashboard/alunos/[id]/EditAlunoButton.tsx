@@ -31,6 +31,7 @@ export interface AlunoRow {
     validade_dias: number
     data_inicio: string
     data_cobranca: string
+    tipo_pacote?: 'fixo' | 'alternado'
   } | null
 }
 
@@ -61,6 +62,7 @@ function alunoToFormData(aluno: AlunoRow): AlunoFormData {
     valor: aluno.valor != null ? String(aluno.valor) : '',
     forma_pagamento: aluno.forma_pagamento ?? 'pix',
     dia_cobranca: aluno.dia_cobranca ? String(aluno.dia_cobranca) : '1',
+    pacote_tipo:          aluno.pacoteAtivo?.tipo_pacote ?? 'alternado',
     pacote_quantidade:    aluno.pacoteAtivo ? String(aluno.pacoteAtivo.quantidade_total) : '10',
     pacote_validade_dias: aluno.pacoteAtivo ? String(aluno.pacoteAtivo.validade_dias) : '30',
     pacote_data_inicio:   aluno.pacoteAtivo?.data_inicio ?? hoje,

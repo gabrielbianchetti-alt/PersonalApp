@@ -24,6 +24,7 @@ export interface ConviteRow {
     validade_dias:    number
     data_inicio:      string
     data_cobranca:    string
+    tipo_pacote?:     'fixo' | 'alternado'
   } | null
   link_token:       string
   status:           ConviteStatus
@@ -67,6 +68,7 @@ export interface CreateConviteInput {
     validade_dias:    number
     data_inicio:      string
     data_cobranca:    string
+    tipo_pacote?:     'fixo' | 'alternado'
   } | null
 }
 
@@ -184,14 +186,17 @@ export async function aprovarConviteAction(
     .eq('professor_id', user.id)
   if (upConvErr) { console.error('aprovarConvite convite:', upConvErr); return { error: upConvErr.message } }
 
-  // Se for pacote, cria o registro do pacote
+  // Se for pacote, cria o registro do pacote (e eventos se for fixo)
   if (c.modelo_cobranca === 'pacote' && c.dados_pacote) {
     const p = c.dados_pacote as {
       quantidade_total: number; validade_dias: number
       data_inicio: string; data_cobranca: string
+      tipo_pacote?: 'fixo' | 'alternado'
     }
     const vencimento = addDays(p.data_inicio, p.validade_dias)
-    const { error: pacoteErr } = await supabase.from('pacotes').insert({
+    const tipoPacote = p.tipo_pacote ?? 'alternado'
+
+    const { data: pacoteRow, error: pacoteErr } = await supabase.from('pacotes').insert({
       professor_id:     user.id,
       aluno_id:         c.aluno_id,
       quantidade_total: p.quantidade_total,
@@ -202,8 +207,43 @@ export async function aprovarConviteAction(
       data_vencimento:  vencimento,
       data_cobranca:    p.data_cobranca,
       status:           'ativo',
-    })
+      tipo_pacote:      tipoPacote,
+    }).select().single()
     if (pacoteErr) console.error('aprovarConvite pacote:', pacoteErr)
+
+    // Pacote fixo: gera eventos a partir dos horários do convite
+    if (tipoPacote === 'fixo' && pacoteRow && c.aluno_id) {
+      // Busca horários e dados do convite + aluno
+      const { data: convFull } = await supabase
+        .from('convites_aluno')
+        .select('horarios, duracao')
+        .eq('id', conviteId)
+        .single()
+      const { data: alunoRow } = await supabase
+        .from('alunos')
+        .select('nome')
+        .eq('id', c.aluno_id)
+        .single()
+
+      const horarios = (convFull?.horarios ?? []) as { dia: string; horario: string }[]
+      const duracao  = (convFull?.duracao ?? 60) as number
+      if (horarios.length > 0) {
+        const eventos = gerarEventosPacoteFixoConvite({
+          professorId: user.id,
+          alunoId:     c.aluno_id,
+          alunoNome:   alunoRow?.nome ?? 'Aluno',
+          pacoteId:    (pacoteRow as { id: string }).id,
+          horarios, duracao,
+          quantidade:  p.quantidade_total,
+          dataInicio:  p.data_inicio,
+          dataVencimento: vencimento,
+        })
+        if (eventos.length > 0) {
+          const { error: evtErr } = await supabase.from('eventos_agenda').insert(eventos)
+          if (evtErr) console.error('aprovarConvite eventos:', evtErr)
+        }
+      }
+    }
   }
 
   revalidatePath('/dashboard/alunos')
@@ -384,4 +424,50 @@ export async function submeterConviteAction(
   }
 
   return {}
+}
+
+// ─── Helper: gera eventos para pacote fixo via aprovação de convite ──────────
+
+const DOW_TO_KEY = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']
+
+function gerarEventosPacoteFixoConvite(params: {
+  professorId:    string
+  alunoId:        string
+  alunoNome:      string
+  pacoteId:       string
+  horarios:       { dia: string; horario: string }[]
+  duracao:        number
+  quantidade:     number
+  dataInicio:     string
+  dataVencimento: string
+}) {
+  const eventos: Record<string, unknown>[] = []
+  const horarioMap: Record<string, string> = {}
+  for (const h of params.horarios) horarioMap[h.dia] = h.horario
+
+  const start = new Date(params.dataInicio + 'T12:00:00')
+  const end   = new Date(params.dataVencimento + 'T23:59:59')
+
+  for (let d = new Date(start); d <= end && eventos.length < params.quantidade; d.setDate(d.getDate() + 1)) {
+    const dayKey  = DOW_TO_KEY[d.getDay()]
+    const horario = horarioMap[dayKey]
+    if (!horario) continue
+    const dataIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    eventos.push({
+      professor_id:    params.professorId,
+      tipo:            'aula',
+      titulo:          `Aula — ${params.alunoNome.split(' ')[0]}`,
+      aluno_id:        params.alunoId,
+      dia_semana:      null,
+      data_especifica: dataIso,
+      horario_inicio:  horario,
+      duracao:         params.duracao,
+      cor:             null,
+      observacao:      null,
+      valor:           null,
+      pacote_id:       params.pacoteId,
+    })
+  }
+
+  return eventos
 }

@@ -174,7 +174,7 @@ export function PacotesHub({
                         </span>
                       </div>
                       <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {formatCurrency(p.valor)} · {p.quantidade_total} aulas · {p.validade_dias} dias
+                        {formatCurrency(p.valor)} · {p.quantidade_total} aulas · {p.validade_dias} dias · {p.tipo_pacote === 'fixo' ? 'Fixo' : 'Alternado'}
                       </p>
                     </div>
                     <button onClick={() => toggleExpand(p)}

@@ -6,12 +6,15 @@ import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
+export type TipoCusto = 'profissional' | 'pessoal'
+
 export interface CustoRow {
   id: string
   professor_id: string
   nome: string
   valor: number
   tipo: 'fixo' | 'variavel'
+  tipo_custo: TipoCusto
   categoria: string
   data: string | null          // "YYYY-MM-DD" (variável only)
   mes_referencia: string       // "YYYY-MM"
@@ -25,6 +28,7 @@ type CreateInput = {
   nome: string
   valor: number
   tipo: 'fixo' | 'variavel'
+  tipo_custo?: TipoCusto
   categoria: string
   data?: string | null
   mes_referencia: string
@@ -48,9 +52,12 @@ export async function createCustoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
+  // Default tipo_custo = 'profissional' se não passado
+  const dataWithDefaults = { tipo_custo: 'profissional' as TipoCusto, ...data }
+
   // Try inserting with ativo + origem_id (full schema).
   // If either column doesn't exist yet, retry with only ativo, then bare.
-  const base = { professor_id: user.id, ...data }
+  const base = { professor_id: user.id, ...dataWithDefaults }
 
   let row, error
 

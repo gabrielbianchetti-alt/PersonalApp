@@ -17,6 +17,7 @@ export function getPrimeiroHorario(horarios: HorarioDia[]): string {
 }
 
 export type ModeloCobranca = 'por_aula' | 'mensalidade' | 'pacote'
+export type TipoPacote     = 'fixo' | 'alternado'
 
 export interface AlunoFormData {
   // Etapa 1
@@ -39,10 +40,11 @@ export interface AlunoFormData {
   dia_cobranca: string   // 1-28, dia do mês para cobrar (mensalidade/por_aula)
 
   // Etapa 2 — pacote-only fields
-  pacote_quantidade:   string   // ex "10"
-  pacote_validade_dias: string  // ex "30"
-  pacote_data_inicio:  string   // YYYY-MM-DD
-  pacote_data_cobranca: string  // YYYY-MM-DD
+  pacote_tipo:          TipoPacote  // 'fixo' (com horários) | 'alternado' (sob demanda)
+  pacote_quantidade:    string      // ex "10"
+  pacote_validade_dias: string      // ex "30"
+  pacote_data_inicio:   string      // YYYY-MM-DD
+  pacote_data_cobranca: string      // YYYY-MM-DD
 
   // Etapa 3
   objetivos: string[]
@@ -68,6 +70,7 @@ export function initialFormData(): AlunoFormData {
     valor: '',
     forma_pagamento: 'pix',
     dia_cobranca: '1',
+    pacote_tipo: 'alternado',
     pacote_quantidade: '10',
     pacote_validade_dias: '30',
     pacote_data_inicio: hoje,

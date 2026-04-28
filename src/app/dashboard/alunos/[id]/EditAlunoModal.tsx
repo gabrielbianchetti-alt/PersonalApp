@@ -18,10 +18,13 @@ function validateAll(data: AlunoFormData): Record<string, string> {
   if (!data.data_nascimento) errs.data_nascimento = 'Data de nascimento é obrigatória'
   if (!data.data_inicio) errs.data_inicio = 'Data de início é obrigatória'
   // Training
-  if (data.modelo_cobranca !== 'pacote') {
+  const isPacote     = data.modelo_cobranca === 'pacote'
+  const isPacoteFixo = isPacote && data.pacote_tipo === 'fixo'
+  if (!isPacote || isPacoteFixo) {
     if (data.horarios.length === 0) errs.horarios = 'Selecione ao menos um dia'
     data.horarios.forEach(h => { if (!h.horario) errs[`horarios_${h.dia}`] = 'Informe o horário' })
-  } else {
+  }
+  if (isPacote) {
     const qtd = parseInt(data.pacote_quantidade)
     if (!data.pacote_quantidade || isNaN(qtd) || qtd <= 0) errs.pacote_quantidade = 'Informe a quantidade'
     const val = parseInt(data.pacote_validade_dias)

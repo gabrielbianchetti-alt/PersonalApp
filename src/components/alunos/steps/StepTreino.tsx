@@ -43,7 +43,10 @@ function ToggleGroup({
 
 export function StepTreino({ data, errors, onChange }: Props) {
   const previsao = calcularPrevisaoMensal(data)
-  const isPacote = data.modelo_cobranca === 'pacote'
+  const isPacote      = data.modelo_cobranca === 'pacote'
+  const isPacoteFixo  = isPacote && data.pacote_tipo === 'fixo'
+  /** Mostra dias/horários quando NÃO é pacote OU é pacote fixo */
+  const showHorarios  = !isPacote || isPacoteFixo
 
   function toggleDia(key: string) {
     const already = data.horarios.find(h => h.dia === key)
@@ -95,13 +98,42 @@ export function StepTreino({ data, errors, onChange }: Props) {
         />
         {isPacote && (
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Aulas avulsas agendadas individualmente. Cobrança única no início do pacote.
+            Cobrança única no início do pacote.
           </p>
         )}
       </div>
 
-      {/* Dias da semana (hidden para pacote — aulas são avulsas) */}
-      {!isPacote && (
+      {/* Sub-pills tipo de pacote */}
+      {isPacote && (
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Tipo de pacote *
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { v: 'fixo'      as const, l: 'Fixo',      d: 'Dias e horários definidos agora' },
+              { v: 'alternado' as const, l: 'Alternado', d: 'Marca as aulas quando quiser' },
+            ]).map(opt => {
+              const sel = data.pacote_tipo === opt.v
+              return (
+                <button key={opt.v} type="button" onClick={() => onChange('pacote_tipo', opt.v)}
+                  className="flex flex-col gap-1 px-3 py-3 rounded-xl text-left cursor-pointer"
+                  style={{
+                    background: sel ? 'var(--green-muted)' : 'var(--bg-input)',
+                    border: `1px solid ${sel ? 'rgba(16, 185, 129, 0.35)' : 'var(--border-subtle)'}`,
+                    color: sel ? 'var(--green-primary)' : 'var(--text-secondary)',
+                  }}>
+                  <span className="text-sm font-bold">{opt.l}</span>
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{opt.d}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Dias da semana (escondido para pacote alternado; visível para por_aula/mensalidade/pacote fixo) */}
+      {showHorarios && (
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
           Dias da semana *
@@ -133,7 +165,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
       )}
 
       {/* Per-day time inputs */}
-      {!isPacote && selectedInOrder.length > 0 && (
+      {showHorarios && selectedInOrder.length > 0 && (
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
             Horários por dia *
@@ -182,8 +214,8 @@ export function StepTreino({ data, errors, onChange }: Props) {
         </div>
       )}
 
-      {/* Duração (hidden para pacote) */}
-      {!isPacote && (
+      {/* Duração (escondido só para pacote alternado) */}
+      {showHorarios && (
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
           Duração

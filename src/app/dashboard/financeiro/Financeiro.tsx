@@ -239,6 +239,7 @@ function CustoFormModal({
   const [nome,      setNome]      = useState(custo?.nome ?? '')
   const [valor,     setValor]     = useState(custo ? String(custo.valor) : '')
   const [tipo,      setTipo]      = useState<'fixo'|'variavel'>(custo?.tipo ?? tipoInicial ?? 'fixo')
+  const [tipoCusto, setTipoCusto] = useState<'profissional'|'pessoal'>(custo?.tipo_custo ?? 'profissional')
   const [catSelect, setCatSelect] = useState(
     custo ? (CATEGORIAS_PADRAO.includes(custo.categoria) ? custo.categoria : '__custom__') : CATEGORIAS_PADRAO[0]
   )
@@ -266,6 +267,7 @@ function CustoFormModal({
       nome:          nome.trim(),
       valor:         Number(valor),
       tipo,
+      tipo_custo:    tipoCusto,
       categoria,
       data:          tipo === 'variavel' ? data : null,
       mes_referencia: tipo === 'variavel' ? data.slice(0, 7) : mes,
@@ -321,6 +323,37 @@ function CustoFormModal({
               ))}
             </div>
           )}
+
+          {/* Tipo do custo: profissional vs pessoal */}
+          <div>
+            <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>
+              Categoria do gasto
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['profissional', 'pessoal'] as const).map(tc => (
+                <button key={tc} type="button" onClick={() => setTipoCusto(tc)}
+                  className="py-2 rounded-xl text-xs font-semibold cursor-pointer"
+                  style={{
+                    background: tipoCusto === tc
+                      ? (tc === 'profissional' ? 'var(--green-muted)' : 'rgba(139, 92, 246, 0.12)')
+                      : 'var(--bg-card)',
+                    color: tipoCusto === tc
+                      ? (tc === 'profissional' ? 'var(--green-primary)' : '#8B5CF6')
+                      : 'var(--text-secondary)',
+                    border: `1px solid ${tipoCusto === tc
+                      ? (tc === 'profissional' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(139, 92, 246, 0.25)')
+                      : 'var(--border-subtle)'}`,
+                  }}>
+                  {tc === 'profissional' ? 'Profissional' : 'Pessoal'}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
+              {tipoCusto === 'profissional'
+                ? 'Custos do trabalho. Entram no cálculo do lucro líquido profissional.'
+                : 'Gastos pessoais. Não afetam o lucro profissional, apenas o lucro total.'}
+            </p>
+          </div>
 
           {/* Nome */}
           <div>
@@ -535,6 +568,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
   const [deleteReceitaConfirm, setDeleteReceitaConfirm] = useState<ReceitaExtraRow | null>(null)
   const [deleting,             setDeleting]             = useState(false)
   const [filterTipo,           setFilterTipo]           = useState<'todos'|'fixo'|'variavel'>('todos')
+  const [filterTipoCusto,      setFilterTipoCusto]      = useState<'todos'|'profissional'|'pessoal'>('todos')
   const [filterCat,            setFilterCat]            = useState<string>('')
   const isFirstMount                                    = useRef(true)
 
@@ -618,8 +652,14 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
   const faturamentoExtras   = receitasExtras.reduce((s, r) => s + Number(r.valor), 0)
   const faturamento         = faturamentoAlunos + faturamentoExtras
   const totalCustos         = custos.reduce((s, c) => s + Number(c.valor), 0)
+  // Custos por categoria (profissional / pessoal)
+  const totalCustosProf     = custos
+    .filter(c => (c.tipo_custo ?? 'profissional') === 'profissional')
+    .reduce((s, c) => s + Number(c.valor), 0)
+  const totalCustosPess     = totalCustos - totalCustosProf
+  const lucroProf           = faturamento - totalCustosProf
   const lucro               = faturamento - totalCustos
-  const margem              = faturamento > 0 ? (lucro / faturamento) * 100 : 0
+  const margem              = faturamento > 0 ? (lucroProf / faturamento) * 100 : 0
   const mColor              = marginColor(margem)
 
   // Category totals
@@ -631,6 +671,8 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
   // Filtered list
   const listCustos = custos.filter(c => {
     if (filterTipo !== 'todos' && c.tipo !== filterTipo) return false
+    const tc = c.tipo_custo ?? 'profissional'
+    if (filterTipoCusto !== 'todos' && tc !== filterTipoCusto) return false
     if (filterCat && c.categoria !== filterCat) return false
     return true
   })
@@ -730,21 +772,26 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
               <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Total de custos</p>
               <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: 'var(--text-primary)' }}>{fmtCurrency(totalCustos)}</p>
               <div className="flex gap-2 mt-1 flex-wrap">
-                <span className="text-xs" style={{ color: 'var(--green-primary)' }}>F: {fmtCurrency(totalFixo)}</span>
-                <span className="text-xs" style={{ color: '#38BDF8' }}>V: {fmtCurrency(totalVariavel)}</span>
+                <span className="text-xs" style={{ color: 'var(--green-primary)' }}>Prof: {fmtCurrency(totalCustosProf)}</span>
+                {totalCustosPess > 0 && (
+                  <span className="text-xs" style={{ color: '#8B5CF6' }}>Pess: {fmtCurrency(totalCustosPess)}</span>
+                )}
               </div>
             </div>
 
-            {/* Lucro líquido */}
+            {/* Lucro líquido — profissional + total */}
             <div className="p-4 rounded-2xl"
-              style={{ background: 'var(--bg-card)', border: `1px solid ${lucro >= 0 ? 'var(--border-subtle)' : 'rgba(239, 68, 68,0.2)'}` }}>
+              style={{ background: 'var(--bg-card)', border: `1px solid ${lucroProf >= 0 ? 'var(--border-subtle)' : 'rgba(239, 68, 68,0.2)'}` }}>
               <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Lucro líquido</p>
-              <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: lucro >= 0 ? 'var(--text-primary)' : '#EF4444' }}>
-                {fmtCurrency(lucro)}
+              <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: lucroProf >= 0 ? 'var(--green-primary)' : '#EF4444' }}>
+                {fmtCurrency(lucroProf)}
               </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                {faturamento > 0 ? `${Math.abs(margem).toFixed(1)}% de margem` : '—'}
-              </p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>profissional</p>
+              {totalCustosPess > 0 && (
+                <p className="text-[11px] mt-1" style={{ color: lucro >= 0 ? 'var(--text-secondary)' : '#EF4444' }}>
+                  Total: <span style={{ fontWeight: 700 }}>{fmtCurrency(lucro)}</span>
+                </p>
+              )}
             </div>
 
             {/* Margem de lucro */}
@@ -830,7 +877,7 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
           {/* ── Filters + costs list ── */}
           <div className="flex flex-col gap-3">
             {/* Tipo tabs — centered */}
-            <div className="flex justify-center">
+            <div className="flex justify-center flex-wrap gap-2">
               <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
                 {([
                   { id: 'todos',    label: 'Todos' },
@@ -842,6 +889,25 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                     style={{
                       background: filterTipo === f.id ? 'var(--green-primary)' : 'transparent',
                       color: filterTipo === f.id ? '#000' : 'var(--text-secondary)',
+                    }}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              {/* Profissional / Pessoal */}
+              <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                {([
+                  { id: 'todos',        label: 'Todos' },
+                  { id: 'profissional', label: 'Profissional' },
+                  { id: 'pessoal',      label: 'Pessoal' },
+                ] as const).map(f => (
+                  <button key={f.id} onClick={() => setFilterTipoCusto(f.id)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                    style={{
+                      background: filterTipoCusto === f.id
+                        ? (f.id === 'pessoal' ? '#8B5CF6' : 'var(--green-primary)')
+                        : 'transparent',
+                      color: filterTipoCusto === f.id ? '#fff' : 'var(--text-secondary)',
                     }}>
                     {f.label}
                   </button>
@@ -911,6 +977,12 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
                             }}>
                             {custo.tipo === 'fixo' ? 'Fixo' : 'Variável'}
                           </span>
+                          {(custo.tipo_custo ?? 'profissional') === 'pessoal' && (
+                            <span className="text-[10px] px-1.5 py-px rounded-full font-semibold shrink-0"
+                              style={{ background: 'rgba(139, 92, 246, 0.12)', color: '#8B5CF6' }}>
+                              Pessoal
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{custo.categoria}</span>

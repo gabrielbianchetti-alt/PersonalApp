@@ -58,9 +58,12 @@ export async function criarAlunoAction(
     const qtd        = parseInt(data.pacote_quantidade) || 0
     const validade   = parseInt(data.pacote_validade_dias) || 30
     const vencimento = addDays(data.pacote_data_inicio, validade)
-    const { error: pacoteErr } = await supabase.from('pacotes').insert({
+    const tipoPacote = data.pacote_tipo ?? 'alternado'
+    const alunoId    = (row as { id: string }).id
+
+    const { data: pacoteRow, error: pacoteErr } = await supabase.from('pacotes').insert({
       professor_id:     user.id,
-      aluno_id:         (row as { id: string }).id,
+      aluno_id:         alunoId,
       quantidade_total: qtd,
       quantidade_usada: 0,
       valor:            parseFloat(data.valor),
@@ -69,11 +72,82 @@ export async function criarAlunoAction(
       data_vencimento:  vencimento,
       data_cobranca:    data.pacote_data_cobranca,
       status:           'ativo',
-    })
+      tipo_pacote:      tipoPacote,
+    }).select().single()
     if (pacoteErr) console.error('Erro ao criar pacote inicial:', pacoteErr)
+
+    // Se for pacote FIXO, gera os eventos na agenda automaticamente
+    if (tipoPacote === 'fixo' && pacoteRow && qtd > 0 && data.horarios.length > 0) {
+      const eventos = gerarEventosPacoteFixo({
+        professorId: user.id,
+        alunoId,
+        alunoNome:   data.nome.trim(),
+        pacoteId:    (pacoteRow as { id: string }).id,
+        horarios:    data.horarios,
+        duracao:     parseInt(data.duracao) || 60,
+        quantidade:  qtd,
+        dataInicio:  data.pacote_data_inicio,
+        dataVencimento: vencimento,
+      })
+      if (eventos.length > 0) {
+        const { error: evtErr } = await supabase.from('eventos_agenda').insert(eventos)
+        if (evtErr) console.error('Erro ao gerar eventos do pacote fixo:', evtErr)
+      }
+    }
   }
 
   revalidatePath('/dashboard/alunos')
   revalidatePath('/dashboard/pacotes')
+  revalidatePath('/dashboard/agenda')
   return { data: row as Record<string, unknown> }
+}
+
+// ─── Helper: gera eventos para um pacote fixo ─────────────────────────────────
+//
+// Itera dia-a-dia a partir de `dataInicio`, e para cada dia que bate com algum
+// horário do aluno cria um evento `tipo='aula'` linkado ao `pacote_id`. Para
+// até completar `quantidade` aulas OU atingir `dataVencimento`.
+
+const DOW_TO_KEY = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']
+
+function gerarEventosPacoteFixo(params: {
+  professorId:    string
+  alunoId:        string
+  alunoNome:      string
+  pacoteId:       string
+  horarios:       { dia: string; horario: string }[]
+  duracao:        number
+  quantidade:     number
+  dataInicio:     string
+  dataVencimento: string
+}) {
+  const eventos: Record<string, unknown>[] = []
+  const horarioMap: Record<string, string> = {}
+  for (const h of params.horarios) horarioMap[h.dia] = h.horario
+
+  const start = new Date(params.dataInicio + 'T12:00:00')
+  const end   = new Date(params.dataVencimento + 'T23:59:59')
+
+  for (let d = new Date(start); d <= end && eventos.length < params.quantidade; d.setDate(d.getDate() + 1)) {
+    const dayKey = DOW_TO_KEY[d.getDay()]
+    const horario = horarioMap[dayKey]
+    if (!horario) continue
+    const dataIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    eventos.push({
+      professor_id:    params.professorId,
+      tipo:            'aula',
+      titulo:          `Aula — ${params.alunoNome.split(' ')[0]}`,
+      aluno_id:        params.alunoId,
+      dia_semana:      null,
+      data_especifica: dataIso,
+      horario_inicio:  horario,
+      duracao:         params.duracao,
+      cor:             null,
+      observacao:      null,
+      valor:           null,
+      pacote_id:       params.pacoteId,
+    })
+  }
+
+  return eventos
 }

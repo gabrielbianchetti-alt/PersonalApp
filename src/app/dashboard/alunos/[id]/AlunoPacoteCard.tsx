@@ -67,7 +67,7 @@ export function AlunoPacoteCard({
           <div className="flex items-center gap-2">
             <Package size={18} strokeWidth={1.75} style={{ color: cfg.color }} aria-hidden />
             <p className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Pacote de aulas
+              Pacote {pacote.tipo_pacote === 'fixo' ? 'fixo' : 'alternado'}
             </p>
             <span className="text-[10px] px-1.5 py-px rounded-full font-semibold"
               style={{ background: cfg.bg, color: cfg.color }}>

@@ -18,6 +18,7 @@ export interface PacoteRow {
   data_vencimento:   string
   data_cobranca:     string
   status:            'ativo' | 'vencido' | 'finalizado'
+  tipo_pacote:       'fixo' | 'alternado'
   renovacao_de:      string | null
   created_at:        string
   updated_at:        string
@@ -168,7 +169,7 @@ export async function renovarPacoteAction(params: {
     .eq('id', params.pacoteAnteriorId)
     .eq('professor_id', user.id)
 
-  // Cria o novo
+  // Cria o novo (preserva tipo_pacote do anterior)
   const { data: novo, error: insErr } = await supabase
     .from('pacotes')
     .insert({
@@ -182,6 +183,7 @@ export async function renovarPacoteAction(params: {
       data_vencimento:  vencimento,
       data_cobranca:    params.data_cobranca,
       status:           'ativo',
+      tipo_pacote:      anterior.tipo_pacote ?? 'alternado',
       renovacao_de:     params.pacoteAnteriorId,
     })
     .select()

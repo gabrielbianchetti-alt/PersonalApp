@@ -153,7 +153,6 @@ export function AlunosHub({
 
   const TABS = [
     { key: 'lista',      label: 'Lista' },
-    { key: 'novo',       label: '+ Novo' },
     { key: 'aprovacao',  label: aprovacoesCount > 0 ? `Aprovações (${aprovacoesCount})` : 'Aprovações' },
     { key: 'suspensos',  label: 'Suspensos' },
     { key: 'termos',     label: 'Termos' },

@@ -87,6 +87,7 @@ export default async function AlunoPerfilPage({
         validade_dias:    pacoteFull.validade_dias,
         data_inicio:      pacoteFull.data_inicio,
         data_cobranca:    pacoteFull.data_cobranca,
+        tipo_pacote:      pacoteFull.tipo_pacote,
       }
     : null
 
