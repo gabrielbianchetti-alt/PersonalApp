@@ -52,35 +52,32 @@ export async function createCustoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
-  // Default tipo_custo = 'profissional' se não passado
-  const dataWithDefaults = { tipo_custo: 'profissional' as TipoCusto, ...data }
+  // Separa tipo_custo (nova coluna, pode não estar migrada ainda) do resto.
+  // Default 'profissional' se não passado.
+  const tipoCusto: TipoCusto = data.tipo_custo ?? 'profissional'
+  const { tipo_custo: _ignore, ...dataNoTipoCusto } = data
+  void _ignore
+  const base = { professor_id: user.id, ...dataNoTipoCusto }
 
-  // Try inserting with ativo + origem_id (full schema).
-  // If either column doesn't exist yet, retry with only ativo, then bare.
-  const base = { professor_id: user.id, ...dataWithDefaults }
+  // Tentamos do mais completo (todas as colunas) ao mais simples,
+  // caindo cada vez que uma coluna estiver faltando no banco.
+  type Try = Record<string, unknown>
+  const attempts: Try[] = [
+    { ...base, ativo: true, origem_id: null, tipo_custo: tipoCusto }, // schema completo
+    { ...base, ativo: true, origem_id: null },                         // sem tipo_custo
+    { ...base, ativo: true, tipo_custo: tipoCusto },                   // sem origem_id
+    { ...base, ativo: true },                                          // só ativo
+    { ...base, tipo_custo: tipoCusto },                                // sem ativo/origem
+    { ...base },                                                       // bare
+  ]
 
-  let row, error
-
-  // Attempt 1: full schema (ativo + origem_id)
-  ;({ data: row, error } = await supabase
-    .from('custos')
-    .insert({ ...base, ativo: true, origem_id: null })
-    .select().single())
-
-  if (error && isColumnMissing(error)) {
-    // Attempt 2: ativo only (origem_id column missing)
-    ;({ data: row, error } = await supabase
-      .from('custos')
-      .insert({ ...base, ativo: true })
-      .select().single())
-  }
-
-  if (error && isColumnMissing(error)) {
-    // Attempt 3: bare insert (neither column migrated yet)
-    ;({ data: row, error } = await supabase
-      .from('custos')
-      .insert(base)
-      .select().single())
+  let row: unknown, error: { code?: string; message?: string } | null = null
+  for (const payload of attempts) {
+    const res = await supabase.from('custos').insert(payload).select().single()
+    row   = res.data
+    error = res.error
+    if (!error) break
+    if (!isColumnMissing(error)) break // erro real — não adianta tentar outros payloads
   }
 
   if (error) { console.error('createCusto:', error); return { error: 'Erro ao salvar custo.' } }
@@ -96,16 +93,31 @@ export async function updateCustoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
-  const { data: row, error } = await supabase
+  // Separa tipo_custo do resto pra fazer fallback se a coluna não existir
+  const { tipo_custo, ...dataNoTipoCusto } = data
+  const baseUpdate = { ...dataNoTipoCusto, updated_at: new Date().toISOString() }
+
+  // Tenta com tipo_custo, fallback sem ele
+  let res = await supabase
     .from('custos')
-    .update({ ...data, updated_at: new Date().toISOString() })
+    .update(tipo_custo !== undefined ? { ...baseUpdate, tipo_custo } : baseUpdate)
     .eq('id', id)
     .eq('professor_id', user.id)
     .select()
     .single()
 
-  if (error) { console.error('updateCusto:', error); return { error: 'Erro ao atualizar custo.' } }
-  return { data: row as CustoRow }
+  if (res.error && isColumnMissing(res.error)) {
+    res = await supabase
+      .from('custos')
+      .update(baseUpdate)
+      .eq('id', id)
+      .eq('professor_id', user.id)
+      .select()
+      .single()
+  }
+
+  if (res.error) { console.error('updateCusto:', res.error); return { error: 'Erro ao atualizar custo.' } }
+  return { data: res.data as CustoRow }
 }
 
 export async function deleteCustoAction(
