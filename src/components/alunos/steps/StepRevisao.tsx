@@ -90,7 +90,7 @@ export function StepRevisao({ data, onEdit }: Props) {
       <Section title="Dados Pessoais" step={0} onEdit={onEdit}>
         <Row label="Nome" value={data.nome} />
         <Row label="WhatsApp" value={data.whatsapp} />
-        <Row label="Nascimento" value={formatDate(data.data_nascimento)} />
+        <Row label="Nascimento" value={data.data_nascimento ? formatDate(data.data_nascimento) : '—'} />
         <Row label="Início" value={formatDate(data.data_inicio)} />
         {data.emergencia_nome && (
           <Row
@@ -121,7 +121,7 @@ export function StepRevisao({ data, onEdit }: Props) {
           )
         } />
         <Row label="Duração" value={duracaoLabel} />
-        <Row label="Local" value={data.local + (data.endereco ? ` — ${data.endereco}` : '')} />
+        <Row label="Local" value={data.local ? data.local + (data.endereco ? ` — ${data.endereco}` : '') : '—'} />
         <div className="h-px" style={{ background: 'var(--border-subtle)' }} />
         <Row
           label="Cobrança"
@@ -145,7 +145,6 @@ export function StepRevisao({ data, onEdit }: Props) {
             }
           />
         )}
-        <Row label="Pagamento" value={data.forma_pagamento === 'pix' ? 'Pix' : 'Cartão'} />
       </Section>
 
       {/* Saúde */}

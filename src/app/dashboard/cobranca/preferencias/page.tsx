@@ -61,6 +61,7 @@ export default function PreferenciasPage() {
     link_cartao: string | null
     modelo_mensagem: string | null
     tipo_data_cobranca: string | null
+    forma_pagamento_padrao: 'pix' | 'cartao' | 'ambos' | null
   } | null>(null)
 
   const [state, formAction, isPending] = useActionState(savePreferenciasAction, null)
@@ -74,7 +75,7 @@ export default function PreferenciasPage() {
         .select('*')
         .eq('professor_id', user.id)
         .maybeSingle()
-      setPrefs(data ?? { chave_pix: null, favorecido_pix: null, link_cartao: null, modelo_mensagem: null, tipo_data_cobranca: null })
+      setPrefs(data ?? { chave_pix: null, favorecido_pix: null, link_cartao: null, modelo_mensagem: null, tipo_data_cobranca: null, forma_pagamento_padrao: null })
     })
   }, [])
 
@@ -120,6 +121,51 @@ export default function PreferenciasPage() {
       </div>
 
       <form action={formAction} className="flex flex-col gap-6">
+
+        {/* Forma de pagamento padrão */}
+        <div className="rounded-2xl p-5 flex flex-col gap-4"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Forma de pagamento padrão</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Aplicada automaticamente em todas as mensagens de cobrança
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {[
+              { value: 'pix',    label: 'Apenas Pix',     desc: 'Cobranças mostram só a chave Pix' },
+              { value: 'cartao', label: 'Apenas Cartão',  desc: 'Cobranças mostram só o link de pagamento' },
+              { value: 'ambos',  label: 'Pix e Cartão',   desc: 'Mostra os dois com instrução "Escolha a forma de pagamento"' },
+            ].map(opt => {
+              const isActive = (prefs.forma_pagamento_padrao ?? 'pix') === opt.value
+              return (
+                <label
+                  key={opt.value}
+                  className="flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors"
+                  style={{
+                    background: isActive ? 'var(--green-muted)' : 'var(--bg-input)',
+                    border: `1px solid ${isActive ? 'rgba(16, 185, 129,0.25)' : 'var(--border-subtle)'}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="forma_pagamento_padrao"
+                    value={opt.value}
+                    defaultChecked={isActive}
+                    className="mt-0.5 accent-[#10B981]"
+                    onChange={() => setPrefs(p => p ? { ...p, forma_pagamento_padrao: opt.value as 'pix' | 'cartao' | 'ambos' } : p)}
+                  />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: isActive ? 'var(--green-primary)' : 'var(--text-primary)' }}>
+                      {opt.label}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{opt.desc}</p>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+        </div>
 
         {/* Pix section */}
         <div className="rounded-2xl p-5 flex flex-col gap-4"

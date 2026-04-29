@@ -9,27 +9,37 @@ export interface AlunoForRenovar {
   id: string
   nome: string
   horarios: { dia: string; horario: string }[]
-  forma_pagamento: string
 }
 
 export interface PrefsForRenovar {
   chave_pix: string | null
   favorecido_pix: string | null
   link_cartao: string | null
+  forma_pagamento_padrao?: 'pix' | 'cartao' | 'ambos' | null
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-function buildPaymentBlock(forma: string, prefs: PrefsForRenovar | null): string {
-  if (!prefs) return '⚙️ Configure as preferências de cobrança'
-  if (forma === 'pix') {
-    if (!prefs.chave_pix) return '⚙️ Configure sua chave Pix em Preferências'
-    let block = `💳 *Pix:* ${prefs.chave_pix}`
-    if (prefs.favorecido_pix) block += `\n👤 Favorecido: ${prefs.favorecido_pix}`
-    return block
-  }
+function pixBlock(prefs: PrefsForRenovar): string {
+  if (!prefs.chave_pix) return '⚙️ Configure sua chave Pix em Preferências'
+  let block = `💳 *Pix:* ${prefs.chave_pix}`
+  if (prefs.favorecido_pix) block += `\n👤 Favorecido: ${prefs.favorecido_pix}`
+  return block
+}
+
+function cartaoBlock(prefs: PrefsForRenovar): string {
   if (!prefs.link_cartao) return '⚙️ Configure o link de pagamento em Preferências'
   return `💳 *Cartão:* ${prefs.link_cartao}`
+}
+
+export function buildPaymentBlock(prefs: PrefsForRenovar | null): string {
+  if (!prefs) return '⚙️ Configure as preferências de cobrança'
+  const forma = prefs.forma_pagamento_padrao ?? 'pix'
+  if (forma === 'ambos') {
+    return `Escolha a forma de pagamento:\n\n${pixBlock(prefs)}\n\nou\n\n${cartaoBlock(prefs)}`
+  }
+  if (forma === 'cartao') return cartaoBlock(prefs)
+  return pixBlock(prefs)
 }
 
 function formatHorariosFixo(horarios: { dia: string; horario: string }[]): string {
@@ -64,7 +74,7 @@ Segue sua cobrança referente ao seu Pacote de Aulas:
 📅 Validade: ${inicioFmt} até ${vencFmt}
 💰 Valor: *${formatCurrency(pacote.valor)}*
 
-${buildPaymentBlock(aluno.forma_pagamento, prefs)}`
+${buildPaymentBlock(prefs)}`
 }
 
 // ─── component ────────────────────────────────────────────────────────────────

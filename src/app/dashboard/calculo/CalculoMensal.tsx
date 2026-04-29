@@ -35,7 +35,6 @@ interface Aluno {
   horarios: { dia: string; horario: string }[]
   modelo_cobranca: string
   valor: number
-  forma_pagamento: string
 }
 
 interface Preferencias {

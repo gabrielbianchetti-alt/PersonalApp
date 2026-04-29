@@ -20,7 +20,6 @@ export interface AlunoRow {
   endereco: string | null
   modelo_cobranca: ModeloCobranca | null
   valor: number | null
-  forma_pagamento: 'pix' | 'cartao' | null
   dia_cobranca: number | null
   objetivos: string[] | null
   restricoes: string | null
@@ -60,7 +59,6 @@ function alunoToFormData(aluno: AlunoRow): AlunoFormData {
     endereco: aluno.endereco ?? '',
     modelo_cobranca: aluno.modelo_cobranca ?? 'por_aula',
     valor: aluno.valor != null ? String(aluno.valor) : '',
-    forma_pagamento: aluno.forma_pagamento ?? 'pix',
     dia_cobranca: aluno.dia_cobranca ? String(aluno.dia_cobranca) : '1',
     pacote_tipo:          aluno.pacoteAtivo?.tipo_pacote ?? 'alternado',
     pacote_quantidade:    aluno.pacoteAtivo ? String(aluno.pacoteAtivo.quantidade_total) : '10',

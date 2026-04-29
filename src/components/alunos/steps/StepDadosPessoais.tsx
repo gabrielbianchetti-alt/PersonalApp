@@ -96,7 +96,7 @@ export function StepDadosPessoais({ data, errors, onChange }: Props) {
         <div className="flex flex-col gap-1.5 min-w-0">
           <Input
             id="data_nascimento"
-            label="Data de nascimento *"
+            label="Data de nascimento (opcional)"
             type="date"
             value={data.data_nascimento}
             onChange={(e) => onChange('data_nascimento', e.target.value)}

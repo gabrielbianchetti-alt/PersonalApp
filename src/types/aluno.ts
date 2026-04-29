@@ -36,7 +36,6 @@ export interface AlunoFormData {
   endereco: string
   modelo_cobranca: ModeloCobranca
   valor: string
-  forma_pagamento: 'pix' | 'cartao'
   dia_cobranca: string   // 1-28, dia do mês para cobrar (mensalidade/por_aula)
 
   // Etapa 2 — pacote-only fields
@@ -68,7 +67,6 @@ export function initialFormData(): AlunoFormData {
     endereco: '',
     modelo_cobranca: 'por_aula',
     valor: '',
-    forma_pagamento: 'pix',
     dia_cobranca: '1',
     pacote_tipo: 'alternado',
     pacote_quantidade: '10',

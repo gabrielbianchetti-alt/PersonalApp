@@ -33,7 +33,6 @@ interface AlunoCalculo {
   horarios: { dia: string; horario: string }[]
   modelo_cobranca: string
   valor: number
-  forma_pagamento: string
 }
 
 interface AlunoCobranca {
@@ -43,7 +42,6 @@ interface AlunoCobranca {
   horarios: { dia: string; horario: string }[]
   modelo_cobranca: string
   valor: number
-  forma_pagamento: string
   dia_cobranca: number
 }
 
@@ -62,6 +60,7 @@ interface Preferencias {
   link_cartao: string | null
   modelo_mensagem: string | null
   tipo_data_cobranca?: string | null
+  forma_pagamento_padrao?: 'pix' | 'cartao' | 'ambos' | null
 }
 
 interface AlunoFin {

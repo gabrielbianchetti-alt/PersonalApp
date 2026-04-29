@@ -34,7 +34,6 @@ export async function updateAlunoAction(
       endereco: data.endereco.trim() || null,
       modelo_cobranca: data.modelo_cobranca,
       valor: parseFloat(data.valor),
-      forma_pagamento: data.forma_pagamento,
       dia_cobranca: parseInt(data.dia_cobranca) || 1,
       objetivos: data.objetivos,
       restricoes: data.restricoes.trim() || null,

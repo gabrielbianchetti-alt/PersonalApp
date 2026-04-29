@@ -243,7 +243,7 @@ export function StepTreino({ data, errors, onChange }: Props) {
       {/* Local */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-          Local *
+          Local <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcional)</span>
         </label>
         <div className="flex flex-wrap gap-2">
           {LOCAL_OPCOES.map((loc) => (
@@ -430,21 +430,6 @@ export function StepTreino({ data, errors, onChange }: Props) {
           )}
         </>
       )}
-
-      {/* Forma de pagamento */}
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-          Forma de pagamento preferida *
-        </label>
-        <ToggleGroup
-          options={[
-            { value: 'pix', label: 'Pix' },
-            { value: 'cartao', label: 'Cartão' },
-          ]}
-          value={data.forma_pagamento}
-          onChange={(v) => onChange('forma_pagamento', v)}
-        />
-      </div>
 
       {/* Dia de cobrança (hidden para pacote — usa pacote_data_cobranca) */}
       {!isPacote && (

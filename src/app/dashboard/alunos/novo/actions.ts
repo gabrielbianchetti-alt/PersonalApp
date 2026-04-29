@@ -25,7 +25,7 @@ export async function criarAlunoAction(
 
       nome: data.nome.trim(),
       whatsapp: data.whatsapp.replace(/\D/g, ''),
-      data_nascimento: data.data_nascimento,
+      data_nascimento: data.data_nascimento || null,
       data_inicio: data.data_inicio,
       emergencia_nome: data.emergencia_nome.trim() || null,
       emergencia_telefone: data.emergencia_telefone.replace(/\D/g, '') || null,
@@ -34,11 +34,10 @@ export async function criarAlunoAction(
       // Pacote não usa horários fixos
       horarios: isPacote ? [] : data.horarios,
       duracao: parseInt(data.duracao),
-      local: data.local,
+      local: data.local || null,
       endereco: data.endereco.trim() || null,
       modelo_cobranca: data.modelo_cobranca,
       valor: parseFloat(data.valor),
-      forma_pagamento: data.forma_pagamento,
       dia_cobranca: parseInt(data.dia_cobranca) || 1,
 
       objetivos: data.objetivos,

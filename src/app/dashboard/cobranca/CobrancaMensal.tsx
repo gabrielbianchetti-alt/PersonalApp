@@ -66,7 +66,6 @@ interface AlunoCobranca {
   horarios: { dia: string; horario: string }[]
   modelo_cobranca: string
   valor: number
-  forma_pagamento: string
   dia_cobranca: number
 }
 
@@ -85,6 +84,7 @@ interface Preferencias {
   link_cartao: string | null
   modelo_mensagem: string | null
   tipo_data_cobranca?: string | null
+  forma_pagamento_padrao?: 'pix' | 'cartao' | 'ambos' | null
 }
 
 interface Props {
@@ -134,16 +134,26 @@ function getAulasDates(
   return dates
 }
 
-function buildPaymentBlock(aluno: AlunoCobranca, prefs: Preferencias | null): string {
-  if (!prefs) return '⚙️ Configure as preferências de cobrança'
-  if (aluno.forma_pagamento === 'pix') {
-    if (!prefs.chave_pix) return '⚙️ Configure sua chave Pix em Preferências'
-    let block = `💳 *Pix:* ${prefs.chave_pix}`
-    if (prefs.favorecido_pix) block += `\n👤 Favorecido: ${prefs.favorecido_pix}`
-    return block
-  }
+function pixBlock(prefs: Preferencias): string {
+  if (!prefs.chave_pix) return '⚙️ Configure sua chave Pix em Preferências'
+  let block = `💳 *Pix:* ${prefs.chave_pix}`
+  if (prefs.favorecido_pix) block += `\n👤 Favorecido: ${prefs.favorecido_pix}`
+  return block
+}
+
+function cartaoBlock(prefs: Preferencias): string {
   if (!prefs.link_cartao) return '⚙️ Configure o link de pagamento em Preferências'
   return `💳 *Cartão:* ${prefs.link_cartao}`
+}
+
+function buildPaymentBlock(_aluno: AlunoCobranca, prefs: Preferencias | null): string {
+  if (!prefs) return '⚙️ Configure as preferências de cobrança'
+  const forma = prefs.forma_pagamento_padrao ?? 'pix'
+  if (forma === 'ambos') {
+    return `Escolha a forma de pagamento:\n\n${pixBlock(prefs)}\n\nou\n\n${cartaoBlock(prefs)}`
+  }
+  if (forma === 'cartao') return cartaoBlock(prefs)
+  return pixBlock(prefs)
 }
 
 function buildMessage(

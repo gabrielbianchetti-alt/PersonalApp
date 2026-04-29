@@ -20,7 +20,6 @@ function validateStep(step: number, data: AlunoFormData): Record<string, string>
     if (!data.nome.trim()) errors.nome = 'Nome é obrigatório'
     const digits = data.whatsapp.replace(/\D/g, '')
     if (digits.length < 11) errors.whatsapp = 'WhatsApp inválido (DDD + 9 dígitos)'
-    if (!data.data_nascimento) errors.data_nascimento = 'Data de nascimento é obrigatória'
     if (!data.data_inicio) errors.data_inicio = 'Data de início é obrigatória'
   }
 
@@ -40,7 +39,6 @@ function validateStep(step: number, data: AlunoFormData): Record<string, string>
       const val = parseInt(data.pacote_validade_dias)
       if (!data.pacote_validade_dias || isNaN(val) || val <= 0) errors.pacote_validade_dias = 'Informe a validade'
     }
-    if (!data.local) errors.local = 'Local é obrigatório'
     const valorNum = parseFloat(data.valor)
     if (!data.valor || isNaN(valorNum) || valorNum <= 0) errors.valor = 'Informe um valor válido'
   }
