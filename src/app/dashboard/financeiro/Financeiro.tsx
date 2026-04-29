@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { RefreshCw, Pin } from 'lucide-react'
+import { RefreshCw, Pin, Info } from 'lucide-react'
 import {
   createCustoAction,
   updateCustoAction,
@@ -102,6 +102,77 @@ function marginColor(pct: number): string {
 }
 
 /** Returns the last N months ending at (and including) endMes, oldest first. */
+function useCountUp(target: number, duration = 700): number {
+  const [display, setDisplay] = useState(0)
+  const fromRef = useRef(0)
+
+  useEffect(() => {
+    const from  = fromRef.current
+    const start = performance.now()
+    let raf: number
+    function step(now: number) {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplay(from + (target - from) * eased)
+      if (t < 1) {
+        raf = requestAnimationFrame(step)
+      } else {
+        fromRef.current = target
+      }
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+
+  return display
+}
+
+function InfoTooltip({ children, label }: { children: React.ReactNode; label: string }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDocClick(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        onMouseEnter={() => setOpen(true)}
+        aria-label={label}
+        className="inline-flex items-center justify-center w-5 h-5 rounded-full cursor-pointer transition-colors"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <Info size={14} strokeWidth={1.75} aria-hidden />
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          className="absolute z-20 text-xs leading-relaxed rounded-xl p-3 shadow-xl"
+          style={{
+            top:    '120%',
+            left:   '50%',
+            transform: 'translateX(-50%)',
+            width:  260,
+            background: '#0F172A',
+            border: '1px solid #374151',
+            color:  '#E5E7EB',
+          }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function getLastNMonths(endMes: string, n: number): string[] {
   const { year, month } = parseMes(endMes)
   const result: string[] = []
@@ -779,20 +850,9 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
               </div>
             </div>
 
-            {/* Lucro líquido — profissional + total */}
-            <div className="p-4 rounded-2xl"
-              style={{ background: 'var(--bg-card)', border: `1px solid ${lucroProf >= 0 ? 'var(--border-subtle)' : 'rgba(239, 68, 68,0.2)'}` }}>
-              <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Lucro líquido</p>
-              <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: lucroProf >= 0 ? 'var(--green-primary)' : '#EF4444' }}>
-                {fmtCurrency(lucroProf)}
-              </p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>profissional</p>
-              {totalCustosPess > 0 && (
-                <p className="text-[11px] mt-1" style={{ color: lucro >= 0 ? 'var(--text-secondary)' : '#EF4444' }}>
-                  Total: <span style={{ fontWeight: 700 }}>{fmtCurrency(lucro)}</span>
-                </p>
-              )}
-            </div>
+            {/* Lucros Líquidos — Trabalho + No bolso */}
+            <LucrosLiquidosCard lucroProf={lucroProf} lucroTotal={lucro} />
+
 
             {/* Margem de lucro */}
             <div className="col-span-2 p-4 rounded-2xl"
@@ -1174,6 +1234,77 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Lucros Líquidos Card ─────────────────────────────────────────────────────
+
+function LucrosLiquidosCard({ lucroProf, lucroTotal }: { lucroProf: number; lucroTotal: number }) {
+  const animProf  = useCountUp(lucroProf)
+  const animTotal = useCountUp(lucroTotal)
+
+  const profColor  = lucroProf  >= 0 ? '#10B981' : '#EF4444'
+  const totalColor = lucroTotal >= 0 ? '#34D399' : '#EF4444'
+
+  return (
+    <div
+      className="col-span-2 rounded-2xl p-5 md:p-6"
+      style={{ background: '#111827', border: '1px solid #374151' }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Lucros Líquidos
+        </p>
+        <InfoTooltip label="Sobre os lucros líquidos">
+          <div className="flex flex-col gap-2">
+            <div>
+              <span style={{ color: '#10B981', fontWeight: 600 }}>• Trabalho:</span>{' '}
+              o que seu trabalho como personal gerou de lucro (faturamento menos custos profissionais).
+            </div>
+            <div>
+              <span style={{ color: '#34D399', fontWeight: 600 }}>• No bolso:</span>{' '}
+              quanto efetivamente sobra para você depois de pagar todas as contas (incluindo custos pessoais).
+            </div>
+          </div>
+        </InfoTooltip>
+      </div>
+
+      {/* Body — duas colunas com divisor */}
+      <div className="flex flex-col min-[420px]:flex-row items-stretch gap-4 min-[420px]:gap-0">
+        {/* Trabalho */}
+        <div className="flex-1 flex flex-col gap-1 min-w-0 min-[420px]:pr-6">
+          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#9CA3AF' }}>
+            Trabalho
+          </p>
+          <p className="text-2xl md:text-3xl font-bold leading-tight whitespace-nowrap overflow-hidden tabular-nums"
+            style={{ color: profColor }}>
+            {fmtCurrency(animProf)}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Lucro do seu trabalho
+          </p>
+        </div>
+
+        {/* Divisor — vertical em ≥420px, horizontal em telas muito pequenas */}
+        <div className="hidden min-[420px]:block w-px self-stretch" style={{ background: '#374151' }} />
+        <div className="block min-[420px]:hidden h-px w-full" style={{ background: '#374151' }} />
+
+        {/* No bolso */}
+        <div className="flex-1 flex flex-col gap-1 min-w-0 min-[420px]:pl-6">
+          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#9CA3AF' }}>
+            No bolso
+          </p>
+          <p className="text-2xl md:text-3xl font-bold leading-tight whitespace-nowrap overflow-hidden tabular-nums"
+            style={{ color: totalColor }}>
+            {fmtCurrency(animTotal)}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Quanto sobra para você
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
