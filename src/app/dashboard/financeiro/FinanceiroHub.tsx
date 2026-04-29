@@ -33,6 +33,7 @@ interface AlunoCalculo {
   horarios: { dia: string; horario: string }[]
   modelo_cobranca: string
   valor: number
+  forma_pagamento: string
 }
 
 interface AlunoCobranca {
@@ -142,7 +143,7 @@ export function FinanceiroHub({
       <div className="flex-1">
         {visited.has('calculo') && (
           <div style={{ display: tab === 'calculo' ? 'block' : 'none' }}>
-            <CalculoMensal alunos={alunosCalculo} />
+            <CalculoMensal alunos={alunosCalculo} pacotes={pacotes} preferencias={preferencias} />
           </div>
         )}
         {visited.has('cobranca') && (
