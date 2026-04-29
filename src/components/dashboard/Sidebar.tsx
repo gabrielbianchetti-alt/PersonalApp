@@ -106,7 +106,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         className="flex items-center gap-2.5 h-14 px-5 shrink-0"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
       >
-        <img src="/personalhub-icon.svg" alt="PH" className="w-8 h-8 rounded-lg shrink-0" />
+        <img src="/logo-1024x1024.png" alt="PersonalHub" className="w-8 h-8 rounded-lg shrink-0" />
         <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
           PersonalHub
         </span>

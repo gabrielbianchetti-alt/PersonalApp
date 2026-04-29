@@ -24,7 +24,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen" style={{ background: '#F9FAFB' }}>
       <header className="px-5 py-4 flex items-center gap-2"
         style={{ borderBottom: '1px solid #E5E7EB' }}>
-        <img src="/personalhub-icon.svg" alt="PersonalHub"
+        <img src="/logo-1024x1024.png" alt="PersonalHub"
           style={{ width: 30, height: 30, borderRadius: 8 }} />
         <span className="text-sm font-bold" style={{ color: '#111827' }}>PersonalHub</span>
       </header>

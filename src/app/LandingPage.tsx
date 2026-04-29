@@ -85,8 +85,7 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
 function MockupHeader() {
   return (
     <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: C.border }}>
-      <span className="w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px]"
-        style={{ background: C.primary, color: '#fff' }}>PH</span>
+      <img src="/logo-1024x1024.png" alt="PersonalHub" className="w-6 h-6 rounded-md" />
       <span className="text-xs font-semibold" style={{ color: C.textP }}>PersonalHub</span>
     </div>
   )
@@ -369,7 +368,7 @@ function Navbar() {
       <div className="ph-nav-inner">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <span className="ph-nav-logo">PH</span>
+          <img src="/logo-1024x1024.png" alt="PersonalHub" style={{ width: 30, height: 30, borderRadius: 8 }} />
           <span className="font-bold text-sm" style={{ color: C.textP }}>PersonalHub</span>
         </Link>
 
@@ -796,7 +795,7 @@ function Footer() {
     <footer className="ph-footer">
       <div className="ph-container ph-footer-inner">
         <div className="flex items-center gap-2">
-          <span className="ph-nav-logo" style={{ width: 24, height: 24, fontSize: 10 }}>PH</span>
+          <img src="/logo-1024x1024.png" alt="PersonalHub" style={{ width: 24, height: 24, borderRadius: 6 }} />
           <span className="text-xs font-semibold" style={{ color: C.textP }}>PersonalHub</span>
         </div>
         <div className="ph-footer-links">
@@ -903,12 +902,6 @@ function Styles() {
         gap: 16px;
       }
       @media (min-width: 768px) { .ph-nav-inner { padding: 16px 32px; } }
-      .ph-nav-logo {
-        width: 30px; height: 30px; border-radius: 8px;
-        background: ${C.primary}; color: #fff;
-        display: inline-flex; align-items: center; justify-content: center;
-        font-weight: 800; font-size: 11px;
-      }
       .ph-nav-links {
         display: none;
         background: ${C.bg};

@@ -85,12 +85,11 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs"
-            style={{ background: 'var(--green-primary)', color: '#000' }}
-          >
-            PH
-          </div>
+          <img
+            src="/logo-1024x1024.png"
+            alt="PersonalHub"
+            className="w-7 h-7 rounded-lg shrink-0"
+          />
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             PersonalHub
           </span>

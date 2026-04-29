@@ -24,7 +24,7 @@ export default function AssinarLayout({ children }: { children: React.ReactNode 
           gap: 8,
         }}
       >
-        <img src="/personalhub-icon.svg" alt="PH" style={{ width: 30, height: 30, borderRadius: 8 }} />
+        <img src="/logo-1024x1024.png" alt="PersonalHub" style={{ width: 30, height: 30, borderRadius: 8 }} />
         <span style={{ fontWeight: 800, fontSize: 16, color: '#f8fafc' }}>PersonalHub</span>
       </header>
       <main style={{ flex: 1 }}>{children}</main>

@@ -16,7 +16,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          <img src="/personalhub-icon.svg" alt="PH" className="w-9 h-9 rounded-xl" />
+          <img src="/logo-1024x1024.png" alt="PersonalHub" className="w-9 h-9 rounded-xl" />
           <span className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
             PersonalHub
           </span>
