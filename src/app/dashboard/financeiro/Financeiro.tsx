@@ -816,21 +816,24 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
       {!loading && (
         <>
           {/* ── 4 summary cards ── */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-6">
 
             {/* Faturamento total */}
-            <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl"
+            <div className="p-3 sm:p-4 rounded-2xl min-w-0"
               style={{ background: 'var(--green-muted)', border: '1px solid rgba(16, 185, 129,0.2)' }}>
-              <p className="text-xs font-medium mb-1" style={{ color: 'var(--green-primary)' }}>Faturamento total</p>
-              <p className="text-lg font-bold leading-tight whitespace-nowrap overflow-hidden" style={{ color: 'var(--green-primary)' }}>
+              <p className="font-medium mb-1" style={{ color: 'var(--green-primary)', fontSize: 'clamp(0.65rem, 2.8vw, 0.75rem)' }}>Faturamento total</p>
+              <p
+                className="font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis tabular-nums"
+                style={{ color: 'var(--green-primary)', fontSize: 'clamp(0.95rem, 4.6vw, 1.375rem)' }}
+              >
                 {fmtCurrency(faturamento)}
               </p>
-              <div className="flex flex-wrap gap-2 mt-1">
-                <span className="text-xs" style={{ color: 'var(--green-primary)', opacity: 0.8 }}>
+              <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1">
+                <span className="whitespace-nowrap" style={{ color: 'var(--green-primary)', opacity: 0.8, fontSize: 'clamp(0.6rem, 2.4vw, 0.75rem)' }}>
                   Alunos: {fmtCurrency(faturamentoAlunos)}
                 </span>
                 {faturamentoExtras > 0 && (
-                  <span className="text-xs" style={{ color: 'var(--green-primary)', opacity: 0.8 }}>
+                  <span className="whitespace-nowrap" style={{ color: 'var(--green-primary)', opacity: 0.8, fontSize: 'clamp(0.6rem, 2.4vw, 0.75rem)' }}>
                     Extra: {fmtCurrency(faturamentoExtras)}
                   </span>
                 )}
@@ -838,14 +841,23 @@ export function Financeiro({ alunos, custosIniciais, receitasExtrasIniciais, his
             </div>
 
             {/* Total custos */}
-            <div className="p-4 rounded-2xl"
+            <div className="p-3 sm:p-4 rounded-2xl min-w-0"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-              <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Total de custos</p>
-              <p className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: 'var(--text-primary)' }}>{fmtCurrency(totalCustos)}</p>
-              <div className="flex gap-2 mt-1 flex-wrap">
-                <span className="text-xs" style={{ color: 'var(--green-primary)' }}>Prof: {fmtCurrency(totalCustosProf)}</span>
+              <p className="font-medium mb-1" style={{ color: 'var(--text-muted)', fontSize: 'clamp(0.65rem, 2.8vw, 0.75rem)' }}>Total de custos</p>
+              <p
+                className="font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis tabular-nums"
+                style={{ color: 'var(--text-primary)', fontSize: 'clamp(0.95rem, 4.6vw, 1.375rem)' }}
+              >
+                {fmtCurrency(totalCustos)}
+              </p>
+              <div className="flex gap-x-2 gap-y-0.5 mt-1 flex-wrap">
+                <span className="whitespace-nowrap" style={{ color: 'var(--green-primary)', fontSize: 'clamp(0.6rem, 2.4vw, 0.75rem)' }}>
+                  Prof: {fmtCurrency(totalCustosProf)}
+                </span>
                 {totalCustosPess > 0 && (
-                  <span className="text-xs" style={{ color: '#8B5CF6' }}>Pess: {fmtCurrency(totalCustosPess)}</span>
+                  <span className="whitespace-nowrap" style={{ color: '#8B5CF6', fontSize: 'clamp(0.6rem, 2.4vw, 0.75rem)' }}>
+                    Pess: {fmtCurrency(totalCustosPess)}
+                  </span>
                 )}
               </div>
             </div>
@@ -1249,12 +1261,12 @@ function LucrosLiquidosCard({ lucroProf, lucroTotal }: { lucroProf: number; lucr
 
   return (
     <div
-      className="col-span-2 rounded-2xl p-5 md:p-6"
+      className="col-span-2 rounded-2xl p-4 sm:p-5 md:p-6"
       style={{ background: '#111827', border: '1px solid #374151' }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        <p className="font-semibold" style={{ color: 'var(--text-primary)', fontSize: 'clamp(0.8rem, 3vw, 0.95rem)' }}>
           Lucros Líquidos
         </p>
         <InfoTooltip label="Sobre os lucros líquidos">
@@ -1271,36 +1283,41 @@ function LucrosLiquidosCard({ lucroProf, lucroTotal }: { lucroProf: number; lucr
         </InfoTooltip>
       </div>
 
-      {/* Body — duas colunas com divisor */}
-      <div className="flex flex-col min-[420px]:flex-row items-stretch gap-4 min-[420px]:gap-0">
+      {/* Body — duas colunas com divisor vertical */}
+      <div className="flex flex-row items-stretch">
         {/* Trabalho */}
-        <div className="flex-1 flex flex-col gap-1 min-w-0 min-[420px]:pr-6">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#9CA3AF' }}>
+        <div className="flex-1 flex flex-col gap-1 min-w-0 pr-3 sm:pr-6">
+          <p className="font-medium uppercase tracking-wide" style={{ color: '#9CA3AF', fontSize: 'clamp(0.65rem, 2.6vw, 0.75rem)' }}>
             Trabalho
           </p>
-          <p className="text-2xl md:text-3xl font-bold leading-tight whitespace-nowrap overflow-hidden tabular-nums"
-            style={{ color: profColor }}>
+          <p
+            className="font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis tabular-nums"
+            style={{ color: profColor, fontSize: 'clamp(1.05rem, 5.6vw, 1.875rem)' }}
+            title={fmtCurrency(lucroProf)}
+          >
             {fmtCurrency(animProf)}
           </p>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'clamp(0.6rem, 2.4vw, 0.75rem)' }}>
             Lucro do seu trabalho
           </p>
         </div>
 
-        {/* Divisor — vertical em ≥420px, horizontal em telas muito pequenas */}
-        <div className="hidden min-[420px]:block w-px self-stretch" style={{ background: '#374151' }} />
-        <div className="block min-[420px]:hidden h-px w-full" style={{ background: '#374151' }} />
+        {/* Divisor vertical */}
+        <div className="w-px self-stretch shrink-0" style={{ background: '#374151' }} />
 
         {/* No bolso */}
-        <div className="flex-1 flex flex-col gap-1 min-w-0 min-[420px]:pl-6">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#9CA3AF' }}>
+        <div className="flex-1 flex flex-col gap-1 min-w-0 pl-3 sm:pl-6">
+          <p className="font-medium uppercase tracking-wide" style={{ color: '#9CA3AF', fontSize: 'clamp(0.65rem, 2.6vw, 0.75rem)' }}>
             No bolso
           </p>
-          <p className="text-2xl md:text-3xl font-bold leading-tight whitespace-nowrap overflow-hidden tabular-nums"
-            style={{ color: totalColor }}>
+          <p
+            className="font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis tabular-nums"
+            style={{ color: totalColor, fontSize: 'clamp(1.05rem, 5.6vw, 1.875rem)' }}
+            title={fmtCurrency(lucroTotal)}
+          >
             {fmtCurrency(animTotal)}
           </p>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'clamp(0.6rem, 2.4vw, 0.75rem)' }}>
             Quanto sobra para você
           </p>
         </div>
