@@ -153,6 +153,7 @@ export function FinanceiroHub({
               preferencias={preferencias}
               mesInicial={mesInicial}
               creditosPorAluno={creditosPorAluno}
+              pacotes={pacotes}
             />
           </div>
         )}

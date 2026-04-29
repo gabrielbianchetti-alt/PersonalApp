@@ -92,6 +92,7 @@ export interface DemoPacote {
   data_vencimento: string
   data_cobranca: string
   status: 'ativo' | 'vencido' | 'finalizado'
+  tipo_pacote: 'fixo' | 'alternado'
   renovacao_de: string | null
   created_at: string
   updated_at: string
@@ -327,6 +328,7 @@ export function getDemoPacotes(): DemoPacote[] {
       data_vencimento: vencimento,
       data_cobranca: inicio,
       status: 'ativo',
+      tipo_pacote: 'alternado',
       renovacao_de: null,
       created_at: inicio,
       updated_at: inicio,

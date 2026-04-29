@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, DIAS_SEMANA } from '@/types/aluno'
+import { formatCurrency, formatDate, addDays, DIAS_SEMANA, DIAS_LABEL } from '@/types/aluno'
 import { upsertCobrancaAction, updateStatusAction, CobrancaStatus } from './actions'
+import { renovarPacoteAction, type PacoteComAluno } from '../pacotes/actions'
 import { getFeriadosDoMes, diaSemanaKey } from '@/lib/utils/feriados'
 import { getFeriadoDecisoesAction } from '../feriados/actions'
 
@@ -35,6 +37,24 @@ const STATUS_CONFIG: Record<CobrancaStatus, { label: string; color: string; bg: 
   pago:     { label: 'Pago',     color: '#10B981', bg: 'rgba(16, 185, 129,0.12)' },
 }
 const STATUS_CYCLE: CobrancaStatus[] = ['pendente', 'enviado', 'pago']
+
+type ModeloKey = 'por_aula' | 'mensalidade' | 'pacote_fixo' | 'pacote_alternado'
+
+const MODELO_TAG: Record<ModeloKey, { label: string; short: string; color: string; bg: string }> = {
+  por_aula:         { label: 'Por aula',         short: 'Por aula',  color: '#3B82F6', bg: 'rgba(59, 130, 246,0.14)' },
+  mensalidade:      { label: 'Mensalidade',      short: 'Mensal',    color: '#10B981', bg: 'rgba(16, 185, 129,0.14)' },
+  pacote_fixo:      { label: 'Pacote Fixo',      short: 'Pac. Fixo', color: '#8B5CF6', bg: 'rgba(139, 92, 246,0.14)' },
+  pacote_alternado: { label: 'Pacote Alternado', short: 'Pac. Alt.', color: '#F59E0B', bg: 'rgba(245, 158, 11,0.14)' },
+}
+
+type ModeloFilter = 'todos' | 'por_aula' | 'mensalidade' | 'pacote'
+
+const FILTER_TABS: { id: ModeloFilter; label: string }[] = [
+  { id: 'todos',       label: 'Todos' },
+  { id: 'por_aula',    label: 'Por aula' },
+  { id: 'mensalidade', label: 'Mensalidade' },
+  { id: 'pacote',      label: 'Pacote' },
+]
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -72,6 +92,7 @@ interface Props {
   preferencias: Preferencias | null
   mesInicial: string // "2026-04"
   creditosPorAluno?: Record<string, number>
+  pacotes?: PacoteComAluno[]
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -85,7 +106,6 @@ function formatMesRef(year: number, month: number) {
   return `${year}-${String(month + 1).padStart(2, '0')}`
 }
 
-// ─── type ──────────────────────────────────────────────────────────────────────
 interface AlunoExtras { count: number; totalValor: number }
 
 function getPrevMonthRange(year: number, month: number) {
@@ -125,6 +145,42 @@ function buildPaymentBlock(aluno: AlunoCobranca, prefs: Preferencias | null): st
   return `💳 *Cartão:* ${prefs.link_cartao}`
 }
 
+/** Agrupa horários por horário (para "Seg/Qua 08:00") ou lista cada dia se diferentes. */
+function formatHorariosFixo(horarios: { dia: string; horario: string }[]): string {
+  if (horarios.length === 0) return ''
+  const byHora = new Map<string, string[]>()
+  for (const h of horarios) {
+    const arr = byHora.get(h.horario) ?? []
+    arr.push(DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
+    byHora.set(h.horario, arr)
+  }
+  return [...byHora.entries()].map(([hora, dias]) => `${dias.join('/')} ${hora}`).join(', ')
+}
+
+function buildPacoteMessage(
+  aluno: AlunoCobranca,
+  pacote: PacoteComAluno,
+  prefs: Preferencias | null,
+): string {
+  const horariosTrecho =
+    pacote.tipo_pacote === 'fixo' && aluno.horarios.length > 0
+      ? ` (${formatHorariosFixo(aluno.horarios)})`
+      : ''
+  const tipoLabel = pacote.tipo_pacote === 'fixo' ? 'Fixo' : 'Alternado'
+  const inicioFmt = formatDate(pacote.data_inicio).slice(0, 5)        // dd/mm
+  const vencFmt   = formatDate(pacote.data_vencimento)                 // dd/mm/yyyy
+
+  return `Olá, ${aluno.nome.split(' ')[0]}! 👋
+
+Segue sua cobrança referente ao seu Pacote de Aulas:
+
+📦 Pacote ${tipoLabel}: ${pacote.quantidade_total} aulas${horariosTrecho}
+📅 Validade: ${inicioFmt} até ${vencFmt}
+💰 Valor: *${formatCurrency(pacote.valor)}*
+
+${buildPaymentBlock(aluno, prefs)}`
+}
+
 function buildMessage(
   aluno: AlunoCobranca,
   year: number,
@@ -134,7 +190,12 @@ function buildMessage(
   credito = 0,
   alunoExtras: AlunoExtras = { count: 0, totalValor: 0 },
   skipDays?: Set<number>,
+  pacoteDoMes: PacoteComAluno | null = null,
 ): string {
+  if (aluno.modelo_cobranca === 'pacote' && pacoteDoMes) {
+    return buildPacoteMessage(aluno, pacoteDoMes, prefs)
+  }
+
   const dates      = getAulasDates(year, month, aluno.horarios, skipDays)
   const fixedCount = dates.length
   const extraCount = alunoExtras.count
@@ -167,11 +228,41 @@ function calcTotal(
   credito = 0,
   alunoExtras: AlunoExtras = { count: 0, totalValor: 0 },
   skipDays?: Set<number>,
+  pacoteDoMes: PacoteComAluno | null = null,
 ): number {
+  if (aluno.modelo_cobranca === 'pacote') {
+    return pacoteDoMes ? Number(pacoteDoMes.valor) : 0
+  }
   const gross = aluno.modelo_cobranca === 'mensalidade'
     ? Number(aluno.valor) + alunoExtras.totalValor
     : (getAulasDates(year, month, aluno.horarios, skipDays).length + alunoExtras.count) * Number(aluno.valor)
   return Math.max(0, gross - credito)
+}
+
+/** Pacote cuja `data_cobranca` cai no mês exibido (mês inicial do pacote). */
+function findPacoteDoMes(
+  pacotes: PacoteComAluno[],
+  alunoId: string,
+  year: number,
+  month: number,
+): PacoteComAluno | null {
+  const mesRef = formatMesRef(year, month)
+  return pacotes.find(p => p.aluno_id === alunoId && p.data_cobranca.startsWith(mesRef)) ?? null
+}
+
+/** Pacote mais recente do aluno (por data_cobranca desc). */
+function findLatestPacote(pacotes: PacoteComAluno[], alunoId: string): PacoteComAluno | null {
+  const list = pacotes.filter(p => p.aluno_id === alunoId)
+  if (list.length === 0) return null
+  return [...list].sort((a, b) => b.data_cobranca.localeCompare(a.data_cobranca))[0]
+}
+
+function getModeloKey(aluno: AlunoCobranca, latestPacote: PacoteComAluno | null): ModeloKey {
+  if (aluno.modelo_cobranca === 'pacote') {
+    return latestPacote?.tipo_pacote === 'fixo' ? 'pacote_fixo' : 'pacote_alternado'
+  }
+  if (aluno.modelo_cobranca === 'mensalidade') return 'mensalidade'
+  return 'por_aula'
 }
 
 /**
@@ -233,9 +324,30 @@ function StatusBadge({
   )
 }
 
+function ModeloTag({ modelo }: { modelo: ModeloKey }) {
+  const cfg = MODELO_TAG[modelo]
+  return (
+    <span
+      className="text-[10px] px-1.5 py-px rounded-full font-semibold shrink-0 uppercase tracking-wide"
+      style={{ background: cfg.bg, color: cfg.color }}
+      title={cfg.label}
+    >
+      {cfg.short}
+    </span>
+  )
+}
+
 // ─── main component ───────────────────────────────────────────────────────────
 
-export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesInicial, creditosPorAluno = {} }: Props) {
+export function CobrancaMensal({
+  alunos,
+  cobrancasIniciais,
+  preferencias,
+  mesInicial,
+  creditosPorAluno = {},
+  pacotes = [],
+}: Props) {
+  const router = useRouter()
   const { year: y0, month: m0 } = parseMes(mesInicial)
   const [year, setYear]   = useState(y0)
   const [month, setMonth] = useState(m0)
@@ -257,6 +369,12 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
   const [messages, setMessages]             = useState<Record<string, string>>({})
   const [originalMessages, setOriginalMessages] = useState<Record<string, string>>({})
   const [loadingSet, setLoadingSet]         = useState<Set<string>>(new Set())
+
+  // Filter por modelo de cobrança
+  const [tipoFilter, setTipoFilter] = useState<ModeloFilter>('todos')
+
+  // Renovar modal
+  const [renovarPacote, setRenovarPacote] = useState<{ aluno: AlunoCobranca; pacote: PacoteComAluno } | null>(null)
 
   const template = preferencias?.modelo_mensagem ?? DEFAULT_TEMPLATE
   const isFirstMount = useRef(true)
@@ -380,7 +498,8 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
           const savedMsg    = cobrancas[aluno.id]?.mensagem
           const credito     = creditos[aluno.id] ?? 0
           const alunoExtras = extras[aluno.id]
-          const generated   = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays)
+          const pacoteMes   = findPacoteDoMes(pacotes, aluno.id, year, month)
+          const generated   = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays, pacoteMes)
           setOriginalMessages(p => ({ ...p, [aluno.id]: generated }))
           setMessages(p => ({ ...p, [aluno.id]: savedMsg ?? generated }))
         }
@@ -389,19 +508,30 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
     })
   }
 
+  function isAlunoSelectable(aluno: AlunoCobranca): boolean {
+    // Pacote em mês não-inicial sem cobrança expressa — não é selecionável (sem cobrança a enviar)
+    if (aluno.modelo_cobranca !== 'pacote') return true
+    const pacoteMes = findPacoteDoMes(pacotes, aluno.id, year, month)
+    if (pacoteMes) return true
+    // Mas se já tiver cobrança gravada (renovada), permanece selecionável
+    return !!cobrancas[aluno.id]
+  }
+
   function toggleAll() {
-    if (selectedIds.size === alunos.length) {
+    const selectable = sortedAlunos.filter(isAlunoSelectable)
+    if (selectedIds.size === selectable.length && selectable.length > 0) {
       setSelectedIds(new Set())
     } else {
-      const next = new Set(alunos.map(a => a.id))
+      const next = new Set(selectable.map(a => a.id))
       // Initialize messages for newly selected
       const newMsgs: Record<string, string> = { ...messages }
       const newOrig: Record<string, string> = { ...originalMessages }
-      for (const aluno of sortedAlunos) {
+      for (const aluno of selectable) {
         if (!newMsgs[aluno.id]) {
           const credito     = creditos[aluno.id] ?? 0
           const alunoExtras = extras[aluno.id]
-          const generated   = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays)
+          const pacoteMes   = findPacoteDoMes(pacotes, aluno.id, year, month)
+          const generated   = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays, pacoteMes)
           newOrig[aluno.id] = generated
           newMsgs[aluno.id] = cobrancas[aluno.id]?.mensagem ?? generated
         }
@@ -433,7 +563,8 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
 
     const creditoAl    = creditos[aluno.id] ?? 0
     const alunoExtras  = extras[aluno.id]
-    const msg = messages[aluno.id] ?? buildMessage(aluno, year, month, preferencias, template, creditoAl, alunoExtras, feriadoSkipDays)
+    const pacoteMes    = findPacoteDoMes(pacotes, aluno.id, year, month)
+    const msg = messages[aluno.id] ?? buildMessage(aluno, year, month, preferencias, template, creditoAl, alunoExtras, feriadoSkipDays, pacoteMes)
     const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
 
     // ── 2. Open WhatsApp BEFORE any await ────────────────────────────────────
@@ -442,7 +573,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
     window.open(url, '_blank')
 
     // ── 3. Save cobrança in background (non-blocking) ────────────────────────
-    const total  = calcTotal(aluno, year, month, creditoAl, alunoExtras, feriadoSkipDays)
+    const total  = calcTotal(aluno, year, month, creditoAl, alunoExtras, feriadoSkipDays, pacoteMes)
     const mesRef = formatMesRef(year, month)
 
     setLoading(aluno.id, true)
@@ -468,7 +599,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
       }))
     }
     setLoading(aluno.id, false)
-  }, [messages, year, month, preferencias, template])
+  }, [messages, year, month, preferencias, template, pacotes, creditos, extras, feriadoSkipDays])
 
   // ── status update ─────────────────────────────────────────────────────────────
 
@@ -484,7 +615,8 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
       // No record yet — create one directly with the next status
       const aluno    = alunos.find(a => a.id === alunoId)
       if (!aluno) { setLoading(alunoId, false); return }
-      const total    = calcTotal(aluno, year, month, creditos[alunoId] ?? 0, extras[alunoId], feriadoSkipDays)
+      const pacoteMes = findPacoteDoMes(pacotes, alunoId, year, month)
+      const total    = calcTotal(aluno, year, month, creditos[alunoId] ?? 0, extras[alunoId], feriadoSkipDays, pacoteMes)
       const result   = await upsertCobrancaAction({
         aluno_id:       alunoId,
         mes_referencia: mesRef,
@@ -515,18 +647,47 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
     setLoading(alunoId, false)
   }
 
-  // ── summary ───────────────────────────────────────────────────────────────────
+  // ── filtros + sort ────────────────────────────────────────────────────────────
 
-  const totalFaturamento = alunos.reduce((s, a) => s + calcTotal(a, year, month, creditos[a.id] ?? 0, extras[a.id], feriadoSkipDays), 0)
-  // Alunos without a record are implicitly 'pendente'
-  const countPendente = alunos.filter(a => !cobrancas[a.id] || cobrancas[a.id].status === 'pendente').length
+  const usePersonalizado = preferencias?.tipo_data_cobranca === 'personalizado'
+  const sortedAlunos = sortAlunos(alunos, cobrancas, year, month, usePersonalizado)
+  const visibleAlunos = sortedAlunos.filter(a => {
+    if (tipoFilter === 'todos')    return true
+    if (tipoFilter === 'pacote')   return a.modelo_cobranca === 'pacote'
+    return a.modelo_cobranca === tipoFilter
+  })
+
+  // ── summary ───────────────────────────────────────────────────────────────────
+  // Faturamento e contadores são calculados sobre TODOS os alunos (ignora filtro de visualização)
+  // mas respeitam a regra: pacote em mês não-inicial só conta se tiver cobrança gravada.
+
+  function alunoCountsAsPendente(a: AlunoCobranca): boolean {
+    const cob = cobrancas[a.id]
+    if (cob && cob.status !== 'pendente') return false
+    if (a.modelo_cobranca === 'pacote') {
+      const pacoteMes = findPacoteDoMes(pacotes, a.id, year, month)
+      // Sem pacote do mês e sem cobrança gravada → não é pendente
+      if (!pacoteMes && !cob) return false
+    }
+    return true
+  }
+
+  function alunoFaturamento(a: AlunoCobranca): number {
+    const cob = cobrancas[a.id]
+    if (cob) return Number(cob.valor) || 0
+    if (a.modelo_cobranca === 'pacote') {
+      const pacoteMes = findPacoteDoMes(pacotes, a.id, year, month)
+      return pacoteMes ? Number(pacoteMes.valor) : 0
+    }
+    return calcTotal(a, year, month, creditos[a.id] ?? 0, extras[a.id], feriadoSkipDays, null)
+  }
+
+  const totalFaturamento = alunos.reduce((s, a) => s + alunoFaturamento(a), 0)
+  const countPendente = alunos.filter(alunoCountsAsPendente).length
   const countEnviado  = Object.values(cobrancas).filter(c => c.status === 'enviado').length
   const countPago     = Object.values(cobrancas).filter(c => c.status === 'pago').length
 
   const mesRef = formatMesRef(year, month)
-
-  const usePersonalizado = preferencias?.tipo_data_cobranca === 'personalizado'
-  const sortedAlunos = sortAlunos(alunos, cobrancas, year, month, usePersonalizado)
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -598,6 +759,27 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
         ))}
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex gap-1 p-1 rounded-xl self-start flex-wrap mb-4 w-max"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+        {FILTER_TABS.map(f => {
+          const n =
+            f.id === 'todos'   ? alunos.length :
+            f.id === 'pacote'  ? alunos.filter(a => a.modelo_cobranca === 'pacote').length :
+                                 alunos.filter(a => a.modelo_cobranca === f.id).length
+          return (
+            <button key={f.id} onClick={() => setTipoFilter(f.id)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+              style={{
+                background: tipoFilter === f.id ? 'var(--green-primary)' : 'transparent',
+                color: tipoFilter === f.id ? '#000' : 'var(--text-secondary)',
+              }}>
+              {f.label} {n > 0 && <span style={{ opacity: 0.6 }}>({n})</span>}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Empty state */}
       {alunos.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 rounded-2xl"
@@ -607,14 +789,24 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
         </div>
       )}
 
-      {alunos.length > 0 && (
+      {alunos.length > 0 && visibleAlunos.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 rounded-2xl"
+          style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-subtle)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Nenhum aluno neste filtro</p>
+        </div>
+      )}
+
+      {alunos.length > 0 && visibleAlunos.length > 0 && (
         <>
           {/* Select all bar */}
           <div className="flex items-center justify-between mb-3 px-1">
             <label className="flex items-center gap-2.5 cursor-pointer select-none">
               <input
                 type="checkbox"
-                checked={selectedIds.size === alunos.length}
+                checked={(() => {
+                  const selectable = visibleAlunos.filter(isAlunoSelectable)
+                  return selectable.length > 0 && selectable.every(a => selectedIds.has(a.id))
+                })()}
                 onChange={toggleAll}
                 className="w-4 h-4 rounded cursor-pointer accent-[#10B981]"
               />
@@ -643,38 +835,59 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
 
           {/* Aluno list */}
           <div className="flex flex-col gap-3">
-            {sortedAlunos.map((aluno) => {
+            {visibleAlunos.map((aluno) => {
               const isSelected   = selectedIds.has(aluno.id)
               const cobranca     = cobrancas[aluno.id]
               const isLoading    = loadingSet.has(aluno.id)
               const dates        = getAulasDates(year, month, aluno.horarios, feriadoSkipDays)
               const alunoExtras  = extras[aluno.id]
               const extraCount   = alunoExtras?.count ?? 0
-              const aulas        = aluno.modelo_cobranca === 'mensalidade' ? null : dates.length + extraCount
               const credito      = creditos[aluno.id] ?? 0
-              const total        = calcTotal(aluno, year, month, credito, alunoExtras, feriadoSkipDays)
+
+              const isPacote     = aluno.modelo_cobranca === 'pacote'
+              const pacoteMes    = isPacote ? findPacoteDoMes(pacotes, aluno.id, year, month) : null
+              const latestPac    = isPacote ? findLatestPacote(pacotes, aluno.id) : null
+              const modeloKey    = getModeloKey(aluno, latestPac)
+              const showRenovar  = isPacote && !pacoteMes && !cobranca && !!latestPac
+              const isSelectable = !showRenovar
+
+              const total        = calcTotal(aluno, year, month, credito, alunoExtras, feriadoSkipDays, pacoteMes)
+              const aulas        = isPacote
+                ? null
+                : (aluno.modelo_cobranca === 'mensalidade' ? null : dates.length + extraCount)
               const diasLabels   = aluno.horarios.map(h => DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
               const status       = cobranca?.status ?? 'pendente'
-              const dueDiff      = usePersonalizado ? getDueDiff(aluno, year, month) : null
+              const dueDiff      = (!showRenovar && usePersonalizado) ? getDueDiff(aluno, year, month) : null
               const isOverdue    = dueDiff !== null && dueDiff < 0 && status !== 'pago'
               const isDueToday   = dueDiff !== null && dueDiff === 0 && status !== 'pago'
               const isDueSoon    = dueDiff !== null && dueDiff > 0 && status !== 'pago'
 
+              // Destaque para renovações pendentes (latest pacote vencido/finalizado)
+              const today        = new Date().toISOString().split('T')[0]
+              const isRenovPend  = showRenovar && latestPac && (
+                latestPac.data_vencimento < today ||
+                latestPac.quantidade_usada >= latestPac.quantidade_total
+              )
+
+              const borderColor =
+                isOverdue   ? 'rgba(239, 68, 68,0.35)' :
+                isRenovPend ? 'rgba(245, 158, 11,0.45)' :
+                isSelected  ? 'rgba(16, 185, 129,0.25)' :
+                              'var(--border-subtle)'
+
               return (
                 <div key={aluno.id}
                   className="rounded-2xl overflow-hidden transition-all duration-150"
-                  style={{
-                    background: 'var(--bg-card)',
-                    border: `1px solid ${isOverdue ? 'rgba(239, 68, 68,0.35)' : isSelected ? 'rgba(16, 185, 129,0.25)' : 'var(--border-subtle)'}`,
-                  }}
+                  style={{ background: 'var(--bg-card)', border: `1px solid ${borderColor}` }}
                 >
                   {/* Row header */}
                   <div className="flex items-center gap-3 p-4">
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => toggleSelect(aluno)}
-                      className="w-4 h-4 rounded shrink-0 cursor-pointer accent-[#10B981]"
+                      disabled={!isSelectable}
+                      onChange={() => isSelectable && toggleSelect(aluno)}
+                      className="w-4 h-4 rounded shrink-0 cursor-pointer accent-[#10B981] disabled:opacity-30 disabled:cursor-not-allowed"
                     />
 
                     {/* Avatar */}
@@ -683,12 +896,13 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                       {aluno.nome.slice(0, 2).toUpperCase()}
                     </div>
 
-                    {/* Name + days + due badge */}
+                    {/* Name + tag + days + due badge */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
                           {aluno.nome}
                         </p>
+                        <ModeloTag modelo={modeloKey} />
                         {isOverdue && (
                           <span className="text-xs px-1.5 py-px rounded-full font-semibold shrink-0"
                             style={{ background: 'rgba(239, 68, 68,0.15)', color: '#EF4444' }}>
@@ -707,6 +921,12 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                             Vence em {dueDiff}d
                           </span>
                         )}
+                        {isRenovPend && (
+                          <span className="text-xs px-1.5 py-px rounded-full font-semibold shrink-0"
+                            style={{ background: 'rgba(245, 158, 11,0.15)', color: '#F59E0B' }}>
+                            Renovação pendente
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-1 mt-0.5">
                         {diasLabels.map(d => (
@@ -718,7 +938,19 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
 
                     {/* Aulas + total */}
                     <div className="text-right shrink-0 hidden sm:block">
-                      {aulas !== null ? (
+                      {isPacote ? (
+                        pacoteMes ? (
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {pacoteMes.quantidade_total} aulas · pacote
+                          </p>
+                        ) : latestPac ? (
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            Pacote vence {formatDate(latestPac.data_vencimento)}
+                          </p>
+                        ) : (
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sem pacote</p>
+                        )
+                      ) : aulas !== null ? (
                         extraCount > 0 ? (
                           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                             {dates.length} fixas + <span style={{ color: '#38BDF8' }}>{extraCount} extras</span>
@@ -732,36 +964,44 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                         </p>
                       )}
                       <p className="text-sm font-bold" style={{ color: 'var(--green-primary)' }}>
-                        {formatCurrency(total)}
+                        {showRenovar ? '—' : formatCurrency(total)}
                       </p>
-                      {credito > 0 && (
+                      {credito > 0 && !isPacote && (
                         <p className="text-xs font-medium" style={{ color: '#38BDF8' }}>
                           -{formatCurrency(credito)} crédito
                         </p>
                       )}
                     </div>
 
-                    {/* Status badge — shown for all alunos */}
-                    <StatusBadge
-                      status={cobranca?.status ?? 'pendente'}
-                      loading={isLoading}
-                      onClick={() => handleStatusCycle(aluno.id)}
-                    />
+                    {/* Status badge — escondido para pacote sem cobrança do mês */}
+                    {!showRenovar && (
+                      <StatusBadge
+                        status={cobranca?.status ?? 'pendente'}
+                        loading={isLoading}
+                        onClick={() => handleStatusCycle(aluno.id)}
+                      />
+                    )}
                   </div>
 
                   {/* Mobile: aulas + total */}
                   <div className="flex items-center justify-between px-4 pb-3 sm:hidden -mt-1">
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {aulas !== null
-                        ? extraCount > 0 ? `${dates.length} fixas + ${extraCount} extras` : `${aulas} aulas`
-                        : `Mensalidade${extraCount > 0 ? ` + ${extraCount} extras` : ''}`
+                      {isPacote
+                        ? (pacoteMes
+                            ? `${pacoteMes.quantidade_total} aulas · pacote`
+                            : latestPac
+                              ? `Vence ${formatDate(latestPac.data_vencimento)}`
+                              : 'Sem pacote')
+                        : aulas !== null
+                          ? extraCount > 0 ? `${dates.length} fixas + ${extraCount} extras` : `${aulas} aulas`
+                          : `Mensalidade${extraCount > 0 ? ` + ${extraCount} extras` : ''}`
                       }
                     </span>
                     <div className="text-right">
                       <span className="text-sm font-bold" style={{ color: 'var(--green-primary)' }}>
-                        {formatCurrency(total)}
+                        {showRenovar ? '—' : formatCurrency(total)}
                       </span>
-                      {credito > 0 && (
+                      {credito > 0 && !isPacote && (
                         <p className="text-xs font-medium" style={{ color: '#38BDF8' }}>
                           -{formatCurrency(credito)} crédito
                         </p>
@@ -769,8 +1009,25 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                     </div>
                   </div>
 
+                  {/* Renovar pacote action */}
+                  {showRenovar && latestPac && (
+                    <div className="px-4 pb-4">
+                      <button
+                        onClick={() => setRenovarPacote({ aluno, pacote: latestPac })}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
+                        style={{ background: 'var(--green-primary)', color: '#000' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="23 4 23 10 17 10"/>
+                          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                        Renovar pacote
+                      </button>
+                    </div>
+                  )}
+
                   {/* Expanded message area */}
-                  {isSelected && (
+                  {isSelected && !showRenovar && (
                     <div className="px-4 pb-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                       <p className="text-xs font-medium mt-3 mb-2" style={{ color: 'var(--text-muted)' }}>
                         Mensagem de cobrança
@@ -794,7 +1051,7 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
                       <div className="flex items-center justify-between gap-3 mt-3">
                         <button
                           onClick={() => {
-                            const generated = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays)
+                            const generated = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays, pacoteMes)
                             setMessages(prev => ({ ...prev, [aluno.id]: generated }))
                           }}
                           className="text-xs px-3 py-2 rounded-lg cursor-pointer transition-colors"
@@ -828,6 +1085,256 @@ export function CobrancaMensal({ alunos, cobrancasIniciais, preferencias, mesIni
           </div>
         </>
       )}
+
+      {/* Renovar pacote modal */}
+      {renovarPacote && (
+        <RenovarPacoteModal
+          aluno={renovarPacote.aluno}
+          pacote={renovarPacote.pacote}
+          mesRef={mesRef}
+          preferencias={preferencias}
+          onClose={() => setRenovarPacote(null)}
+          onSuccess={() => {
+            setRenovarPacote(null)
+            router.refresh()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Renovar Pacote Modal ─────────────────────────────────────────────────────
+
+function RenovarPacoteModal({
+  aluno,
+  pacote,
+  mesRef,
+  preferencias,
+  onClose,
+  onSuccess,
+}: {
+  aluno: AlunoCobranca
+  pacote: PacoteComAluno
+  mesRef: string
+  preferencias: Preferencias | null
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [pending, startTransition] = useTransition()
+  const sugInicio = addDays(pacote.data_vencimento, 1)
+  const today     = new Date().toISOString().split('T')[0]
+  const inicioInicial = sugInicio < today ? today : sugInicio
+
+  const [tipo,      setTipo]      = useState<'fixo' | 'alternado'>(pacote.tipo_pacote ?? 'alternado')
+  const [qtd,       setQtd]       = useState(String(pacote.quantidade_total))
+  const [valor,     setValor]     = useState(String(pacote.valor))
+  const [validade,  setValidade]  = useState(String(pacote.validade_dias))
+  const [inicio,    setInicio]    = useState(inicioInicial)
+  const [transferir,setTransferir]= useState(false)
+  const [horarios,  setHorarios]  = useState<{ dia: string; horario: string }[]>(
+    pacote.tipo_pacote === 'fixo' ? [...aluno.horarios] : []
+  )
+  const [err, setErr] = useState('')
+
+  const saldo = Math.max(0, pacote.quantidade_total - pacote.quantidade_usada)
+  const vencimento = addDays(inicio, parseInt(validade) || 30)
+
+  function toggleDia(dia: string) {
+    setHorarios(prev => {
+      const exists = prev.find(h => h.dia === dia)
+      if (exists) return prev.filter(h => h.dia !== dia)
+      return [...prev, { dia, horario: '08:00' }]
+    })
+  }
+
+  function setHora(dia: string, horario: string) {
+    setHorarios(prev => prev.map(h => h.dia === dia ? { ...h, horario } : h))
+  }
+
+  function handleSave() {
+    startTransition(async () => {
+      setErr('')
+      const cobrancaDate = inicio < mesRef + '-01'
+        ? `${mesRef}-01`
+        : (inicio.startsWith(mesRef) ? inicio : `${mesRef}-01`)
+
+      const res = await renovarPacoteAction({
+        pacoteAnteriorId: pacote.id,
+        quantidade_total: parseInt(qtd) || 0,
+        valor:            parseFloat(valor) || 0,
+        validade_dias:    parseInt(validade) || 30,
+        data_inicio:      inicio,
+        data_cobranca:    cobrancaDate,
+        transferir_saldo: transferir,
+      })
+      if (res.error) { setErr(res.error); return }
+
+      // Cria/atualiza a cobrança do mês exibido com o valor do novo pacote
+      const novoPacote: PacoteComAluno = {
+        ...pacote,
+        quantidade_total: parseInt(qtd) || 0,
+        valor:            parseFloat(valor) || 0,
+        validade_dias:    parseInt(validade) || 30,
+        data_inicio:      inicio,
+        data_vencimento:  vencimento,
+        data_cobranca:    cobrancaDate,
+        tipo_pacote:      tipo,
+        quantidade_usada: 0,
+        status:           'ativo',
+      }
+      const alunoComHorarios: AlunoCobranca =
+        tipo === 'fixo' ? { ...aluno, horarios } : aluno
+      const mensagem = buildPacoteMessage(alunoComHorarios, novoPacote, preferencias)
+
+      await upsertCobrancaAction({
+        aluno_id:       aluno.id,
+        mes_referencia: mesRef,
+        valor:          parseFloat(valor) || 0,
+        status:         'pendente',
+        mensagem,
+      })
+
+      onSuccess()
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3"
+      style={{ background: 'rgba(0,0,0,0.65)' }} onClick={onClose}>
+      <div className="w-full sm:max-w-md rounded-2xl overflow-hidden max-h-[92vh] overflow-y-auto"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+        onClick={e => e.stopPropagation()}>
+
+        <div className="flex items-center justify-between px-5 py-4 sticky top-0 z-10"
+          style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+          <div>
+            <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Renovar pacote</h3>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{aluno.nome}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+            style={{ color: 'var(--text-muted)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-5 flex flex-col gap-3">
+          {/* Tipo de pacote */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Tipo de pacote</label>
+            <div className="flex gap-2">
+              {(['fixo', 'alternado'] as const).map(t => (
+                <button key={t} onClick={() => setTipo(t)}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold cursor-pointer"
+                  style={{
+                    background: tipo === t ? 'var(--green-primary)' : 'var(--bg-input)',
+                    color:      tipo === t ? '#000' : 'var(--text-secondary)',
+                    border:     '1px solid var(--border-subtle)',
+                  }}>
+                  {t === 'fixo' ? 'Fixo' : 'Alternado'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <LabeledInput label="Quantidade de aulas" type="number" value={qtd} onChange={setQtd} />
+            <LabeledInput label="Validade (dias)"     type="number" value={validade} onChange={setValidade} />
+          </div>
+          <LabeledInput label="Valor (R$)" type="number" step="0.01" value={valor} onChange={setValor} />
+          <LabeledInput label="Data de início" type="date" value={inicio} onChange={setInicio} />
+
+          {/* Horários (apenas para Fixo) */}
+          {tipo === 'fixo' && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Dias e horários</label>
+              <div className="flex flex-wrap gap-1.5">
+                {DIAS_SEMANA.map(d => {
+                  const hor = horarios.find(h => h.dia === d.key)
+                  const active = !!hor
+                  return (
+                    <button key={d.key} onClick={() => toggleDia(d.key)}
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+                      style={{
+                        background: active ? 'var(--green-muted)' : 'var(--bg-input)',
+                        color:      active ? 'var(--green-primary)' : 'var(--text-secondary)',
+                        border:     `1px solid ${active ? 'rgba(16,185,129,0.3)' : 'var(--border-subtle)'}`,
+                      }}
+                      title={DIAS_LABEL[d.key]}>
+                      {d.label}
+                    </button>
+                  )
+                })}
+              </div>
+              {horarios.length > 0 && (
+                <div className="flex flex-col gap-1.5 mt-1">
+                  {horarios.map(h => (
+                    <div key={h.dia} className="flex items-center gap-2">
+                      <span className="text-xs w-12" style={{ color: 'var(--text-secondary)' }}>
+                        {DIAS_SEMANA.find(s => s.key === h.dia)?.label}
+                      </span>
+                      <input type="time" value={h.horario} onChange={e => setHora(h.dia, e.target.value)}
+                        className="flex-1 h-9 rounded-lg px-2 text-sm outline-none"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {saldo > 0 && (
+            <label className="flex items-center gap-2 cursor-pointer py-2 rounded-lg">
+              <input type="checkbox" checked={transferir} onChange={e => setTransferir(e.target.checked)}
+                className="cursor-pointer"
+                style={{ accentColor: 'var(--green-primary)' }} />
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Transferir {saldo} aula{saldo === 1 ? '' : 's'} restante{saldo === 1 ? '' : 's'} do pacote anterior
+              </span>
+            </label>
+          )}
+
+          <div className="px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--green-muted)', color: 'var(--green-primary)' }}>
+            Novo pacote vence em <strong>{formatDate(vencimento)}</strong>
+          </div>
+
+          {err && <p className="text-xs" style={{ color: '#EF4444' }}>{err}</p>}
+
+          <div className="flex gap-2 mt-2">
+            <button onClick={onClose} disabled={pending}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
+              style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+              Cancelar
+            </button>
+            <button onClick={handleSave} disabled={pending}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
+              style={{ background: 'var(--green-primary)', color: '#000' }}>
+              {pending ? 'Renovando…' : 'Confirmar renovação'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LabeledInput({
+  label, type = 'text', value, onChange, step,
+}: {
+  label: string; type?: string; value: string; onChange: (v: string) => void; step?: string
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 min-w-0">
+      <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</label>
+      <input type={type} step={step} value={value} onChange={e => onChange(e.target.value)}
+        className="w-full h-11 rounded-xl px-3 text-sm outline-none"
+        style={{
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-subtle)',
+          color: 'var(--text-primary)',
+        }} />
     </div>
   )
 }
