@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { Sidebar } from './Sidebar'
+import { Logo } from './Logo'
 import { applyTheme, applyModo } from '@/lib/color'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -85,11 +86,7 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <img
-            src="/logo-1024x1024.png"
-            alt="PersonalHub"
-            className="w-7 h-7 rounded-lg shrink-0"
-          />
+          <Logo size={28} />
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             PersonalHub
           </span>
