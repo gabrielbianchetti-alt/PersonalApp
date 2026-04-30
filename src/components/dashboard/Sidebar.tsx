@@ -1,9 +1,40 @@
 'use client'
 
 import Link from 'next/link'
+import { useLinkStatus } from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from './Logo'
+
+/**
+ * Conteúdo do item da sidebar com indicador de "pending" via useLinkStatus.
+ * Aparece um ponto pulsante à direita enquanto a rota está em transição,
+ * dando feedback imediato após o click.
+ */
+function NavItemBody({
+  icon,
+  label,
+  isActive,
+}: {
+  icon: React.ReactNode
+  label: string
+  isActive: boolean
+}) {
+  const { pending } = useLinkStatus()
+  return (
+    <span className="flex items-center gap-3 w-full">
+      <span className="shrink-0">{icon}</span>
+      <span className="text-sm font-medium flex-1 truncate">{label}</span>
+      {pending && !isActive && (
+        <span
+          aria-hidden
+          className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ background: 'var(--green-primary)', animation: 'ph-pulse 0.9s ease-in-out infinite' }}
+        />
+      )}
+    </span>
+  )
+}
 
 const NAV_ITEMS = [
   {
@@ -130,7 +161,9 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-100"
+              prefetch
+              onClick={onClose}
+              className="flex items-center px-3 py-2.5 rounded-lg transition-colors duration-100"
               style={
                 isActive
                   ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid var(--green-border)' }
@@ -139,8 +172,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
               onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--bg-card)' }}
               onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
             >
-              {item.icon}
-              <span className="text-sm font-medium">{item.label}</span>
+              <NavItemBody icon={item.icon} label={item.label} isActive={isActive} />
             </Link>
           )
         })}
@@ -155,6 +187,8 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         {/* Profile card */}
         <Link
           href="/dashboard/configuracoes"
+          prefetch
+          onClick={onClose}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
           style={{ color: 'var(--text-secondary)' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)' }}
@@ -182,6 +216,8 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         {isAdmin && (
           <Link
             href="/admin"
+            prefetch
+            onClick={onClose}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
             style={{ color: '#A78BFA' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(167,139,250,0.1)' }}
@@ -197,6 +233,8 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
         {/* Configurações */}
         <Link
           href="/dashboard/configuracoes"
+          prefetch
+          onClick={onClose}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors duration-100"
           style={
             isConfiguracoes

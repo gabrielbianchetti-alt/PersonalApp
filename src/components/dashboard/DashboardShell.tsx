@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { Sidebar } from './Sidebar'
 import { Logo } from './Logo'
+import { RouteProgress } from './RouteProgress'
 import { applyTheme, applyModo } from '@/lib/color'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -41,6 +42,9 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-base)' }}>
+      {/* Top progress bar (route transitions) */}
+      <RouteProgress />
+
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -97,7 +101,9 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">
-          {children}
+          <div key={pathname} className="ph-fade-in">
+            {children}
+          </div>
         </main>
       </div>
     </div>

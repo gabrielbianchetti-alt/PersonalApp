@@ -153,3 +153,34 @@ html[data-theme="claro"] input:-webkit-autofill:focus {
     caret-color: #111827;
   }
 }
+
+/* ─── Animations ──────────────────────────────────────────────────────────── */
+@keyframes ph-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+
+@keyframes ph-shimmer {
+  0%   { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.ph-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 0%,
+    color-mix(in srgb, var(--bg-card) 80%, white 6%) 50%,
+    var(--bg-card) 100%
+  );
+  background-size: 1000px 100%;
+  animation: ph-shimmer 1.6s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.ph-fade-in {
+  animation: ph-fade-in 220ms ease-out;
+}
+@keyframes ph-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
