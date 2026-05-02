@@ -150,9 +150,15 @@ export async function deleteCustoAction(
 
   if (custo.tipo === 'fixo') {
     // ── Soft-delete logic ─────────────────────────────────────────────────────
-    // 1. Soft-delete the root (ativo = false) → stops future replication
-    // 2. Hard-delete copies in months AFTER the current record's month
-    //    → future months lose the copy; current + prior months keep history
+    // Quando o professor apaga um fixo, ele NÃO deve mais aparecer em nenhum
+    // mês (atual, passado ou futuro), e não deve mais ser replicado.
+    //
+    // 1. Soft-delete o root (ativo = false) → some da query de exibição e
+    //    a replicação mensal (ensureFixosForMesAction) ignora.
+    // 2. Hard-delete TODAS as cópias do root (origem_id = rootId), sem filtro
+    //    de mes_referencia. O bug anterior usava `> mes_referencia`, deixando
+    //    a cópia do mês atual viva — que então ressurgia no reload porque
+    //    ativo=true.
 
     const rootId = custo.origem_id ?? custo.id
 
@@ -167,19 +173,20 @@ export async function deleteCustoAction(
       return { error: 'Erro ao remover custo.' }
     }
 
-    // Step 2: cascade-delete future copies (requires origem_id column)
+    // Step 2: cascade-delete de TODAS as cópias do root (qualquer mês).
     const { error: cascadeErr } = await supabase
       .from('custos').delete()
       .eq('professor_id', user.id)
       .eq('origem_id', rootId)
-      .gt('mes_referencia', custo.mes_referencia)
 
     if (cascadeErr && !isColumnMissing(cascadeErr)) {
       console.error('deleteCusto (cascade):', cascadeErr)
-      return { error: 'Erro ao remover cópias futuras.' }
+      return { error: 'Erro ao remover cópias do custo.' }
     }
 
-    // If origem_id column missing: fall back to deleting by nome+categoria in future months
+    // Step 3 (legacy): se origem_id não existe, apaga por nome+categoria em
+    // todos os meses. Sem o conceito de root/cópia, hard-delete em tudo
+    // garante que não sobre nada visível.
     if (cascadeErr && isColumnMissing(cascadeErr)) {
       const { data: self } = await supabase
         .from('custos').select('nome, categoria')
@@ -188,7 +195,6 @@ export async function deleteCustoAction(
         await supabase.from('custos').delete()
           .eq('professor_id', user.id).eq('tipo', 'fixo')
           .eq('nome', self.nome).eq('categoria', self.categoria)
-          .gt('mes_referencia', custo.mes_referencia)
       }
     }
 
