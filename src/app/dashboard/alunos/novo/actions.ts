@@ -18,38 +18,55 @@ export async function criarAlunoAction(
 
   const isPacote = data.modelo_cobranca === 'pacote'
 
-  const { data: row, error } = await supabase
+  const basePayload = {
+    professor_id: user.id,
+
+    nome: data.nome.trim(),
+    whatsapp: data.whatsapp.replace(/\D/g, ''),
+    data_nascimento: data.data_nascimento || null,
+    data_inicio: data.data_inicio,
+    emergencia_nome: data.emergencia_nome.trim() || null,
+    emergencia_telefone: data.emergencia_telefone.replace(/\D/g, '') || null,
+    emergencia_parentesco: data.emergencia_parentesco.trim() || null,
+
+    // Pacote não usa horários fixos
+    horarios: isPacote ? [] : data.horarios,
+    duracao: parseInt(data.duracao),
+    local: data.local || null,
+    endereco: data.endereco.trim() || null,
+    modelo_cobranca: data.modelo_cobranca,
+    valor: parseFloat(data.valor),
+    dia_cobranca: parseInt(data.dia_cobranca) || 1,
+
+    objetivos: data.objetivos,
+    restricoes: data.restricoes.trim() || null,
+    observacoes: data.observacoes.trim() || null,
+  }
+
+  let { data: row, error } = await supabase
     .from('alunos')
-    .insert({
-      professor_id: user.id,
-
-      nome: data.nome.trim(),
-      whatsapp: data.whatsapp.replace(/\D/g, ''),
-      data_nascimento: data.data_nascimento || null,
-      data_inicio: data.data_inicio,
-      emergencia_nome: data.emergencia_nome.trim() || null,
-      emergencia_telefone: data.emergencia_telefone.replace(/\D/g, '') || null,
-      emergencia_parentesco: data.emergencia_parentesco.trim() || null,
-
-      // Pacote não usa horários fixos
-      horarios: isPacote ? [] : data.horarios,
-      duracao: parseInt(data.duracao),
-      local: data.local || null,
-      endereco: data.endereco.trim() || null,
-      modelo_cobranca: data.modelo_cobranca,
-      valor: parseFloat(data.valor),
-      dia_cobranca: parseInt(data.dia_cobranca) || 1,
-
-      objetivos: data.objetivos,
-      restricoes: data.restricoes.trim() || null,
-      observacoes: data.observacoes.trim() || null,
-    })
+    .insert(basePayload)
     .select()
     .single()
 
+  // Fallback: banco antigo com `forma_pagamento` NOT NULL (coluna foi
+  // centralizada em preferencias_cobranca.forma_pagamento_padrao). Reinsere
+  // com 'pix' como default até a migration de drop NOT NULL ser aplicada.
+  if (error && isLegacyFormaPagamentoNotNull(error)) {
+    const retry = await supabase
+      .from('alunos')
+      .insert({ ...basePayload, forma_pagamento: 'pix' })
+      .select()
+      .single()
+    row = retry.data
+    error = retry.error
+  }
+
   if (error) {
-    console.error('Supabase insert error:', error)
-    return { error: 'Erro ao salvar aluno. Tente novamente.' }
+    console.error('criarAluno insert error:', {
+      code: error.code, message: error.message, details: error.details, hint: error.hint,
+    })
+    return { error: formatSupabaseError(error, 'Erro ao salvar aluno') }
   }
 
   // Cria o primeiro pacote para alunos tipo pacote
@@ -99,6 +116,26 @@ export async function criarAlunoAction(
   revalidatePath('/dashboard/pacotes')
   revalidatePath('/dashboard/agenda')
   return { data: row as Record<string, unknown> }
+}
+
+// ─── Helpers: erros do Supabase ──────────────────────────────────────────────
+
+type PgError = { code?: string | null; message?: string | null; details?: string | null; hint?: string | null }
+
+function isLegacyFormaPagamentoNotNull(err: PgError): boolean {
+  // 23502 = not_null_violation. Pode vir em `message` ou `details`.
+  if (err.code !== '23502') return false
+  const blob = `${err.message ?? ''} ${err.details ?? ''}`
+  return blob.includes('forma_pagamento')
+}
+
+function formatSupabaseError(err: PgError, prefix: string): string {
+  const parts: string[] = []
+  if (err.message) parts.push(err.message)
+  if (err.details) parts.push(err.details)
+  if (err.hint)    parts.push(`Dica: ${err.hint}`)
+  if (parts.length === 0) return `${prefix}. Tente novamente.`
+  return `${prefix}: ${parts.join(' — ')}`
 }
 
 // ─── Helper: gera eventos para um pacote fixo ─────────────────────────────────

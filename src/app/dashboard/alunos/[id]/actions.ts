@@ -43,8 +43,14 @@ export async function updateAlunoAction(
     .eq('professor_id', user.id)
 
   if (error) {
-    console.error('updateAluno:', error)
-    return { error: `Erro ao atualizar aluno: ${error.message}` }
+    console.error('updateAluno:', {
+      code: error.code, message: error.message, details: error.details, hint: error.hint,
+    })
+    const parts: string[] = []
+    if (error.message) parts.push(error.message)
+    if (error.details) parts.push(error.details)
+    if (error.hint)    parts.push(`Dica: ${error.hint}`)
+    return { error: `Erro ao atualizar aluno: ${parts.join(' — ') || 'tente novamente.'}` }
   }
 
   revalidatePath(`/dashboard/alunos/${alunoId}`)
