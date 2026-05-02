@@ -1,3 +1,4 @@
+import type { Viewport } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { themeStyle } from '@/lib/color'
@@ -6,11 +7,22 @@ import { TrialBanner } from '@/components/dashboard/TrialBanner'
 import { DemoBanner } from '@/components/dashboard/DemoBanner'
 import { DemoToast } from '@/components/dashboard/DemoToast'
 import { DemoTour } from '@/components/dashboard/DemoTour'
+import { LockZoom } from '@/components/dashboard/LockZoom'
 import { getOrCreateAssinaturaAction } from '@/app/dashboard/configuracoes/assinatura-actions'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 import { ADMIN_EMAILS } from '@/lib/constants'
 import { isDemoMode } from '@/lib/demo/mode'
 import { DEMO_PROFESSOR_NOME, getDemoPerfil } from '@/lib/demo/fixtures'
+
+// Bloqueia zoom no app autenticado (comportamento de app nativo)
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  minimumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+}
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const demo = await isDemoMode()
@@ -57,7 +69,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const injectStyle = themeStyle(corTema)
 
   return (
-    <>
+    <div className="ph-locked-zoom">
+      <LockZoom />
       {injectStyle && (
         // eslint-disable-next-line react/no-danger
         <style dangerouslySetInnerHTML={{ __html: injectStyle }} />
@@ -79,6 +92,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </>
         )}
       </DashboardShell>
-    </>
+    </div>
   )
 }

@@ -2,8 +2,9 @@
   "name": "PersonalHub",
   "short_name": "PersonalHub",
   "description": "Plataforma completa para personal trainers gerenciarem alunos, treinos e evolução.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0B0F19",
   "theme_color": "#10B981",
   "icons": [

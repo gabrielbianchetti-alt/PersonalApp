@@ -69,6 +69,24 @@ html[data-theme="auto"] {
   box-sizing: border-box;
 }
 
+/* ── Bloqueio de zoom dentro do app autenticado (.ph-locked-zoom) ─────────
+ * Aplica-se apenas em /dashboard e /admin — landing page e /convite continuam
+ * permitindo zoom normalmente (acessibilidade).
+ *
+ * - touch-action: manipulation desabilita o double-tap zoom
+ * - inputs/textarea/select com font-size 16px evitam o auto-zoom do iOS
+ *   ao receber foco (Safari faz zoom quando a fonte é < 16px)
+ */
+.ph-locked-zoom,
+.ph-locked-zoom * {
+  touch-action: manipulation;
+}
+.ph-locked-zoom input,
+.ph-locked-zoom textarea,
+.ph-locked-zoom select {
+  font-size: 16px;
+}
+
 /* ── Date/time inputs ──────────────────────────────────────────────────────
  * Native date/time inputs on iOS Safari have an intrinsic min-width based on
  * the placeholder and native picker chrome that ignores `width: 100%` inside

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import { cookies } from 'next/headers'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 
 const geist = Geist({
@@ -31,7 +32,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="pt-BR" data-theme={modo} className={`${geist.variable} h-full`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   )
 }
