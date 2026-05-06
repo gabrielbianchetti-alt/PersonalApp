@@ -1,17 +1,10 @@
--- =============================================================================
--- Etapa 2 (Aulas em Dupla) — Schema base
+-- Etapa 2 (Aulas em Dupla) — Schema base. Idempotente.
 --
 -- Adiciona campos OPCIONAIS na tabela alunos (configuração da dupla) e na
 -- tabela eventos_agenda (vínculo entre os dois eventos pareados de uma dupla).
---
 -- Princípio: TODAS as colunas novas são NULLABLE ou têm DEFAULT que preserva
 -- comportamento. Alunos sem dupla → todos os campos NULL. Eventos individuais
 -- → eh_dupla=FALSE, parceiro_evento_id=NULL.
---
--- Idempotente: pode rodar múltiplas vezes sem efeito colateral.
---
--- Como executar: cole este arquivo no Supabase SQL Editor e rode.
--- =============================================================================
 
 -- 1) alunos: configuração da dupla (parceiro, frequência, valor)
 ALTER TABLE alunos
