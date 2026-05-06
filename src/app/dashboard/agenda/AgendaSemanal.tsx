@@ -1729,13 +1729,14 @@ function SlotSelectionBottomSheet({
             </span>
           </p>
 
-          {/* 4 option buttons */}
+          {/* Option buttons */}
           <div className="flex flex-col gap-2 mt-4">
             {([
-              { id: 'aula' as const,       label: 'Marcar aula', Icon: Calendar,  color: TIPO_COLOR.aula },
-              { id: 'reposicao' as const,  label: 'Reposição',   Icon: RefreshCw, color: TIPO_COLOR.reposicao },
-              { id: 'aula_extra' as const, label: 'Aula Extra',  Icon: Zap,       color: TIPO_COLOR.aula_extra },
-              { id: 'outro' as const,      label: 'Outros',      Icon: Plus,      color: TIPO_COLOR.outro },
+              { id: 'aula' as const,       label: 'Marcar aula',   Icon: Calendar,  color: TIPO_COLOR.aula },
+              { id: 'reposicao' as const,  label: 'Reposição',     Icon: RefreshCw, color: TIPO_COLOR.reposicao },
+              { id: 'aula_extra' as const, label: 'Aula Extra',    Icon: Zap,       color: TIPO_COLOR.aula_extra },
+              { id: 'aula_dupla' as const, label: 'Aula em dupla', Icon: Users,     color: '#34D399' },
+              { id: 'outro' as const,      label: 'Outros',        Icon: Plus,      color: TIPO_COLOR.outro },
             ]).map(opt => (
               <button key={opt.id} onClick={() => onChoose(opt.id)}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors"
