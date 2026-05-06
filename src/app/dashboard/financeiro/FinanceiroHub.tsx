@@ -4,6 +4,7 @@ import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { TabBar } from '@/components/dashboard/TabBar'
 import { TabSkeleton } from '@/components/ui/TabSkeleton'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { PacoteComAluno } from '../pacotes/actions'
 import type { CustoRow, ReceitaExtraRow, HistoricoMes } from './actions'
 
@@ -120,6 +121,10 @@ export function FinanceiroHub({
   // Mantém as abas já visitadas montadas (hidden) para evitar re-fetch/re-render
   // ao alternar. Só monta cada chunk na primeira visita à aba.
   const [visited, setVisited] = useState<Set<FinanceiroTab>>(new Set([initialTab]))
+
+  // Live updates: tudo que afeta cálculo/cobrança/custos/pacotes vem via
+  // realtime e dispara router.refresh sem precisar trocar de aba.
+  useRealtimeRefresh('eventos_agenda,cobrancas,alunos,faltas,pacotes,custos,receitas_extras,feriados_decisoes,preferencias_cobranca')
 
   function go(next: FinanceiroTab) {
     setTab(next)

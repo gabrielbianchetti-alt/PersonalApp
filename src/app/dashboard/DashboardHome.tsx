@@ -11,6 +11,7 @@ import { notifyDemoSimulated } from '@/components/dashboard/DemoToast'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 import { upsertCobrancaPagoAction, desfazerPagoAction } from './actions'
 import { FaltaQuickActionModal } from './faltas/FaltaQuickActionModal'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -301,6 +302,10 @@ export function DashboardHome({
   const [faltaModal, setFaltaModal]         = useState<AulaHoje | null>(null)
 
   const router = useRouter()
+
+  // Live updates: aula criada/movida/excluída na agenda, cobrança paga em
+  // outra aba, aluno cadastrado/suspenso, etc — tudo reflete aqui na hora.
+  useRealtimeRefresh('eventos_agenda,cobrancas,alunos,faltas,pacotes,suspensoes')
 
   // ── real-time clock ───────────────────────────────────────────────────────
   const [clock, setClock] = useState(() => {

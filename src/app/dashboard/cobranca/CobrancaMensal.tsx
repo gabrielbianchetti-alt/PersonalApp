@@ -11,6 +11,7 @@ import { getFeriadosDoMes, diaSemanaKey } from '@/lib/utils/feriados'
 import { accumulateEventsByAluno } from '@/lib/utils/aulas-em-dupla'
 import { getFeriadoDecisoesAction } from '../feriados/actions'
 import { RenovarPacoteModal, buildPacoteMessage } from '@/components/dashboard/RenovarPacoteModal'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -351,6 +352,10 @@ export function CobrancaMensal({
   const { year: y0, month: m0 } = parseMes(mesInicial)
   const [year, setYear]   = useState(y0)
   const [month, setMonth] = useState(m0)
+
+  // Live updates: aula adicionada/movida na agenda recalcula valor cobrado;
+  // pagamento marcado em outra aba reflete aqui na hora.
+  useRealtimeRefresh('cobrancas,eventos_agenda,alunos,faltas,pacotes,feriados_decisoes,preferencias_cobranca')
 
   // alunoId → cobrança
   const [cobrancas, setCobrancas] = useState<Record<string, CobrancaRow>>(() => {

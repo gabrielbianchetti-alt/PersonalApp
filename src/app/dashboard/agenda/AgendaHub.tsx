@@ -4,6 +4,7 @@ import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { TabBar } from '@/components/dashboard/TabBar'
 import { TabSkeleton } from '@/components/ui/TabSkeleton'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { EventoAgendaRow } from './actions'
 import type { FaltaRow, PrefsF } from '../faltas/actions'
 
@@ -60,6 +61,10 @@ export function AgendaHub({
 }: Props) {
   const [tab, setTab] = useState<AgendaTab>(initialTab)
   const [visited, setVisited] = useState<Set<AgendaTab>>(new Set([initialTab]))
+
+  // Live updates do banco — agenda reflete mudanças vindas de outras abas
+  // ou dispositivos sem precisar reabrir o app.
+  useRealtimeRefresh('eventos_agenda,alunos,faltas,pacotes')
 
   function go(next: AgendaTab) {
     setTab(next)
