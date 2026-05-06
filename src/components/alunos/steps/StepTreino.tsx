@@ -1,11 +1,15 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { AlunoFormData, DIAS_SEMANA, DURACAO_OPCOES, LOCAL_OPCOES, calcularPrevisaoMensal, formatCurrency, HorarioDia, addDays } from '@/types/aluno'
+import { listarParceirosDisponiveis, type ParceiroDisponivel } from '@/app/dashboard/alunos/dupla-actions'
 
 interface Props {
   data: AlunoFormData
   errors: Record<string, string>
   onChange: (field: keyof AlunoFormData, value: string | string[] | HorarioDia[]) => void
+  /** ID do aluno sendo editado (omitido no cadastro novo). Usado para excluir o próprio aluno da lista de parceiros disponíveis. */
+  selfId?: string
 }
 
 function ToggleGroup({
@@ -41,12 +45,51 @@ function ToggleGroup({
   )
 }
 
-export function StepTreino({ data, errors, onChange }: Props) {
+export function StepTreino({ data, errors, onChange, selfId }: Props) {
   const previsao = calcularPrevisaoMensal(data)
   const isPacote      = data.modelo_cobranca === 'pacote'
   const isPacoteFixo  = isPacote && data.pacote_tipo === 'fixo'
   /** Mostra dias/horários quando NÃO é pacote OU é pacote fixo */
   const showHorarios  = !isPacote || isPacoteFixo
+
+  // ── Aulas em Dupla ─────────────────────────────────────────────────────────
+  // Toggle visual baseado em frequencia_dupla (fonte de verdade — pode estar
+  // marcada mesmo antes do usuário escolher o parceiro).
+  const treinaDupla = !!data.frequencia_dupla
+  const [parceiros, setParceiros] = useState<ParceiroDisponivel[]>([])
+  const [loadingParceiros, setLoadingParceiros] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    listarParceirosDisponiveis(selfId).then(res => {
+      if (!active) return
+      setParceiros(res.data ?? [])
+      setLoadingParceiros(false)
+    })
+    return () => { active = false }
+  }, [selfId])
+
+  function setTreinaDupla(on: boolean) {
+    if (on) {
+      onChange('frequencia_dupla', 'sempre')
+    } else {
+      onChange('parceiro_id', '')
+      // Truque para limpar o enum: passamos string vazia. O cast é seguro porque
+      // a ação do servidor trata '' como ausente. (Tipos opcionais não têm null.)
+      onChange('frequencia_dupla', '' as unknown as string)
+      onChange('dias_dupla', [])
+      onChange('valor_aula_dupla', '')
+    }
+  }
+
+  function toggleDiaDupla(key: string) {
+    const atuais = data.dias_dupla ?? []
+    const next = atuais.includes(key) ? atuais.filter(d => d !== key) : [...atuais, key]
+    onChange('dias_dupla', next)
+  }
+
+  const valorDuplaNum = parseFloat(data.valor_aula_dupla ?? '')
+  const metadeDupla   = !isNaN(valorDuplaNum) && valorDuplaNum > 0 ? valorDuplaNum / 2 : null
 
   function toggleDia(key: string) {
     const already = data.horarios.find(h => h.dia === key)
@@ -463,6 +506,147 @@ export function StepTreino({ data, errors, onChange }: Props) {
         />
       </div>
       )}
+
+      {/* ── Treina em dupla? ──────────────────────────────────────────────── */}
+      <div className="h-px" style={{ background: 'var(--border-subtle)' }} />
+
+      <div className="flex flex-col gap-3">
+        <div>
+          <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Treina em dupla?
+          </label>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            Outro aluno divide a aula com este. O valor da dupla é dividido entre os dois.
+          </p>
+        </div>
+
+        <ToggleGroup
+          options={[
+            { value: 'nao', label: 'Não' },
+            { value: 'sim', label: 'Sim' },
+          ]}
+          value={treinaDupla ? 'sim' : 'nao'}
+          onChange={(v) => setTreinaDupla(v === 'sim')}
+        />
+
+        {treinaDupla && (
+          <div className="flex flex-col gap-4 mt-1 px-4 py-4 rounded-xl"
+            style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
+
+            {/* Parceiro */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Parceiro de dupla *
+              </label>
+              {loadingParceiros ? (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando alunos...</p>
+              ) : parceiros.length === 0 ? (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Nenhum aluno disponível. Cadastre outro aluno primeiro.
+                </p>
+              ) : (
+                <select
+                  value={data.parceiro_id ?? ''}
+                  onChange={(e) => onChange('parceiro_id', e.target.value)}
+                  className="h-11 rounded-xl px-3 text-sm outline-none"
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: `1px solid ${errors.parceiro_id ? '#EF4444' : 'var(--border-subtle)'}`,
+                    color: 'var(--text-primary)',
+                  }}>
+                  <option value="">Selecione um parceiro...</option>
+                  {parceiros.map(p => (
+                    <option key={p.id} value={p.id}>{p.nome}</option>
+                  ))}
+                </select>
+              )}
+              {errors.parceiro_id && <p className="text-xs" style={{ color: '#EF4444' }}>{errors.parceiro_id}</p>}
+            </div>
+
+            {/* Frequência */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Frequência da dupla *
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { v: 'sempre',           l: 'Sempre',         d: 'Todas as aulas' },
+                  { v: 'dias_especificos', l: 'Dias específicos', d: 'Você escolhe' },
+                  { v: 'esporadico',       l: 'Esporádico',     d: 'Marca caso a caso' },
+                ].map(opt => {
+                  const sel = (data.frequencia_dupla ?? 'sempre') === opt.v
+                  return (
+                    <button key={opt.v} type="button"
+                      onClick={() => onChange('frequencia_dupla', opt.v)}
+                      className="flex flex-col gap-0.5 px-2 py-2 rounded-lg text-left cursor-pointer"
+                      style={{
+                        background: sel ? 'var(--green-muted)' : 'var(--bg-card)',
+                        border: `1px solid ${sel ? 'rgba(16, 185, 129, 0.35)' : 'var(--border-subtle)'}`,
+                        color: sel ? 'var(--green-primary)' : 'var(--text-secondary)',
+                      }}>
+                      <span className="text-xs font-bold">{opt.l}</span>
+                      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{opt.d}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Dias específicos da dupla */}
+            {data.frequencia_dupla === 'dias_especificos' && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  Dias em que é dupla *
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {DIAS_SEMANA.map((dia) => {
+                    const selected = (data.dias_dupla ?? []).includes(dia.key)
+                    return (
+                      <button key={dia.key} type="button"
+                        onClick={() => toggleDiaDupla(dia.key)}
+                        className="w-10 h-10 rounded-lg text-xs font-semibold cursor-pointer"
+                        style={selected
+                          ? { background: 'var(--green-primary)', color: '#000' }
+                          : { background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
+                        }>
+                        {dia.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Valor da dupla */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Valor da aula em dupla (TOTAL) *
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium pointer-events-none"
+                  style={{ color: 'var(--text-muted)' }}>R$</span>
+                <input type="number" min="0" step="0.01" placeholder="200,00"
+                  value={data.valor_aula_dupla ?? ''}
+                  onChange={(e) => onChange('valor_aula_dupla', e.target.value)}
+                  className="w-full h-11 rounded-xl pl-10 pr-4 text-sm outline-none"
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                  }}/>
+              </div>
+              {metadeDupla !== null && (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Esse valor é dividido entre os dois alunos. Cada um pagará{' '}
+                  <span style={{ color: 'var(--green-primary)', fontWeight: 600 }}>
+                    {formatCurrency(metadeDupla)}
+                  </span>{' '}(metade).
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

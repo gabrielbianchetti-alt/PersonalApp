@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { EditAlunoModal } from './EditAlunoModal'
-import type { AlunoFormData, ModeloCobranca } from '@/types/aluno'
+import type { AlunoFormData, FrequenciaDupla, ModeloCobranca } from '@/types/aluno'
 
 export interface AlunoRow {
   id: string
@@ -24,6 +24,11 @@ export interface AlunoRow {
   objetivos: string[] | null
   restricoes: string | null
   observacoes: string | null
+  // Aulas em Dupla (Etapa 3) — opcionais, podem não existir em bancos antigos
+  parceiro_id?: string | null
+  frequencia_dupla?: FrequenciaDupla | null
+  dias_dupla?: string[] | null
+  valor_aula_dupla?: number | null
   /** Pacote ativo, se existir (carregado junto no server) */
   pacoteAtivo?: {
     quantidade_total: number
@@ -65,6 +70,10 @@ function alunoToFormData(aluno: AlunoRow): AlunoFormData {
     pacote_validade_dias: aluno.pacoteAtivo ? String(aluno.pacoteAtivo.validade_dias) : '30',
     pacote_data_inicio:   aluno.pacoteAtivo?.data_inicio ?? hoje,
     pacote_data_cobranca: aluno.pacoteAtivo?.data_cobranca ?? hoje,
+    parceiro_id:          aluno.parceiro_id ?? '',
+    frequencia_dupla:     aluno.frequencia_dupla ?? undefined,
+    dias_dupla:           aluno.dias_dupla ?? [],
+    valor_aula_dupla:     aluno.valor_aula_dupla != null ? String(aluno.valor_aula_dupla) : '',
     objetivos: aluno.objetivos ?? [],
     restricoes: aluno.restricoes ?? '',
     observacoes: aluno.observacoes ?? '',

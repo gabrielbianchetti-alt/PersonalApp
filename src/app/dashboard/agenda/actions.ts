@@ -22,6 +22,10 @@ export interface EventoAgendaRow {
   valor: number | null
   serie_id: string | null
   pacote_id: string | null
+  // Aulas em Dupla (Etapa 2): aulas individuais têm eh_dupla=false e parceiro_evento_id=null.
+  // Aulas em dupla são duas rows linkadas (uma por aluno) com parceiro_evento_id apontando uma para a outra.
+  eh_dupla?: boolean | null
+  parceiro_evento_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -39,6 +43,8 @@ type CreateInput = {
   valor?: number | null
   serie_id?: string | null
   pacote_id?: string | null
+  eh_dupla?: boolean | null
+  parceiro_evento_id?: string | null
 }
 
 export async function createEventoAction(
@@ -132,6 +138,16 @@ export async function updateEventoAction(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Sessão expirada.' }
 
+  // Carrega o evento para verificar se é parte de uma dupla — mudanças de
+  // horário/data/duração devem espelhar no par.
+  const { data: existing } = await supabase
+    .from('eventos_agenda')
+    .select('id, eh_dupla, parceiro_evento_id')
+    .eq('id', id)
+    .eq('professor_id', user.id)
+    .maybeSingle()
+  const par = existing as { id: string; eh_dupla: boolean | null; parceiro_evento_id: string | null } | null
+
   const { data: row, error } = await supabase
     .from('eventos_agenda')
     .update({ ...data, updated_at: new Date().toISOString() })
@@ -141,6 +157,27 @@ export async function updateEventoAction(
     .single()
 
   if (error) { console.error('updateEvento:', error); return { error: 'Erro ao atualizar evento.' } }
+
+  // Sincroniza o par: apenas campos de tempo/local — preservar aluno_id, titulo,
+  // pacote_id (cada lado tem o seu).
+  if (par?.eh_dupla && par.parceiro_evento_id) {
+    const fields: Record<string, unknown> = {}
+    if ('dia_semana'      in data) fields.dia_semana      = data.dia_semana
+    if ('data_especifica' in data) fields.data_especifica = data.data_especifica
+    if ('horario_inicio'  in data) fields.horario_inicio  = data.horario_inicio
+    if ('duracao'         in data) fields.duracao         = data.duracao
+    if ('cor'             in data) fields.cor             = data.cor
+    if ('observacao'      in data) fields.observacao      = data.observacao
+    if (Object.keys(fields).length > 0) {
+      fields.updated_at = new Date().toISOString()
+      await supabase
+        .from('eventos_agenda')
+        .update(fields)
+        .eq('id', par.parceiro_evento_id)
+        .eq('professor_id', user.id)
+    }
+  }
+
   return { data: row as EventoAgendaRow }
 }
 
@@ -194,9 +231,10 @@ export async function deleteEventoAction(
   if (authError || !user) return { error: 'Sessão expirada.' }
 
   // Fetch the event first to check if it's linked to a pacote (so we can refund)
+  // and if it's part of a dupla (so we delete the partner too).
   const { data: evt } = await supabase
     .from('eventos_agenda')
-    .select('pacote_id')
+    .select('pacote_id, eh_dupla, parceiro_evento_id')
     .eq('id', id)
     .eq('professor_id', user.id)
     .single()
@@ -224,6 +262,28 @@ export async function deleteEventoAction(
         .update({ quantidade_usada: novaUsada, status: 'ativo', updated_at: new Date().toISOString() })
         .eq('id', evt.pacote_id)
         .eq('professor_id', user.id)
+    }
+  }
+
+  // Aulas em Dupla: deleta também o evento parceiro (recursão controlada — só
+  // se o partner ainda existe e está apontando de volta para nós).
+  const partnerId = (evt as { eh_dupla?: boolean | null; parceiro_evento_id?: string | null } | null)?.parceiro_evento_id
+  if (partnerId) {
+    const { data: partner } = await supabase
+      .from('eventos_agenda')
+      .select('id, parceiro_evento_id')
+      .eq('id', partnerId)
+      .eq('professor_id', user.id)
+      .maybeSingle()
+    if (partner) {
+      // Quebra o link primeiro para evitar loop infinito quando o partner refaça delete
+      await supabase
+        .from('eventos_agenda')
+        .update({ parceiro_evento_id: null, eh_dupla: false })
+        .eq('id', partnerId)
+        .eq('professor_id', user.id)
+      // Agora deleta o partner — o pacote dele será devolvido normalmente
+      await deleteEventoAction(partnerId).catch(err => console.error('deleteEvento (partner):', err))
     }
   }
 

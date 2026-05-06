@@ -399,3 +399,59 @@ test.describe('Aulas Extras — lógica de soma', () => {
   })
 
 })
+
+// ── Timing de cobrança (cobra_adiantado) ─────────────────────────────────────
+
+test.describe('Timing de cobrança — janela de busca de aulas extras', () => {
+
+  // Replica da função em CalculoMensal/CobrancaMensal — qualquer divergência
+  // aqui quebra o teste e sinaliza regressão.
+  function getExtrasRange(year: number, month: number, cobraAdiantado?: boolean | null) {
+    if (cobraAdiantado === false) {
+      const ref  = `${year}-${String(month + 1).padStart(2, '0')}`
+      const last = new Date(year, month + 1, 0).getDate()
+      return { start: `${ref}-01`, end: `${ref}-${String(last).padStart(2, '0')}` }
+    }
+    const pm  = month === 0 ? 11 : month - 1
+    const py  = month === 0 ? year - 1 : year
+    const ref = `${py}-${String(pm + 1).padStart(2, '0')}`
+    const last = new Date(py, pm + 1, 0).getDate()
+    return { start: `${ref}-01`, end: `${ref}-${String(last).padStart(2, '0')}` }
+  }
+
+  test('cobra_adiantado=true → range é o mês ANTERIOR (abril/2026 → março/2026)', () => {
+    const r = getExtrasRange(2026, 3, true) // mês index 3 = abril
+    expect(r.start).toBe('2026-03-01')
+    expect(r.end).toBe('2026-03-31')
+  })
+
+  test('cobra_adiantado=undefined (default) → comportamento histórico = mês anterior', () => {
+    const r = getExtrasRange(2026, 3)
+    expect(r.start).toBe('2026-03-01')
+    expect(r.end).toBe('2026-03-31')
+  })
+
+  test('cobra_adiantado=null (banco sem migration) → comportamento histórico', () => {
+    const r = getExtrasRange(2026, 3, null)
+    expect(r.start).toBe('2026-03-01')
+    expect(r.end).toBe('2026-03-31')
+  })
+
+  test('cobra_adiantado=false → range é o mês CORRENTE (abril/2026 → abril/2026)', () => {
+    const r = getExtrasRange(2026, 3, false)
+    expect(r.start).toBe('2026-04-01')
+    expect(r.end).toBe('2026-04-30')
+  })
+
+  test('virada de ano: cobra_adiantado=true e mês = janeiro retorna dezembro do ano anterior', () => {
+    const r = getExtrasRange(2026, 0, true) // janeiro
+    expect(r.start).toBe('2025-12-01')
+    expect(r.end).toBe('2025-12-31')
+  })
+
+  test('último dia varia por mês: fevereiro tem 28 (não bissexto)', () => {
+    const r = getExtrasRange(2026, 1, false) // fevereiro 2026 (28 dias)
+    expect(r.end).toBe('2026-02-28')
+  })
+
+})

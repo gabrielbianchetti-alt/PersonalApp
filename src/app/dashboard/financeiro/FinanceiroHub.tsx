@@ -61,6 +61,7 @@ interface Preferencias {
   modelo_mensagem: string | null
   tipo_data_cobranca?: string | null
   forma_pagamento_padrao?: 'pix' | 'cartao' | 'ambos' | null
+  cobra_adiantado?: boolean | null
 }
 
 interface AlunoFin {

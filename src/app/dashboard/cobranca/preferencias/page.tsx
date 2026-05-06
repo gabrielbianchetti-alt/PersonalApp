@@ -62,6 +62,7 @@ export default function PreferenciasPage() {
     modelo_mensagem: string | null
     tipo_data_cobranca: string | null
     forma_pagamento_padrao: 'pix' | 'cartao' | 'ambos' | null
+    cobra_adiantado: boolean | null
   } | null>(null)
 
   const [state, formAction, isPending] = useActionState(savePreferenciasAction, null)
@@ -75,7 +76,7 @@ export default function PreferenciasPage() {
         .select('*')
         .eq('professor_id', user.id)
         .maybeSingle()
-      setPrefs(data ?? { chave_pix: null, favorecido_pix: null, link_cartao: null, modelo_mensagem: null, tipo_data_cobranca: null, forma_pagamento_padrao: null })
+      setPrefs(data ?? { chave_pix: null, favorecido_pix: null, link_cartao: null, modelo_mensagem: null, tipo_data_cobranca: null, forma_pagamento_padrao: null, cobra_adiantado: null })
     })
   }, [])
 
@@ -196,6 +197,51 @@ export default function PreferenciasPage() {
             placeholder="https://..."
             hint="Link do Mercado Pago, PagSeguro, etc."
           />
+        </div>
+
+        {/* Quando você cobra seus alunos? — controla onde aulas extras entram na cobrança */}
+        <div className="rounded-2xl p-5 flex flex-col gap-4"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Quando você cobra seus alunos?</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Define em qual mês as aulas extras (e ajustes esporádicos) são cobradas
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {[
+              { value: 'adiantado', label: 'Adiantado (início do mês)',  desc: 'Extras do mês anterior entram nesta cobrança' },
+              { value: 'atrasado',  label: 'Final do mês (após as aulas)', desc: 'Extras do próprio mês corrente entram nesta cobrança' },
+            ].map(opt => {
+              const currentValue = (prefs.cobra_adiantado ?? true) ? 'adiantado' : 'atrasado'
+              const isActive = currentValue === opt.value
+              return (
+                <label
+                  key={opt.value}
+                  className="flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors"
+                  style={{
+                    background: isActive ? 'var(--green-muted)' : 'var(--bg-input)',
+                    border: `1px solid ${isActive ? 'rgba(16, 185, 129,0.25)' : 'var(--border-subtle)'}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="cobra_adiantado"
+                    value={opt.value}
+                    defaultChecked={isActive}
+                    className="mt-0.5 accent-[#10B981]"
+                    onChange={() => setPrefs(p => p ? { ...p, cobra_adiantado: opt.value === 'adiantado' } : p)}
+                  />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: isActive ? 'var(--green-primary)' : 'var(--text-primary)' }}>
+                      {opt.label}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{opt.desc}</p>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
         </div>
 
         {/* Data de cobrança */}

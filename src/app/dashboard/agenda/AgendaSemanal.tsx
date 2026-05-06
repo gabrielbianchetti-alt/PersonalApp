@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Calendar, RefreshCw, Zap, Plus, FileText, Wallet, CheckCircle2,
+  Calendar, RefreshCw, Zap, Plus, FileText, Wallet, CheckCircle2, Users,
 } from 'lucide-react'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 import { notifyDemoSimulated } from '@/components/dashboard/DemoToast'
@@ -19,6 +19,14 @@ import {
   type EventoTipo,
   type EventoAgendaRow,
 } from './actions'
+import {
+  createAulaSmartAction,
+  createAulaDuplaManualAction,
+  createAulaDuplaSerieAction,
+  transformarAulaEmDuplaAction,
+  transformarDuplaEmIndividualAction,
+} from './dupla-actions'
+import { listarParceirosDisponiveis, type ParceiroDisponivel } from '../alunos/dupla-actions'
 import {
   createFaltaAction,
   resolveFaltaAction,
@@ -115,7 +123,7 @@ interface MoveConfirm {
   duracao: number
 }
 
-type AddEventStep = 'choose' | 'aula' | 'reposicao' | 'aula_extra' | 'outro'
+type AddEventStep = 'choose' | 'aula' | 'reposicao' | 'aula_extra' | 'aula_dupla' | 'outro'
 type Modal =
   | { type: 'add';         dayIdx: number; date: Date; timeMin: number; duracao?: number; initialStep?: AddEventStep }
   | { type: 'aluno-card';  aluno: AlunoAgenda; dayIdx: number; date: Date }
@@ -420,6 +428,12 @@ function AddEventModal({
   const [cor, setCor]           = useState(OUTRO_CORES[0])
   const [obs, setObs]           = useState('')
   const [valorExtra, setValorExtra] = useState('')
+  // Aulas em Dupla manuais (esporádicas): aluno B + valor total da dupla
+  const [alunoBId, setAlunoBId] = useState('')
+  const [valorDupla, setValorDupla] = useState('')
+  // Recorrência semanal da dupla (séries)
+  const [duplaRepetir, setDuplaRepetir] = useState(false)
+  const [duplaDias, setDuplaDias] = useState<DayKey[]>([WEEK_KEYS[dayIdx]])
   const [saving, setSaving]     = useState(false)
   const [err, setErr]           = useState('')
 
@@ -446,11 +460,23 @@ function AddEventModal({
     if (step === 'aula' || step === 'reposicao') {
       const aluno = alunos.find(a => a.id === alunoId)
       if (!aluno) { setErr('Selecione um aluno.'); setSaving(false); return }
-      payload = {
+      // Aulas em Dupla (Etapa 4): usa wrapper inteligente que cria automaticamente
+      // o evento parceiro se a configuração do aluno indicar dupla aplicável.
+      const smart = await createAulaSmartAction({
         tipo: step === 'aula' ? 'aula' : 'reposicao',
         titulo: `${step === 'aula' ? 'Aula' : 'Reposição'} — ${aluno.nome.split(' ')[0]}`,
         aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: timeStr, duracao,
+      })
+      setSaving(false)
+      if (smart.error === DEMO_ERROR_SENTINEL) {
+        notifyDemoSimulated('Criar evento')
+        onClose()
+        return
       }
+      if (smart.error) { setErr(smart.error); return }
+      onSaved(smart.data!)
+      if (smart.parceiroEvento) onSaved(smart.parceiroEvento)
+      return
     } else if (step === 'aula_extra') {
       const aluno = alunos.find(a => a.id === alunoId)
       if (!aluno) { setErr('Selecione um aluno.'); setSaving(false); return }
@@ -462,6 +488,46 @@ function AddEventModal({
         aluno_id: aluno.id, data_especifica: dateStr, horario_inicio: timeStr, duracao,
         cor: TIPO_COLOR.aula_extra, valor: valorNum,
       }
+    } else if (step === 'aula_dupla') {
+      const alunoA = alunos.find(a => a.id === alunoId)
+      const alunoB = alunos.find(a => a.id === alunoBId)
+      if (!alunoA) { setErr('Selecione o primeiro aluno.'); setSaving(false); return }
+      if (!alunoB) { setErr('Selecione o segundo aluno.'); setSaving(false); return }
+      if (alunoA.id === alunoB.id) { setErr('Os dois alunos devem ser diferentes.'); setSaving(false); return }
+      const valorNum = parseFloat(valorDupla.replace(',', '.'))
+      if (isNaN(valorNum) || valorNum <= 0) { setErr('Informe o valor total da aula em dupla.'); setSaving(false); return }
+      if (duplaRepetir) {
+        if (duplaDias.length === 0) { setErr('Selecione pelo menos um dia da semana.'); setSaving(false); return }
+        const res = await createAulaDuplaSerieAction({
+          aluno_a_id: alunoA.id, aluno_b_id: alunoB.id,
+          dias_semana: duplaDias, horario_inicio: timeStr, duracao,
+          valor_total: valorNum,
+        })
+        setSaving(false)
+        if (res.error === DEMO_ERROR_SENTINEL) {
+          notifyDemoSimulated('Criar aula em dupla recorrente')
+          onClose()
+          return
+        }
+        if (res.error) { setErr(res.error); return }
+        for (const ev of res.eventos ?? []) onSaved(ev)
+        return
+      }
+      const res = await createAulaDuplaManualAction({
+        aluno_a_id: alunoA.id, aluno_b_id: alunoB.id,
+        data_especifica: dateStr, horario_inicio: timeStr, duracao,
+        valor_total: valorNum,
+      })
+      setSaving(false)
+      if (res.error === DEMO_ERROR_SENTINEL) {
+        notifyDemoSimulated('Criar aula em dupla')
+        onClose()
+        return
+      }
+      if (res.error) { setErr(res.error); return }
+      if (res.eventoA) onSaved(res.eventoA)
+      if (res.eventoB) onSaved(res.eventoB)
+      return
     } else {
       // ── "outros" step — supports free start/end time + weekly recurrence ─────
       if (!titulo.trim()) { setErr('Informe um título.'); setSaving(false); return }
@@ -522,10 +588,11 @@ function AddEventModal({
         {step === 'choose' && (
           <div className="grid grid-cols-2 gap-2">
             {([
-              { id: 'aula',       label: 'Marcar aula', Icon: Calendar,  color: TIPO_COLOR.aula },
-              { id: 'reposicao',  label: 'Reposição',   Icon: RefreshCw, color: TIPO_COLOR.reposicao },
-              { id: 'aula_extra', label: 'Aula Extra',  Icon: Zap,       color: TIPO_COLOR.aula_extra },
-              { id: 'outro',      label: 'Outros',      Icon: Plus,      color: TIPO_COLOR.outro },
+              { id: 'aula',       label: 'Marcar aula',   Icon: Calendar,  color: TIPO_COLOR.aula },
+              { id: 'reposicao',  label: 'Reposição',     Icon: RefreshCw, color: TIPO_COLOR.reposicao },
+              { id: 'aula_extra', label: 'Aula Extra',    Icon: Zap,       color: TIPO_COLOR.aula_extra },
+              { id: 'aula_dupla', label: 'Aula em dupla', Icon: Users,     color: '#34D399' },
+              { id: 'outro',      label: 'Outros',        Icon: Plus,      color: TIPO_COLOR.outro },
             ] as const).map(opt => (
               <button key={opt.id} onClick={() => setStep(opt.id)}
                 className="flex flex-col items-center gap-2 py-4 rounded-xl cursor-pointer transition-colors text-xs font-semibold"
@@ -592,6 +659,132 @@ function AddEventModal({
             )}
           </>
         )}
+
+        {step === 'aula_dupla' && (() => {
+          const valorNum = parseFloat(valorDupla.replace(',', '.'))
+          const valorMetade = !isNaN(valorNum) && valorNum > 0
+            ? (Math.round((valorNum / 2) * 100) / 100).toFixed(2)
+            : null
+          return (
+            <>
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Aluno 1</label>
+                <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto">
+                  {alunos.length === 0
+                    ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum aluno ativo</p>
+                    : alunos.map(a => (
+                      <label key={a.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer"
+                        style={{ background: alunoId === a.id ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${alunoId === a.id ? 'rgba(16, 185, 129,0.2)' : 'var(--border-subtle)'}` }}>
+                        <input type="radio" name="aluno-dupla-a" value={a.id} checked={alunoId === a.id}
+                          onChange={() => { setAlunoId(a.id); setDuracao(a.duracao); if (a.id === alunoBId) setAlunoBId('') }} className="accent-[#10B981]" />
+                        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{a.nome}</span>
+                        <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{a.local}</span>
+                      </label>
+                    ))
+                  }
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Aluno 2</label>
+                <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto">
+                  {alunos.filter(a => a.id !== alunoId).length === 0
+                    ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Selecione o aluno 1 primeiro</p>
+                    : alunos.filter(a => a.id !== alunoId).map(a => (
+                      <label key={a.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer"
+                        style={{ background: alunoBId === a.id ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${alunoBId === a.id ? 'rgba(16, 185, 129,0.2)' : 'var(--border-subtle)'}` }}>
+                        <input type="radio" name="aluno-dupla-b" value={a.id} checked={alunoBId === a.id}
+                          onChange={() => setAlunoBId(a.id)} className="accent-[#10B981]" />
+                        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{a.nome}</span>
+                        <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{a.local}</span>
+                      </label>
+                    ))
+                  }
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Duração</label>
+                <div className="flex gap-2">
+                  {DURACAO_OPTS.map(d => (
+                    <button key={d} onClick={() => setDuracao(d)}
+                      className="flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer"
+                      style={{ background: duracao === d ? 'var(--green-primary)' : 'var(--bg-card)', color: duracao === d ? '#000' : 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                      {d < 60 ? `${d}m` : d === 60 ? '1h' : d === 90 ? '1h30' : '2h'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>
+                  Valor total da aula em dupla (R$)
+                </label>
+                <input
+                  type="number" min="0" step="0.01"
+                  placeholder="Ex: 160.00"
+                  value={valorDupla}
+                  onChange={e => setValorDupla(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                  onFocus={e => { e.target.style.borderColor = 'var(--border-focus)' }}
+                  onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)' }}
+                />
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  {valorMetade
+                    ? <>Cada aluno será cobrado <strong>R$ {valorMetade}</strong> (metade) no próximo mês.</>
+                    : 'O valor será dividido por 2 e somado na cobrança do próximo mês de cada aluno.'}
+                </p>
+              </div>
+
+              {/* Repetir toda semana — toggle + day picker */}
+              <div className="rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Repetir toda semana</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Cria uma série fixa: a aula em dupla acontece nos dias selecionados, semana após semana.
+                    </p>
+                  </div>
+                  <input type="checkbox" checked={duplaRepetir} onChange={e => setDuplaRepetir(e.target.checked)}
+                    className="w-4 h-4 cursor-pointer accent-[#34D399] shrink-0 ml-3" />
+                </label>
+
+                {duplaRepetir && (
+                  <>
+                    <div className="grid grid-cols-7 gap-1 mt-3">
+                      {WEEK_KEYS.map((k, i) => {
+                        const active = duplaDias.includes(k)
+                        return (
+                          <button key={k} type="button"
+                            onClick={() => setDuplaDias(prev => prev.includes(k) ? prev.filter(d => d !== k) : [...prev, k])}
+                            className="py-2 rounded-lg text-[11px] font-bold cursor-pointer"
+                            style={{
+                              background: active ? 'rgba(52, 211, 153,0.15)' : 'var(--bg-input)',
+                              color: active ? '#34D399' : 'var(--text-secondary)',
+                              border: `1px solid ${active ? '#34D399' : 'var(--border-subtle)'}`,
+                            }}>
+                            {WEEK_LABELS[i]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="mt-3 rounded-lg px-3 py-2 text-[11px] leading-relaxed flex gap-2"
+                      style={{ background: 'rgba(56, 189, 248,0.08)', border: '1px solid rgba(56, 189, 248,0.2)', color: '#38BDF8' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                      <span>
+                        A dupla ocorrerá no horário selecionado em {duplaDias.length || 0} dia{duplaDias.length === 1 ? '' : 's'} por semana,
+                        até você apagar a série.
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )
+        })()}
 
         {step === 'outro' && (() => {
           const iniMin = timeToMin(horaInicio)
@@ -718,9 +911,11 @@ function AddEventModal({
             </button>
             <button onClick={save} disabled={saving}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
-              style={{ background: step === 'aula_extra' ? TIPO_COLOR.aula_extra : 'var(--green-primary)', color: '#000' }}>
+              style={{ background: step === 'aula_extra' ? TIPO_COLOR.aula_extra : step === 'aula_dupla' ? '#34D399' : 'var(--green-primary)', color: '#000' }}>
               {saving ? 'Salvando...' : step === 'aula_extra' ? (
                 <><Zap size={14} strokeWidth={2} aria-hidden /> Salvar Aula Extra</>
+              ) : step === 'aula_dupla' ? (
+                <><Users size={14} strokeWidth={2} aria-hidden /> Salvar Aula em Dupla</>
               ) : 'Salvar'}
             </button>
           </div>
@@ -1074,23 +1269,71 @@ function AlunoCardModal({
 // ─── EventoCardModal ───────────────────────────────────────────────────────────
 
 function EventoCardModal({
-  evento, alunoNome, onClose, onDeleted, onDeletedSerie, onEditar,
+  evento, alunoNome, parceiroNome, onClose, onDeleted, onDeletedSerie, onEditar,
+  onPartnerCreated, onPartnerDeleted, onUpdated,
 }: {
-  evento: EventoAgendaRow; alunoNome?: string
+  evento: EventoAgendaRow; alunoNome?: string; parceiroNome?: string | null
   onClose: () => void
   onDeleted: (id: string) => void
   onDeletedSerie: (ids: string[]) => void
   onEditar: () => void
+  // Aulas em Dupla (Etapa 4)
+  onPartnerCreated?: (ev: EventoAgendaRow) => void
+  onPartnerDeleted?: (id: string) => void
+  onUpdated?: (ev: EventoAgendaRow) => void
 }) {
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [transformPanel, setTransformPanel] = useState<'none' | 'pickPartner'>('none')
+  const [partners, setPartners] = useState<ParceiroDisponivel[]>([])
+  const [loadingPartners, setLoadingPartners] = useState(false)
+  const [pickedPartnerId, setPickedPartnerId] = useState<string>('')
+  const [transformErr, setTransformErr] = useState<string | null>(null)
   const color = evento.cor ?? TIPO_COLOR[evento.tipo]
   const isSerie = !!evento.serie_id
+  const isAulaTipo = evento.tipo === 'aula' || evento.tipo === 'reposicao'
+  const isDupla = !!evento.eh_dupla && !!evento.parceiro_evento_id
 
   async function handleDeleteSingle() {
     setSaving(true)
     await deleteEventoAction(evento.id)
-    setSaving(false); onDeleted(evento.id); onClose()
+    setSaving(false)
+    // Se for dupla, o action já apaga o parceiro também — refletimos na UI
+    if (isDupla && evento.parceiro_evento_id) onPartnerDeleted?.(evento.parceiro_evento_id)
+    onDeleted(evento.id); onClose()
+  }
+
+  async function openTransformPanel() {
+    setTransformPanel('pickPartner')
+    setLoadingPartners(true)
+    setTransformErr(null)
+    // permitirJaEmDupla=true: na agenda, qualquer aluno ativo pode ser parceiro
+    // pontual, independente de já ter parceiro_id configurado no perfil.
+    const res = await listarParceirosDisponiveis(evento.aluno_id ?? undefined, true)
+    setPartners(res.data ?? [])
+    setLoadingPartners(false)
+  }
+
+  async function handleTransformToDupla() {
+    if (!pickedPartnerId) { setTransformErr('Escolha um parceiro.'); return }
+    setSaving(true); setTransformErr(null)
+    const res = await transformarAulaEmDuplaAction(evento.id, pickedPartnerId)
+    setSaving(false)
+    if (res.error) { setTransformErr(res.error); return }
+    if (res.parceiroEvento) onPartnerCreated?.(res.parceiroEvento)
+    if (res.parceiroEvento) onUpdated?.({ ...evento, eh_dupla: true, parceiro_evento_id: res.parceiroEvento.id })
+    onClose()
+  }
+
+  async function handleTransformToIndividual() {
+    if (!confirm('Transformar esta aula em individual? O outro evento da dupla será removido.')) return
+    setSaving(true)
+    const res = await transformarDuplaEmIndividualAction(evento.id)
+    setSaving(false)
+    if (res.error) { alert(res.error); return }
+    if (evento.parceiro_evento_id) onPartnerDeleted?.(evento.parceiro_evento_id)
+    onUpdated?.({ ...evento, eh_dupla: false, parceiro_evento_id: null })
+    onClose()
   }
 
   async function handleDeleteSerie() {
@@ -1151,6 +1394,14 @@ function EventoCardModal({
               </div>
             )}
 
+            {isDupla && parceiroNome && (
+              <div className="rounded-xl px-3 py-2.5 text-xs flex items-center gap-2"
+                style={{ background: 'rgba(16, 185, 129,0.08)', border: '1px solid rgba(16, 185, 129,0.2)', color: 'var(--green-primary)' }}>
+                <Users size={14} strokeWidth={2.25} />
+                <span>Aula em dupla com <strong>{parceiroNome}</strong></span>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button onClick={onEditar}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
@@ -1163,6 +1414,61 @@ function EventoCardModal({
                 {saving ? '...' : '🗑 Remover'}
               </button>
             </div>
+
+            {/* ── Aulas em Dupla: transformar ──────────────────────────── */}
+            {isAulaTipo && transformPanel === 'none' && (
+              <div className="flex gap-2">
+                {isDupla ? (
+                  <button onClick={handleTransformToIndividual} disabled={saving}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50"
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                    ⇆ Transformar em individual
+                  </button>
+                ) : (
+                  <button onClick={openTransformPanel} disabled={saving}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                    <Users size={14} strokeWidth={2.25} /> Transformar em dupla
+                  </button>
+                )}
+              </div>
+            )}
+
+            {transformPanel === 'pickPartner' && (
+              <div className="flex flex-col gap-2 px-3 py-3 rounded-xl"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  Escolha o parceiro desta aula em dupla:
+                </p>
+                {loadingPartners ? (
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando alunos...</p>
+                ) : partners.length === 0 ? (
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Nenhum aluno disponível.
+                  </p>
+                ) : (
+                  <select value={pickedPartnerId} onChange={e => setPickedPartnerId(e.target.value)}
+                    className="h-10 rounded-lg px-2 text-sm outline-none"
+                    style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                    <option value="">Selecione...</option>
+                    {partners.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                  </select>
+                )}
+                {transformErr && <p className="text-xs" style={{ color: '#EF4444' }}>{transformErr}</p>}
+                <div className="flex gap-2">
+                  <button onClick={() => setTransformPanel('none')} disabled={saving}
+                    className="flex-1 py-2 rounded-lg text-xs cursor-pointer"
+                    style={{ background: 'transparent', color: 'var(--text-muted)' }}>
+                    Cancelar
+                  </button>
+                  <button onClick={handleTransformToDupla} disabled={saving || !pickedPartnerId}
+                    className="flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-50"
+                    style={{ background: 'var(--green-primary)', color: '#000' }}>
+                    {saving ? 'Salvando...' : 'Confirmar dupla'}
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -1458,6 +1764,22 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
   const [weekOffset, setWeekOffset]     = useState(0)
   const [eventos, setEventos]           = useState<EventoAgendaRow[]>(eventosIniciais)
   const [faltas,  setFaltas]            = useState<FaltaRow[]>(faltasIniciais)
+
+  // ── Aulas em Dupla (Etapa 4): lookup do nome do parceiro a partir do
+  // parceiro_evento_id. Reconstrói um mapa por id sempre que `eventos` muda.
+  const eventoById = useMemo(() => {
+    const m = new Map<string, EventoAgendaRow>()
+    for (const e of eventos) m.set(e.id, e)
+    return m
+  }, [eventos])
+
+  function getParceiroNome(ev: EventoAgendaRow): string | null {
+    if (!ev.eh_dupla || !ev.parceiro_evento_id) return null
+    const par = eventoById.get(ev.parceiro_evento_id)
+    if (!par || !par.aluno_id) return null
+    const a = alunos.find(x => x.id === par.aluno_id)
+    return a ? a.nome.split(' ')[0] : null
+  }
   // Default prazo_dias=30 (used when creating faltas from agenda — loaded from prefs via state)
   const prazoFaltaDias = 30
   const [modal, setModal]               = useState<Modal>(null)
@@ -2201,6 +2523,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
             const alunoNome = alunos.find(a => a.id === ev.aluno_id)?.nome
             const blockId   = b.id
             const isExtra   = ev.tipo === 'aula_extra'
+            const parceiroNome = getParceiroNome(ev)
             const dragData: DragData = {
               blockType: 'evento', evento: ev,
               dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
@@ -2218,12 +2541,18 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                 <div className="w-full h-full rounded-lg overflow-hidden"
                   style={{ background: color + '20', borderLeft: `3px solid ${color}`, padding: '3px 5px', cursor: 'grab' }}>
                   <div className="flex items-center gap-1">
+                    {parceiroNome && (
+                      <Users size={10} strokeWidth={2.5} style={{ color, flexShrink: 0 }} aria-label="Aula em dupla" />
+                    )}
                     <p className="text-[11px] font-bold leading-tight truncate flex-1" style={{ color }}>{ev.titulo}</p>
                     {isExtra && (
                       <span className="text-[9px] font-bold px-1 rounded shrink-0" style={{ background: color, color: '#000', lineHeight: '14px' }}>Extra</span>
                     )}
                   </div>
-                  {height > 26 && alunoNome && <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>{alunoNome.split(' ')[0]}</p>}
+                  {height > 26 && (parceiroNome
+                    ? <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>{(alunoNome ?? '').split(' ')[0]} + {parceiroNome}</p>
+                    : alunoNome && <p className="text-[10px] truncate" style={{ color: color + 'bb' }}>{alunoNome.split(' ')[0]}</p>
+                  )}
                 </div>
               </DraggableBlock>
             )
@@ -2515,6 +2844,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                     const ev        = b.evento
                     const color     = ev.tipo === 'aula_extra' ? TIPO_COLOR.aula_extra : (ev.cor ?? TIPO_COLOR[ev.tipo])
                     const alunoNome = alunos.find(a => a.id === ev.aluno_id)?.nome
+                    const parceiroNome = getParceiroNome(ev)
                     const dragData: DragData = {
                       blockType: 'evento', evento: ev,
                       dayIdx, startMin: b.startMin, duracao: b.endMin - b.startMin,
@@ -2534,9 +2864,16 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
                         }}>
                         <div className="w-full h-full rounded overflow-hidden"
                           style={{ background: color + '26', borderLeft: `2px solid ${color}`, padding: '2px 3px', cursor: 'grab' }}>
-                          <p style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.15, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                            {ev.aluno_id && alunoNome ? alunoNome.split(' ')[0] : ev.titulo}
-                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            {parceiroNome && (
+                              <Users size={8} strokeWidth={2.5} style={{ color, flexShrink: 0 }} aria-label="Aula em dupla" />
+                            )}
+                            <p style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.15, color, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                              {parceiroNome
+                                ? `${(alunoNome ?? '').split(' ')[0]}+${parceiroNome}`
+                                : (ev.aluno_id && alunoNome ? alunoNome.split(' ')[0] : ev.titulo)}
+                            </p>
+                          </div>
                           {height > 28 && (
                             <p style={{ fontSize: 8, lineHeight: 1.1, color: color + 'aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                               {ev.horario_inicio}
@@ -2803,9 +3140,13 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
         )}
         {modal?.type === 'evento-card' && (
           <EventoCardModal evento={modal.evento} alunoNome={modal.alunoNome}
+            parceiroNome={getParceiroNome(modal.evento)}
             onClose={() => setModal(null)} onDeleted={removeEvento}
             onDeletedSerie={(ids) => setEventos(p => p.filter(e => !ids.includes(e.id)))}
-            onEditar={() => setModal({ type: 'edit', evento: modal.evento })} />
+            onEditar={() => setModal({ type: 'edit', evento: modal.evento })}
+            onPartnerCreated={addEvento}
+            onPartnerDeleted={removeEvento}
+            onUpdated={updateEvento} />
         )}
         {modal?.type === 'edit' && (
           <EditEventoModal evento={modal.evento} onClose={() => setModal(null)} onSaved={updateEvento} />

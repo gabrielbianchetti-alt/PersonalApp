@@ -648,6 +648,7 @@ export interface DemoPreferencias {
   link_cartao: string | null
   modelo_mensagem: string | null
   tipo_data_cobranca: string | null
+  cobra_adiantado: boolean
 }
 
 export function getDemoPreferencias(): DemoPreferencias {
@@ -657,6 +658,7 @@ export function getDemoPreferencias(): DemoPreferencias {
     link_cartao: null,
     modelo_mensagem: null,
     tipo_data_cobranca: 'dia_aluno',
+    cobra_adiantado: true,
   }
 }
 

@@ -6,6 +6,7 @@ import { AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { DIAS_SEMANA, formatCurrency, formatDate } from '@/types/aluno'
 import { countWeekdaysInMonth } from '@/lib/utils/date'
+import { accumulateEventsByAluno } from '@/lib/utils/aulas-em-dupla'
 import { getFeriadosDoMes, diaSemanaKey, diaSemanaLabel, formatDM } from '@/lib/utils/feriados'
 import { getFeriadoDecisoesAction, saveFeriadoDecisaoAction } from '../feriados/actions'
 import { type PacoteComAluno } from '../pacotes/actions'
@@ -41,6 +42,23 @@ interface Preferencias {
   chave_pix: string | null
   favorecido_pix: string | null
   link_cartao: string | null
+  cobra_adiantado?: boolean | null
+}
+
+// Range de busca de aulas extras conforme timing de cobrança do professor.
+// cobra_adiantado === false (cobra ao final): extras do PRÓPRIO mês exibido.
+// caso contrário (true ou undefined): extras do mês ANTERIOR (comportamento histórico).
+function getExtrasRange(year: number, month: number, cobraAdiantado?: boolean | null) {
+  if (cobraAdiantado === false) {
+    const ref  = `${year}-${String(month + 1).padStart(2, '0')}`
+    const last = new Date(year, month + 1, 0).getDate()
+    return { start: `${ref}-01`, end: `${ref}-${String(last).padStart(2, '0')}` }
+  }
+  const pm  = month === 0 ? 11 : month - 1
+  const py  = month === 0 ? year - 1 : year
+  const ref = `${py}-${String(pm + 1).padStart(2, '0')}`
+  const last = new Date(py, pm + 1, 0).getDate()
+  return { start: `${ref}-01`, end: `${ref}-${String(last).padStart(2, '0')}` }
 }
 
 interface Props {
@@ -100,6 +118,9 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
 
   // aulas_extra do mês ANTERIOR: aluno_id → { count, totalValor }
   const [extras, setExtras] = useState<Record<string, { count: number; totalValor: number }>>({})
+  // Aulas em dupla manuais (eh_dupla=true com valor) — contadas separadamente
+  // para somar SEMPRE o totalValor real (metade do valor da dupla por aluno).
+  const [duplas, setDuplas] = useState<Record<string, { count: number; totalValor: number }>>({})
   // aulas de pacote realmente DADAS no mês exibido (eventos_agenda com pacote_id)
   const [pacoteAulas, setPacoteAulas] = useState<Record<string, number>>({})
   const isFirstMount = useRef(true)
@@ -143,13 +164,8 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
   // ── aulas extras do mês anterior + aulas de pacote do mês atual ──────────
 
   useEffect(() => {
-    // Mês anterior (extras)
-    const prevMonth = month === 0 ? 11 : month - 1
-    const prevYear  = month === 0 ? year - 1 : year
-    const prevMesRef = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}`
-    const prevStart  = `${prevMesRef}-01`
-    const prevLast   = new Date(prevYear, prevMonth + 1, 0).getDate()
-    const prevEnd    = `${prevMesRef}-${String(prevLast).padStart(2, '0')}`
+    // Range de extras conforme timing de cobrança (adiantado vs final do mês)
+    const { start: extrasStart, end: extrasEnd } = getExtrasRange(year, month, preferencias?.cobra_adiantado)
 
     // Mês atual (aulas de pacote)
     const curStart  = `${mesRef}-01`
@@ -158,24 +174,25 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
 
     const supabase = createClient()
 
-    const fetchExtras = supabase
+    // Duplas em estado separado: valor real (metade) entra direto no gross,
+    // não passa pela multiplicação count*valor_base do modelo por_aula.
+    const qExtras = supabase
       .from('eventos_agenda')
       .select('aluno_id, valor')
       .eq('tipo', 'aula_extra')
-      .gte('data_especifica', prevStart)
-      .lte('data_especifica', prevEnd)
-      .then(({ data }) => {
-        const map: Record<string, { count: number; totalValor: number }> = {}
-        for (const row of (data ?? [])) {
-          if (!row.aluno_id) continue
-          const prev = map[row.aluno_id] ?? { count: 0, totalValor: 0 }
-          map[row.aluno_id] = {
-            count:      prev.count + 1,
-            totalValor: prev.totalValor + Number(row.valor ?? 0),
-          }
-        }
-        setExtras(map)
-      })
+      .gte('data_especifica', extrasStart)
+      .lte('data_especifica', extrasEnd)
+    const qDuplas = supabase
+      .from('eventos_agenda')
+      .select('aluno_id, valor')
+      .eq('eh_dupla', true)
+      .not('valor', 'is', null)
+      .gte('data_especifica', extrasStart)
+      .lte('data_especifica', extrasEnd)
+    const fetchExtras = Promise.all([qExtras, qDuplas]).then(([rExtras, rDuplas]) => {
+      setExtras(accumulateEventsByAluno(rExtras.data))
+      setDuplas(accumulateEventsByAluno(rDuplas.data))
+    })
 
     const fetchPacoteAulas = supabase
       .from('eventos_agenda')
@@ -198,7 +215,7 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
       isFirstMount.current = false
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month])
+  }, [year, month, preferencias?.cobra_adiantado])
 
   // ── contagem de dias ──────────────────────────────────────────────────────
 
@@ -237,10 +254,14 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
       const pacoteMes = findPacoteDoMes(pacotes, aluno.id, year, month)
       return pacoteMes ? Number(pacoteMes.valor) : 0
     }
+    // Duplas são somadas SEMPRE pelo valor real (metade da dupla por aluno),
+    // independente do modelo. Não entram em getCalculatedAulas/getAulas para
+    // não serem multiplicadas pelo valor base do aluno em planos por_aula.
+    const duplasTotal = duplas[aluno.id]?.totalValor ?? 0
     if (aluno.modelo_cobranca === 'mensalidade') {
-      return Number(aluno.valor) + (extras[aluno.id]?.totalValor ?? 0)
+      return Number(aluno.valor) + (extras[aluno.id]?.totalValor ?? 0) + duplasTotal
     }
-    return getAulas(aluno) * Number(aluno.valor)
+    return getAulas(aluno) * Number(aluno.valor) + duplasTotal
   }
 
   // ── ajuste manual ─────────────────────────────────────────────────────────
@@ -461,6 +482,7 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
           {alunos.map((aluno) => {
             const fixedAulas    = getFixedAulas(aluno)
             const extraInfo     = extras[aluno.id]
+            const duplaInfo     = duplas[aluno.id]
             const calculado     = getCalculatedAulas(aluno)
             const aulas         = getAulas(aluno)
             const total         = getTotal(aluno)
@@ -554,12 +576,17 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
                         +{formatCurrency(extraInfo.totalValor)} extras
                       </p>
                     )}
+                    {!isPacote && duplaInfo && (
+                      <p className="text-xs font-medium" style={{ color: '#34D399' }}>
+                        +{formatCurrency(duplaInfo.totalValor)} {duplaInfo.count === 1 ? 'dupla' : 'duplas'}
+                      </p>
+                    )}
                     {isPacote && pacoteAtivoOutroMes && (
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                         Pago no início do pacote
                       </p>
                     )}
-                    {!isPacote && !extraInfo && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>total</p>}
+                    {!isPacote && !extraInfo && !duplaInfo && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>total</p>}
                   </div>
                 </div>
 
@@ -681,6 +708,11 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
                               {!isAjustado && extraInfo && (
                                 <span className="text-xs font-normal ml-1" style={{ color: '#69F0AE' }}>
                                   ({fixedAulas} fixas + {extraInfo.count} extra{extraInfo.count > 1 ? 's' : ''})
+                                </span>
+                              )}
+                              {!isAjustado && duplaInfo && (
+                                <span className="text-xs font-normal ml-1" style={{ color: '#34D399' }}>
+                                  + {duplaInfo.count} {duplaInfo.count === 1 ? 'dupla' : 'duplas'}
                                 </span>
                               )}
                             </span>

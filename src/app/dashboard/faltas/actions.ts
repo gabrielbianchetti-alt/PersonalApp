@@ -124,6 +124,33 @@ export async function createFaltaAction(input: {
     .single()
 
   if (error) { console.error('createFalta:', error.code, error.message); return { error: 'Erro ao registrar falta.' } }
+
+  // Aluno faltou numa aula em dupla → o parceiro passa a ser cobrado normal
+  // pelo modelo dele (mensalidade absorve, por_aula multiplica pelo valor base,
+  // pacote já consumiu). culpa='professor' não converte: aula cancelada pros 2.
+  if (input.culpa === 'aluno') {
+    const { data: duplaEvents } = await supabase
+      .from('eventos_agenda')
+      .select('id, parceiro_evento_id')
+      .eq('professor_id', user.id)
+      .eq('aluno_id', input.aluno_id)
+      .eq('data_especifica', input.data_falta)
+      .eq('eh_dupla', true)
+      .in('tipo', ['aula', 'reposicao'])
+    const idsToUnlink = new Set<string>()
+    for (const ev of (duplaEvents ?? []) as Array<{ id: string; parceiro_evento_id: string | null }>) {
+      idsToUnlink.add(ev.id)
+      if (ev.parceiro_evento_id) idsToUnlink.add(ev.parceiro_evento_id)
+    }
+    if (idsToUnlink.size > 0) {
+      await supabase
+        .from('eventos_agenda')
+        .update({ eh_dupla: false, parceiro_evento_id: null, valor: null, updated_at: new Date().toISOString() })
+        .in('id', Array.from(idsToUnlink))
+        .eq('professor_id', user.id)
+    }
+  }
+
   return { data: row as FaltaRow }
 }
 

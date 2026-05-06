@@ -18,6 +18,7 @@ export function getPrimeiroHorario(horarios: HorarioDia[]): string {
 
 export type ModeloCobranca = 'por_aula' | 'mensalidade' | 'pacote'
 export type TipoPacote     = 'fixo' | 'alternado'
+export type FrequenciaDupla = 'sempre' | 'dias_especificos' | 'esporadico'
 
 export interface AlunoFormData {
   // Etapa 1
@@ -44,6 +45,12 @@ export interface AlunoFormData {
   pacote_validade_dias: string      // ex "30"
   pacote_data_inicio:   string      // YYYY-MM-DD
   pacote_data_cobranca: string      // YYYY-MM-DD
+
+  // Etapa 2 — Aulas em Dupla (todos opcionais; sem dupla = parceiro_id vazio)
+  parceiro_id?:         string             // UUID do parceiro (vazio = sem dupla)
+  frequencia_dupla?:    FrequenciaDupla    // sempre | dias_especificos | esporadico
+  dias_dupla?:          string[]           // dias da semana ('seg'|...|'dom') quando frequencia='dias_especificos'
+  valor_aula_dupla?:    string             // valor TOTAL da aula em dupla (será dividido por 2)
 
   // Etapa 3
   objetivos: string[]

@@ -18,6 +18,34 @@ export async function criarAlunoAction(
 
   const isPacote = data.modelo_cobranca === 'pacote'
 
+  // Campos de Aulas em Dupla (Etapa 3): só persistidos quando houver parceiro_id.
+  // Validação bidirecional: se o parceiro escolhido já está em dupla com outro
+  // aluno (parceiro_id != NULL e != este aluno futuro), bloqueamos a operação.
+  const parceiroIdRaw = (data.parceiro_id ?? '').trim()
+  const dupla = parceiroIdRaw
+    ? {
+        parceiro_id:      parceiroIdRaw,
+        frequencia_dupla: data.frequencia_dupla ?? 'sempre',
+        dias_dupla:       data.dias_dupla && data.dias_dupla.length > 0 ? data.dias_dupla : null,
+        valor_aula_dupla: data.valor_aula_dupla ? parseFloat(data.valor_aula_dupla) : null,
+      }
+    : null
+
+  if (dupla) {
+    const { data: parceiro, error: pErr } = await supabase
+      .from('alunos')
+      .select('id, nome, parceiro_id')
+      .eq('id', dupla.parceiro_id)
+      .eq('professor_id', user.id)
+      .maybeSingle()
+    if (pErr) {
+      console.warn('criarAluno: pre-check do parceiro falhou (segue mesmo assim):', pErr.code, pErr.message)
+    } else if (parceiro && parceiro.parceiro_id) {
+      return { error: `${parceiro.nome} já está em dupla com outro aluno. Desfaça a dupla atual primeiro.` }
+    }
+    // Se !parceiro, o INSERT vai falhar com FK constraint se o ID for realmente inválido.
+  }
+
   const basePayload = {
     professor_id: user.id,
 
@@ -43,11 +71,23 @@ export async function criarAlunoAction(
     observacoes: data.observacoes.trim() || null,
   }
 
+  const payloadComDupla = dupla ? { ...basePayload, ...dupla } : basePayload
+
   let { data: row, error } = await supabase
     .from('alunos')
-    .insert(basePayload)
+    .insert(payloadComDupla)
     .select()
     .single()
+
+  // Fallback: colunas de dupla não existem ainda no banco (migration Etapa 2 não rodou).
+  if (error && dupla && isColumnMissing(error)) {
+    const retry = await supabase.from('alunos').insert(basePayload).select().single()
+    row = retry.data
+    error = retry.error
+    // Nota: como o save da dupla não foi possível, o aluno foi criado sem dupla.
+    // Não falhamos a request — apenas registramos no log para o professor saber.
+    if (!error) console.warn('criarAluno: dupla ignorada (rode supabase-migrations/aulas-em-dupla-schema.sql)')
+  }
 
   // Fallback: banco antigo com `forma_pagamento` NOT NULL (coluna foi
   // centralizada em preferencias_cobranca.forma_pagamento_padrao). Reinsere
@@ -67,6 +107,26 @@ export async function criarAlunoAction(
       code: error.code, message: error.message, details: error.details, hint: error.hint,
     })
     return { error: formatSupabaseError(error, 'Erro ao salvar aluno') }
+  }
+
+  // Sincronização bidirecional da dupla: o parceiro também aponta para nós,
+  // herda a frequência/dias e o valor de aula em dupla. Best-effort — falha
+  // silenciosa apenas loga (o aluno principal já foi criado).
+  if (dupla && row) {
+    const novoId = (row as { id: string }).id
+    const { error: pareErr } = await supabase
+      .from('alunos')
+      .update({
+        parceiro_id:      novoId,
+        frequencia_dupla: dupla.frequencia_dupla,
+        dias_dupla:       dupla.dias_dupla,
+        valor_aula_dupla: dupla.valor_aula_dupla,
+      })
+      .eq('id', dupla.parceiro_id)
+      .eq('professor_id', user.id)
+    if (pareErr && !isColumnMissing(pareErr)) {
+      console.error('criarAluno sincroniza parceiro:', pareErr)
+    }
   }
 
   // Cria o primeiro pacote para alunos tipo pacote
@@ -127,6 +187,14 @@ function isLegacyFormaPagamentoNotNull(err: PgError): boolean {
   if (err.code !== '23502') return false
   const blob = `${err.message ?? ''} ${err.details ?? ''}`
   return blob.includes('forma_pagamento')
+}
+
+function isColumnMissing(err: PgError | null): boolean {
+  if (!err) return false
+  if (err.code === '42703') return true              // postgres native
+  if (err.code === 'PGRST204') return true           // postgrest schema cache
+  const msg = err.message ?? ''
+  return msg.includes('does not exist') || msg.includes('Could not find the')
 }
 
 function formatSupabaseError(err: PgError, prefix: string): string {

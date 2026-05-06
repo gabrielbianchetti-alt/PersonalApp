@@ -41,6 +41,16 @@ function validateStep(step: number, data: AlunoFormData): Record<string, string>
     }
     const valorNum = parseFloat(data.valor)
     if (!data.valor || isNaN(valorNum) || valorNum <= 0) errors.valor = 'Informe um valor válido'
+    // Aulas em Dupla: se o toggle "Sim" está ativo (frequencia_dupla setada),
+    // exigir parceiro + valor + dias quando aplicável.
+    if (data.frequencia_dupla) {
+      if (!data.parceiro_id) errors.parceiro_id = 'Escolha um parceiro de dupla'
+      const vd = parseFloat(data.valor_aula_dupla ?? '')
+      if (isNaN(vd) || vd <= 0) errors.valor_aula_dupla = 'Informe o valor da aula em dupla'
+      if (data.frequencia_dupla === 'dias_especificos' && (data.dias_dupla ?? []).length === 0) {
+        errors.dias_dupla = 'Selecione ao menos um dia da semana'
+      }
+    }
   }
 
   if (step === 2) {

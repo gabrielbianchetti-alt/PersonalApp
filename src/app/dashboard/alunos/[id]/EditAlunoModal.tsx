@@ -33,6 +33,16 @@ function validateAll(data: AlunoFormData): Record<string, string> {
   if (!data.valor || isNaN(valorNum) || valorNum <= 0) errs.valor = 'Informe um valor válido'
   // Health
   if (data.objetivos.length === 0) errs.objetivos = 'Selecione ao menos um objetivo'
+  // Aulas em Dupla: se o toggle "Sim" está ativo (frequencia_dupla setada),
+  // exigir parceiro + valor + dias quando aplicável.
+  if (data.frequencia_dupla) {
+    if (!data.parceiro_id) errs.parceiro_id = 'Escolha um parceiro de dupla'
+    const vd = parseFloat(data.valor_aula_dupla ?? '')
+    if (isNaN(vd) || vd <= 0) errs.valor_aula_dupla = 'Informe o valor da aula em dupla'
+    if (data.frequencia_dupla === 'dias_especificos' && (data.dias_dupla ?? []).length === 0) {
+      errs.dias_dupla = 'Selecione ao menos um dia da semana'
+    }
+  }
   return errs
 }
 
@@ -184,6 +194,7 @@ export function EditAlunoModal({ alunoId, initialData, onClose, onSaved }: Props
               data={formData}
               errors={errors}
               onChange={handleChange}
+              selfId={alunoId}
             />
           )}
           {tab === 2 && (
