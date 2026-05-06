@@ -1,9 +1,18 @@
 'use server'
 
 import { randomUUID } from 'crypto'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { shouldBlockInDemo } from '@/lib/demo/guard'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
+
+// Invalidate the entire /dashboard subtree so navigating between
+// agenda → dashboard → cobrança → cálculo → financeiro picks up the new
+// state on the next visit. The dashboard root reads from eventos_agenda,
+// alunos, cobrancas, faltas and pacotes — every mutation here can affect it.
+function revalidateDashboardTree() {
+  revalidatePath('/dashboard', 'layout')
+}
 
 export type EventoTipo = 'aula' | 'reposicao' | 'reuniao' | 'bloqueado' | 'refeicao' | 'outro' | 'aula_extra'
 
@@ -126,6 +135,7 @@ export async function createEventoAction(
     }
   }
 
+  revalidateDashboardTree()
   return { data: row as EventoAgendaRow }
 }
 
@@ -178,6 +188,7 @@ export async function updateEventoAction(
     }
   }
 
+  revalidateDashboardTree()
   return { data: row as EventoAgendaRow }
 }
 
@@ -219,6 +230,7 @@ export async function updateAlunoScheduleAction(
     .eq('professor_id', user.id)
 
   if (error) { console.error('updateAlunoSchedule:', error); return { error: 'Erro ao atualizar agenda.' } }
+  revalidateDashboardTree()
   return {}
 }
 
@@ -287,6 +299,7 @@ export async function deleteEventoAction(
     }
   }
 
+  revalidateDashboardTree()
   return {}
 }
 
@@ -321,6 +334,7 @@ export async function createEventoSerieAction(
     console.error('createEventoSerie:', error.code, error.message, error.details, error.hint)
     return { error: `Erro ao criar série: ${error.message ?? error.code}` }
   }
+  revalidateDashboardTree()
   return { data: data as EventoAgendaRow[], serieId }
 }
 
@@ -343,5 +357,6 @@ export async function deleteEventoSerieAction(
     .select('id')
 
   if (error) { console.error('deleteEventoSerie:', error); return { error: 'Erro ao remover série.' } }
+  revalidateDashboardTree()
   return { deletedIds: (data ?? []).map(r => r.id as string) }
 }

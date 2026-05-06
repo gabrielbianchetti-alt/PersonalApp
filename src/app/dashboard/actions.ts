@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { shouldBlockInDemo } from '@/lib/demo/guard'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
@@ -32,6 +33,7 @@ export async function upsertCobrancaPagoAction(
     .single()
 
   if (error) { console.error('upsertCobrancaPago:', error); return { error: 'Erro ao registrar pagamento.' } }
+  revalidatePath('/dashboard', 'layout')
   return { id: data.id }
 }
 
@@ -51,6 +53,7 @@ export async function desfazerPagoAction(
     .eq('professor_id', user.id)
 
   if (error) { console.error('desfazerPago:', error); return { error: 'Erro ao desfazer pagamento.' } }
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -66,5 +69,6 @@ export async function saveMetaAction(
     .upsert({ professor_id: user.id, meta_mensal: metaMensal }, { onConflict: 'professor_id' })
 
   if (error) { console.error('saveMeta:', error); return { error: 'Erro ao salvar meta.' } }
+  revalidatePath('/dashboard', 'layout')
   return {}
 }

@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { shouldBlockInDemo } from '@/lib/demo/guard'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
@@ -89,6 +90,7 @@ export async function criarSuspensaoAction(input: {
 
   if (statusError) { console.error('updateAlunoPausado:', statusError); return { error: 'Suspensão criada, mas falha ao pausar aluno.' } }
 
+  revalidatePath('/dashboard', 'layout')
   return { data: row as SuspensaoRow }
 }
 
@@ -171,6 +173,7 @@ export async function reativarAlunoAction(
 
   if (alunoError) { console.error('reativarAluno:', alunoError); return { error: 'Suspensão encerrada, mas falha ao reativar aluno.' } }
 
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -194,6 +197,7 @@ export async function encerrarSuspensaoAction(
     console.error('encerrarSuspensao:', error)
     return { error: `Erro ao encerrar suspensão: ${error.message}` }
   }
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -234,6 +238,7 @@ export async function excluirSuspensaoAction(
     }
   }
 
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -256,5 +261,6 @@ export async function limparHistoricoAction(): Promise<{ error?: string }> {
     return { error: `Erro ao limpar histórico: ${error.message}` }
   }
 
+  revalidatePath('/dashboard', 'layout')
   return {}
 }

@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { shouldBlockInDemo } from '@/lib/demo/guard'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
@@ -81,6 +82,7 @@ export async function createCustoAction(
   }
 
   if (error) { console.error('createCusto:', error); return { error: 'Erro ao salvar custo.' } }
+  revalidatePath('/dashboard', 'layout')
   return { data: row as CustoRow }
 }
 
@@ -117,6 +119,7 @@ export async function updateCustoAction(
   }
 
   if (res.error) { console.error('updateCusto:', res.error); return { error: 'Erro ao atualizar custo.' } }
+  revalidatePath('/dashboard', 'layout')
   return { data: res.data as CustoRow }
 }
 
@@ -198,6 +201,7 @@ export async function deleteCustoAction(
       }
     }
 
+    revalidatePath('/dashboard', 'layout')
     return {}
   }
 
@@ -206,6 +210,7 @@ export async function deleteCustoAction(
     .eq('id', id).eq('professor_id', user.id)
 
   if (error) { console.error('deleteCusto (variavel):', error); return { error: 'Erro ao remover custo.' } }
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -339,19 +344,20 @@ export async function ensureFixosForMesAction(
   const { error: ie1 } = await supabase.from('custos').insert(
     baseRows.map((r, i) => ({ ...r, ativo: true, origem_id: toInsert[i].id }))
   )
-  if (!ie1) return { inserted: toInsert.length }
+  if (!ie1) { revalidatePath('/dashboard', 'layout'); return { inserted: toInsert.length } }
 
   if (isColumnMissing(ie1)) {
     // Attempt 2: with ativo only (origem_id missing)
     const { error: ie2 } = await supabase.from('custos').insert(
       baseRows.map(r => ({ ...r, ativo: true }))
     )
-    if (!ie2) return { inserted: toInsert.length }
+    if (!ie2) { revalidatePath('/dashboard', 'layout'); return { inserted: toInsert.length } }
 
     if (isColumnMissing(ie2)) {
       // Attempt 3: bare rows (neither column exists)
       const { error: ie3 } = await supabase.from('custos').insert(baseRows)
       if (ie3) { console.error('[ensureFixos] bare insert error:', ie3.message); return { inserted: 0, error: ie3.message } }
+      revalidatePath('/dashboard', 'layout')
       return { inserted: toInsert.length }
     }
 
@@ -393,6 +399,7 @@ export async function createReceitaExtraAction(input: {
     .single()
 
   if (error) { console.error('createReceitaExtra:', error); return { error: 'Erro ao salvar receita.' } }
+  revalidatePath('/dashboard', 'layout')
   return { data: data as ReceitaExtraRow }
 }
 
@@ -429,6 +436,7 @@ export async function deleteReceitaExtraAction(
     .eq('professor_id', user.id)
 
   if (error) { console.error('deleteReceitaExtra:', error); return { error: 'Erro ao remover receita.' } }
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 

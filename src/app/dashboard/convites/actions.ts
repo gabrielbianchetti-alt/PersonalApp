@@ -99,7 +99,7 @@ export async function createConviteAction(
     .single()
 
   if (error) { console.error('createConvite:', error); return { error: error.message } }
-  revalidatePath('/dashboard/alunos')
+  revalidatePath('/dashboard', 'layout')
   return { data: data as ConviteRow }
 }
 
@@ -246,8 +246,7 @@ export async function aprovarConviteAction(
     }
   }
 
-  revalidatePath('/dashboard/alunos')
-  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -283,7 +282,7 @@ export async function recusarConviteAction(
 
   if (error) { console.error('recusarConvite:', error); return { error: error.message } }
 
-  revalidatePath('/dashboard/alunos')
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -303,7 +302,7 @@ export async function cancelarConviteAction(
     .eq('status', 'pendente')
 
   if (error) { console.error('cancelarConvite:', error); return { error: error.message } }
-  revalidatePath('/dashboard/alunos')
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 

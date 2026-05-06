@@ -53,7 +53,7 @@ export async function saveFeriadoDecisaoAction(
     }, { onConflict: 'professor_id,data_feriado' })
 
   if (error) { console.error('saveFeriadoDecisao:', error); return { error: error.message } }
-  revalidatePath('/dashboard/financeiro')
-  revalidatePath('/dashboard/calculo')
+  // Feriados afetam cálculo mensal, cobranças e dashboard — invalida tudo.
+  revalidatePath('/dashboard', 'layout')
   return {}
 }

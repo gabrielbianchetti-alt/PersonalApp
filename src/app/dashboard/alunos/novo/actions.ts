@@ -172,9 +172,9 @@ export async function criarAlunoAction(
     }
   }
 
-  revalidatePath('/dashboard/alunos')
-  revalidatePath('/dashboard/pacotes')
-  revalidatePath('/dashboard/agenda')
+  // Novo aluno afeta dashboard root (totalAlunos, faturamento, aulasHoje),
+  // alunos, agenda, pacotes, cobrança, cálculo e financeiro — invalida tudo.
+  revalidatePath('/dashboard', 'layout')
   return { data: row as Record<string, unknown> }
 }
 

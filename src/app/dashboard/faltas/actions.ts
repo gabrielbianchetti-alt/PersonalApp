@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { shouldBlockInDemo } from '@/lib/demo/guard'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
@@ -62,6 +63,7 @@ export async function savePreferenciasAction(
     .upsert({ professor_id: user.id, ...prefs }, { onConflict: 'professor_id' })
 
   if (error) { console.error('savePrefs:', error); return { error: 'Erro ao salvar preferências.' } }
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -151,6 +153,7 @@ export async function createFaltaAction(input: {
     }
   }
 
+  revalidatePath('/dashboard', 'layout')
   return { data: row as FaltaRow }
 }
 
@@ -213,6 +216,7 @@ export async function resolveFaltaAction(
     console.error('resolveFalta:', error.code, error.message, error.hint ?? '')
     return { error: `[${error.code}] ${error.message}${error.hint ? ' — ' + error.hint : ''}` }
   }
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -245,6 +249,7 @@ export async function desfazerFaltaAction(
     .eq('professor_id', user.id)
 
   if (error) { console.error('desfazerFalta:', error); return { error: 'Erro ao desfazer resolução.' } }
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -261,6 +266,7 @@ export async function deleteFaltaAction(id: string): Promise<{ error?: string }>
     .eq('professor_id', user.id)
 
   if (error) { console.error('deleteFalta:', error); return { error: 'Erro ao remover falta.' } }
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -284,6 +290,9 @@ export async function processVencidosAction(): Promise<{ updated: number; error?
     .select('id')
 
   if (error) { console.error('processVencidos:', error); return { updated: 0, error: 'Erro ao processar vencidos.' } }
+  // Only invalidate if we actually changed rows — this runs on every agenda
+  // page load; revalidating unconditionally would defeat caching entirely.
+  if ((data ?? []).length > 0) revalidatePath('/dashboard', 'layout')
   return { updated: (data ?? []).length }
 }
 

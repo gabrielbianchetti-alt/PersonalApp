@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { shouldBlockInDemo } from '@/lib/demo/guard'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
@@ -39,6 +40,7 @@ export async function upsertCobrancaAction(data: {
     return { error: 'Erro ao salvar cobrança.' }
   }
 
+  revalidatePath('/dashboard', 'layout')
   return { id: row.id }
 }
 
@@ -58,5 +60,6 @@ export async function updateStatusAction(
     .eq('professor_id', user.id)
 
   if (error) return { error: 'Erro ao atualizar status.' }
+  revalidatePath('/dashboard', 'layout')
   return null
 }

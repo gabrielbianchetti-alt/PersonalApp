@@ -57,7 +57,7 @@ export async function marcarLidaAction(notifUsuarioId: string): Promise<{ error?
     .eq('usuario_id', user.id)
 
   if (error) { console.error('marcarLida:', error); return { error: 'Erro.' } }
-  revalidatePath('/dashboard')
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -74,7 +74,7 @@ export async function marcarTodasLidasAction(): Promise<{ error?: string }> {
     .eq('lida', false)
 
   if (error) { console.error('marcarTodasLidas:', error); return { error: 'Erro.' } }
-  revalidatePath('/dashboard')
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 

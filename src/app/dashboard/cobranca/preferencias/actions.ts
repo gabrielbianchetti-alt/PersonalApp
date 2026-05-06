@@ -1,8 +1,16 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { shouldBlockInDemo } from '@/lib/demo/guard'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
+
+function ok(): { success: true } {
+  // Preferências afetam a renderização das mensagens e o cálculo de adiantado
+  // x atrasado em cobrança/dashboard — invalida o subtree.
+  revalidatePath('/dashboard', 'layout')
+  return { success: true }
+}
 
 type State = { error?: string; success?: boolean } | null
 
@@ -53,7 +61,7 @@ export async function savePreferenciasAction(
     .from('preferencias_cobranca')
     .upsert(withTiming, { onConflict: 'professor_id' })
 
-  if (!e0) return { success: true }
+  if (!e0) return ok()
 
   // Attempt 1: cobra_adiantado ainda não existe → salva sem ela
   if (isColumnMissing(e0)) {
@@ -64,7 +72,7 @@ export async function savePreferenciasAction(
         { onConflict: 'professor_id' },
       )
 
-    if (!e1) return { success: true }
+    if (!e1) return ok()
 
     // Attempt 2: forma_pagamento_padrao ainda não existe → salva sem ela
     if (isColumnMissing(e1)) {
@@ -72,7 +80,7 @@ export async function savePreferenciasAction(
         .from('preferencias_cobranca')
         .upsert({ ...base, tipo_data_cobranca: tipoDataCobranca }, { onConflict: 'professor_id' })
 
-      if (!e2) return { success: true }
+      if (!e2) return ok()
 
       // Attempt 3: nem tipo_data_cobranca existe → salva só o base
       if (isColumnMissing(e2)) {
@@ -80,7 +88,7 @@ export async function savePreferenciasAction(
           .from('preferencias_cobranca')
           .upsert(base, { onConflict: 'professor_id' })
 
-        if (!e3) return { success: true }
+        if (!e3) return ok()
 
         console.error('savePreferencias (fallback 3) error:', e3)
         return { error: 'Erro ao salvar preferências.' }

@@ -148,8 +148,9 @@ export async function updateAlunoAction(
     if (e2 && !isColumnMissing(e2)) console.error('updateAluno sincroniza novo parceiro:', e2)
   }
 
-  revalidatePath(`/dashboard/alunos/${alunoId}`)
-  revalidatePath('/dashboard/alunos')
+  // Aluno aparece em todo o /dashboard (root, agenda, cobrança, cálculo,
+  // financeiro, pacotes) — invalida o subtree inteiro.
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -204,5 +205,6 @@ export async function deleteAlunoAction(
     return { error: `Erro ao excluir aluno: ${error.message}` }
   }
 
+  revalidatePath('/dashboard', 'layout')
   return {}
 }

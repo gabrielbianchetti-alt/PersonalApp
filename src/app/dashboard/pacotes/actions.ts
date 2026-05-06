@@ -191,7 +191,7 @@ export async function renovarPacoteAction(params: {
 
   if (insErr) return { error: insErr.message }
 
-  revalidatePath('/dashboard/pacotes')
+  revalidatePath('/dashboard', 'layout')
   return { data: novo as PacoteRow }
 }
 
@@ -222,7 +222,7 @@ export async function consumirAulaPacoteAction(pacoteId: string): Promise<{ erro
 
   if (error) return { error: error.message }
 
-  revalidatePath('/dashboard/pacotes')
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
 
@@ -252,6 +252,6 @@ export async function devolverAulaPacoteAction(pacoteId: string): Promise<{ erro
 
   if (error) return { error: error.message }
 
-  revalidatePath('/dashboard/pacotes')
+  revalidatePath('/dashboard', 'layout')
   return {}
 }
