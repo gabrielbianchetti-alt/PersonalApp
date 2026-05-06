@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition, type ReactNode } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, DollarSign, XCircle, TrendingUp, RefreshCw, Zap, Users, Clock } from 'lucide-react'
+import { CheckCircle2, DollarSign, XCircle, TrendingUp, RefreshCw, Zap, Users, Clock, Palette } from 'lucide-react'
 import { toggleBlockAction, cancelarAssinaturaAdminAction, estenderTrialAction } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -619,6 +619,14 @@ export function AdminDashboard({ professors: initialProfessors, stats }: {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/admin/styleguide"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors"
+            style={{ background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid var(--green-border)' }}
+          >
+            <Palette size={13} strokeWidth={1.75} aria-hidden />
+            Design System
+          </Link>
           <Link
             href="/admin/notificacoes"
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors"
