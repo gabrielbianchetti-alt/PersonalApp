@@ -72,3 +72,24 @@ export async function setNudgesEnabledAction(enabled: boolean): Promise<{ error?
   revalidatePath('/dashboard', 'layout')
   return {}
 }
+
+/** Toggles "show numeric alert badges + banners" preference. */
+export async function setMenuAlertsEnabledAction(enabled: boolean): Promise<{ error?: string }> {
+  if (await shouldBlockInDemo()) return { error: DEMO_ERROR_SENTINEL }
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Sessão expirada.' }
+
+  const { error } = await supabase
+    .from('professor_perfil')
+    .update({ menu_alerts_enabled: enabled })
+    .eq('professor_id', user.id)
+
+  if (error) {
+    console.error('setMenuAlertsEnabled:', error)
+    return { error: 'Não foi possível salvar a preferência.' }
+  }
+
+  revalidatePath('/dashboard', 'layout')
+  return {}
+}

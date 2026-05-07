@@ -12,6 +12,7 @@ import {
   type HistoricoMes,
 } from './actions'
 import { isDemoMode } from '@/lib/demo/mode'
+import { getUserState } from '@/lib/user-state'
 import {
   getDemoAlunos, getDemoCobrancas, getDemoCustos, getDemoPacotes,
   getDemoPreferencias, getDemoReceitasExtras, getDemoHistorico,
@@ -144,6 +145,12 @@ export default async function FinanceiroPage({
 
   const alunosList = alunos ?? []
 
+  // Para o banner de "X cobranças vencidas". Em demo, deixa zero (não tem
+  // sentido mostrar alertas em dados fictícios).
+  const userState = !demo ? await getUserState().catch(() => null) : null
+  const cobrancasVencidasCount =
+    userState?.menuAlertsEnabled !== false ? (userState?.cobrancasVencidasCount ?? 0) : 0
+
   return (
     <FinanceiroHub
       initialTab={initialTab}
@@ -158,6 +165,7 @@ export default async function FinanceiroPage({
       receitasExtrasIniciais={(receitasExtras ?? []) as ReceitaExtraRow[]}
       historicoIniciais={(historico ?? []) as HistoricoMes[]}
       pacotes={pacotesRes.data ?? []}
+      cobrancasVencidasCount={cobrancasVencidasCount}
     />
   )
 }

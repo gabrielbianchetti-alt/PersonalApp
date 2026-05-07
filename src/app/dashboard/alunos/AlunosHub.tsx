@@ -7,6 +7,7 @@ import { Link2, UserPlus } from 'lucide-react'
 import { TabBar } from '@/components/dashboard/TabBar'
 import { AlunosGrid } from '@/components/alunos/AlunosGrid'
 import { TabSkeleton } from '@/components/ui/TabSkeleton'
+import { AlertBanner } from '@/components/dashboard/AlertBanner'
 import { DIAS_SEMANA, DURACAO_OPCOES } from '@/types/aluno'
 import { ConvidarAlunoModal } from './ConvidarAlunoModal'
 import { AprovacaoCard, PendenteCard } from './AprovacoesSection'
@@ -182,6 +183,19 @@ export function AlunosHub({
           key={toastKey}
           message="Aluno cadastrado com sucesso!"
           onDone={() => setToastKey(0)}
+        />
+      )}
+
+      {/* Banner contextual — explica o badge da sidebar e leva direto pra
+          aba certa. Não duplica o conteúdo da aba (que tem seu próprio cabeçalho). */}
+      {aprovacoesCount > 0 && tab !== 'aprovacao' && (
+        <AlertBanner
+          message={
+            aprovacoesCount === 1
+              ? '1 aluno aguardando sua aprovação.'
+              : `${aprovacoesCount} alunos aguardando sua aprovação.`
+          }
+          action={{ label: 'Aprovar agora', onClick: () => setTab('aprovacao') }}
         />
       )}
 

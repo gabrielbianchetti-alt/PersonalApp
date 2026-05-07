@@ -6,14 +6,22 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from './Logo'
 
+interface NavBadge {
+  /** Quantidade que precisa atenção. 0 esconde o badge. */
+  count: number
+  /** Texto curto explicando o que é (subtítulo + title/tooltip). */
+  label: string
+}
+
 /**
- * Conteúdo do item da sidebar com indicador de "pending" via useLinkStatus.
- * Aparece um ponto pulsante à direita enquanto a rota está em transição,
- * dando feedback imediato após o click.
+ * Conteúdo do item da sidebar com:
+ * - Indicador "pending" pulsante (transição de rota) via useLinkStatus.
+ * - Badge numerado estilo iOS no canto do ícone (count > 0).
+ * - Subtítulo discreto vermelho abaixo do label, eliminando ambiguidade
+ *   especialmente no mobile (sem hover).
+ * - title attribute pra tooltip nativo no desktop.
  *
- * `badge=true` adiciona um ponto vermelho persistente (ex: aluno aguardando
- * aprovação). O ponto de pending tem precedência: se a rota está carregando,
- * não mostramos o badge para não competir visualmente.
+ * Pending tem precedência sobre badge — não competem visualmente.
  */
 function NavItemBody({
   icon,
@@ -24,26 +32,45 @@ function NavItemBody({
   icon: React.ReactNode
   label: string
   isActive: boolean
-  badge?: boolean
+  badge?: NavBadge
 }) {
   const { pending } = useLinkStatus()
+  const showBadge = !!badge && badge.count > 0 && !pending
+  const display   = showBadge && badge.count > 99 ? '99+' : showBadge ? String(badge!.count) : ''
   return (
-    <span className="flex items-center gap-3 w-full">
-      <span className="shrink-0 relative">
+    <span className="flex items-start gap-3 w-full">
+      <span className="shrink-0 relative" style={{ marginTop: 2 }}>
         {icon}
-        {badge && !pending && (
+        {showBadge && (
           <span
             aria-hidden
-            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
-            style={{ background: '#EF4444', boxShadow: '0 0 0 2px var(--bg-surface)' }}
-          />
+            className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] font-bold flex items-center justify-center tabular-nums"
+            style={{
+              background: '#EF4444',
+              color: '#fff',
+              boxShadow: '0 0 0 2px var(--bg-surface)',
+              lineHeight: 1,
+            }}
+          >
+            {display}
+          </span>
         )}
       </span>
-      <span className="text-sm font-medium flex-1 truncate">{label}</span>
+      <span className="flex-1 min-w-0 flex flex-col">
+        <span className="text-sm font-medium truncate">{label}</span>
+        {showBadge && (
+          <span
+            className="text-[10.5px] truncate leading-tight mt-0.5"
+            style={{ color: '#EF4444', fontWeight: 600 }}
+          >
+            {badge!.label}
+          </span>
+        )}
+      </span>
       {pending && !isActive && (
         <span
           aria-hidden
-          className="w-1.5 h-1.5 rounded-full shrink-0"
+          className="w-1.5 h-1.5 rounded-full shrink-0 mt-2"
           style={{ background: 'var(--green-primary)', animation: 'ph-pulse 0.9s ease-in-out infinite' }}
         />
       )}
@@ -122,8 +149,9 @@ interface SidebarProps {
   professorNome: string
   isAdmin?: boolean
   badges?: {
-    alunos?: boolean
-    cobranca?: boolean
+    alunos?:     NavBadge
+    agenda?:     NavBadge
+    financeiro?: NavBadge
   }
 }
 
@@ -176,11 +204,18 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin, badg
             ? pathname === item.href
             : pathname === item.href || pathname.startsWith(item.href + '/')
 
-          // Badge mapping — Progressive Disclosure: ponto vermelho aparece
-          // apenas quando há ação pendente real (aprovações, cobranças).
-          const showBadge =
-            (item.href === '/dashboard/alunos'      && !!badges?.alunos)   ||
-            (item.href === '/dashboard/financeiro'  && !!badges?.cobranca)
+          // Mapeia o item da nav pro badge correspondente. Cada badge traz
+          // count + label — count > 0 mostra; label vira tooltip + subtítulo.
+          const itemBadge =
+            item.href === '/dashboard/alunos'     ? badges?.alunos     :
+            item.href === '/dashboard/agenda'     ? badges?.agenda     :
+            item.href === '/dashboard/financeiro' ? badges?.financeiro :
+            undefined
+
+          // Tooltip composto pra desktop hover (e long-press mobile via title).
+          const tooltip = itemBadge && itemBadge.count > 0
+            ? `${item.label}: ${itemBadge.label}`
+            : undefined
 
           return (
             <Link
@@ -188,6 +223,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin, badg
               href={item.href}
               prefetch
               onClick={onClose}
+              title={tooltip}
               className="flex items-center px-3 py-2.5 rounded-lg transition-colors duration-100"
               style={
                 isActive
@@ -197,7 +233,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin, badg
               onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--bg-card)' }}
               onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
             >
-              <NavItemBody icon={item.icon} label={item.label} isActive={isActive} badge={showBadge} />
+              <NavItemBody icon={item.icon} label={item.label} isActive={isActive} badge={itemBadge} />
             </Link>
           )
         })}

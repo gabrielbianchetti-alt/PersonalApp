@@ -5,6 +5,7 @@ import { AgendaHub } from './AgendaHub'
 import type { AgendaTab } from './AgendaHub'
 import type { FaltaRow, PrefsF } from '../faltas/actions'
 import { isDemoMode } from '@/lib/demo/mode'
+import { getUserState } from '@/lib/user-state'
 import { getDemoAlunos, getDemoEventos, getDemoFaltas } from '@/lib/demo/fixtures'
 
 export const metadata: Metadata = { title: 'Agenda — PersonalHub' }
@@ -101,6 +102,10 @@ export default async function AgendaPage({
   const rawTab = params.tab as AgendaTab
   const initialTab: AgendaTab = validTabs.includes(rawTab) ? rawTab : 'grade'
 
+  const userState = !demo ? await getUserState().catch(() => null) : null
+  const reposicoesUrgentesCount =
+    userState?.menuAlertsEnabled !== false ? (userState?.reposicoesUrgentesCount ?? 0) : 0
+
   return (
     <AgendaHub
       initialTab={initialTab}
@@ -109,6 +114,7 @@ export default async function AgendaPage({
       alunosFaltas={alunosFaltas}
       faltasIniciais={faltasRows}
       prefsIniciais={prefsDefault}
+      reposicoesUrgentesCount={reposicoesUrgentesCount}
     />
   )
 }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { TabBar } from '@/components/dashboard/TabBar'
 import { TabSkeleton } from '@/components/ui/TabSkeleton'
+import { AlertBanner } from '@/components/dashboard/AlertBanner'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { EventoAgendaRow } from './actions'
 import type { FaltaRow, PrefsF } from '../faltas/actions'
@@ -42,6 +43,8 @@ interface Props {
   alunosFaltas: { id: string; nome: string }[]
   faltasIniciais: FaltaRow[]
   prefsIniciais: PrefsF
+  /** Faltas pendentes vencendo em 7 dias — alimenta o banner. */
+  reposicoesUrgentesCount?: number
 }
 
 const TABS = [
@@ -58,6 +61,7 @@ export function AgendaHub({
   alunosFaltas,
   faltasIniciais,
   prefsIniciais,
+  reposicoesUrgentesCount = 0,
 }: Props) {
   const [tab, setTab] = useState<AgendaTab>(initialTab)
   const [visited, setVisited] = useState<Set<AgendaTab>>(new Set([initialTab]))
@@ -73,6 +77,18 @@ export function AgendaHub({
 
   return (
     <div className="flex flex-col min-h-full">
+
+      {/* Banner contextual — leva direto pra aba Registros, onde resolve. */}
+      {reposicoesUrgentesCount > 0 && tab !== 'faltas' && (
+        <AlertBanner
+          message={
+            reposicoesUrgentesCount === 1
+              ? '1 reposição vencendo em até 7 dias.'
+              : `${reposicoesUrgentesCount} reposições vencendo em até 7 dias.`
+          }
+          action={{ label: 'Ver registros', onClick: () => go('faltas') }}
+        />
+      )}
 
       {/* Section header + tabs */}
       <div

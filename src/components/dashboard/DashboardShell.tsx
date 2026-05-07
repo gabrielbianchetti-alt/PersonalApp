@@ -9,6 +9,8 @@ import { applyTheme, applyModo } from '@/lib/color'
 import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
+interface NavBadge { count: number; label: string }
+
 interface Props {
   children: React.ReactNode
   fotoUrl: string | null
@@ -16,10 +18,11 @@ interface Props {
   corTema: string
   modoTema?: ModoTema
   isAdmin?: boolean
-  /** Sidebar badges para Progressive Disclosure */
+  /** Sidebar badges para Progressive Disclosure — count + label por item. */
   badges?: {
-    alunos?: boolean
-    cobranca?: boolean
+    alunos?:     NavBadge
+    agenda?:     NavBadge
+    financeiro?: NavBadge
   }
 }
 

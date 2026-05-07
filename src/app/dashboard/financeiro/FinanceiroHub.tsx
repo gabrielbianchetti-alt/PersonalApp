@@ -4,6 +4,7 @@ import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { TabBar } from '@/components/dashboard/TabBar'
 import { TabSkeleton } from '@/components/ui/TabSkeleton'
+import { AlertBanner } from '@/components/dashboard/AlertBanner'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { PacoteComAluno } from '../pacotes/actions'
 import type { CustoRow, ReceitaExtraRow, HistoricoMes } from './actions'
@@ -92,6 +93,8 @@ interface Props {
   historicoIniciais: HistoricoMes[]
   // Pacotes
   pacotes: PacoteComAluno[]
+  /** Cobranças com status=pendente cuja data já passou — alimenta o banner. */
+  cobrancasVencidasCount?: number
 }
 
 const ALL_TABS = [
@@ -116,6 +119,7 @@ export function FinanceiroHub({
   receitasExtrasIniciais,
   historicoIniciais,
   pacotes,
+  cobrancasVencidasCount = 0,
 }: Props) {
   const [tab, setTab] = useState<FinanceiroTab>(initialTab)
   // Mantém as abas já visitadas montadas (hidden) para evitar re-fetch/re-render
@@ -146,6 +150,18 @@ export function FinanceiroHub({
 
   return (
     <div className="flex flex-col min-h-full">
+
+      {/* Banner contextual — só fora da aba Cobrança (lá já vai resolver). */}
+      {cobrancasVencidasCount > 0 && safeTab !== 'cobranca' && (
+        <AlertBanner
+          message={
+            cobrancasVencidasCount === 1
+              ? '1 cobrança vencida precisa de atenção.'
+              : `${cobrancasVencidasCount} cobranças vencidas precisam de atenção.`
+          }
+          action={{ label: 'Ver cobranças', onClick: () => go('cobranca') }}
+        />
+      )}
 
       {/* Section header + tabs */}
       <div

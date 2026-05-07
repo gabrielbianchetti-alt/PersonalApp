@@ -18,23 +18,38 @@ export interface UserState {
   hasCustos:                  boolean
   hasMonthHistory:            boolean   // 2+ months of cobranças
   monthsActive:               number    // months since first aluno
+  /** Convites com status='aguardando_aprovacao' */
+  aprovacoesPendentesCount:   number
+  /** Cobranças pendentes cuja data de cobrança já passou. */
+  cobrancasVencidasCount:     number
+  /** Faltas com status='pendente' vencendo nos próximos 7 dias. */
+  reposicoesUrgentesCount:    number
+  // Conveniência — computado das contagens.
   hasAprovacoesPendentes:     boolean
   hasCobrancasPendentes:      boolean
+  hasReposicoesUrgentes:      boolean
   nudgesEnabled:              boolean
+  /** Toggle de mostrar badges/banners de alerta (Configurações). */
+  menuAlertsEnabled:          boolean
   dismissedNudges:            ReadonlySet<string>
 }
 
 const EMPTY: UserState = {
-  hasStudents:            false,
-  studentsCount:          0,
-  hasActivePackages:      false,
-  hasCustos:              false,
-  hasMonthHistory:        false,
-  monthsActive:           0,
-  hasAprovacoesPendentes: false,
-  hasCobrancasPendentes:  false,
-  nudgesEnabled:          true,
-  dismissedNudges:        new Set(),
+  hasStudents:              false,
+  studentsCount:            0,
+  hasActivePackages:        false,
+  hasCustos:                false,
+  hasMonthHistory:          false,
+  monthsActive:             0,
+  aprovacoesPendentesCount: 0,
+  cobrancasVencidasCount:   0,
+  reposicoesUrgentesCount:  0,
+  hasAprovacoesPendentes:   false,
+  hasCobrancasPendentes:    false,
+  hasReposicoesUrgentes:    false,
+  nudgesEnabled:            true,
+  menuAlertsEnabled:        true,
+  dismissedNudges:          new Set(),
 }
 
 export const getUserState = cache(async (): Promise<UserState> => {
@@ -42,8 +57,11 @@ export const getUserState = cache(async (): Promise<UserState> => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return EMPTY
 
-  const today = new Date()
-  const mesAtual = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  const today      = new Date()
+  const todayDay   = today.getDate()
+  const todayIso   = today.toISOString().slice(0, 10)
+  const next7Iso   = new Date(today.getTime() + 7 * 86_400_000).toISOString().slice(0, 10)
+  const mesAtual   = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
   // Run independent queries in parallel; each one is a HEAD count or a tiny
   // select. Total work is well under a normal page render.
@@ -54,7 +72,8 @@ export const getUserState = cache(async (): Promise<UserState> => {
     cobrancasMesesRes,
     primeiroAlunoRes,
     aprovacoesCount,
-    cobrancasPendentesCount,
+    cobrancasPendentesData,
+    reposicoesUrgentesCount,
     perfilRes,
     dismissedRes,
   ] = await Promise.all([
@@ -84,13 +103,21 @@ export const getUserState = cache(async (): Promise<UserState> => {
       .select('id', { head: true, count: 'exact' })
       .eq('professor_id', user.id)
       .eq('status', 'aguardando_aprovacao'),
+    // Cobrancas pendentes — vamos filtrar "vencidas" em JS pq dia_cobranca
+    // mora em alunos. Limita a meses passados + atual pra não trazer futuro.
     supabase.from('cobrancas')
+      .select('id, mes_referencia, alunos!inner(dia_cobranca)')
+      .eq('professor_id', user.id)
+      .eq('status', 'pendente')
+      .lte('mes_referencia', mesAtual),
+    supabase.from('faltas')
       .select('id', { head: true, count: 'exact' })
       .eq('professor_id', user.id)
-      .eq('mes_referencia', mesAtual)
-      .eq('status', 'pendente'),
+      .eq('status', 'pendente')
+      .gte('prazo_vencimento', todayIso)
+      .lte('prazo_vencimento', next7Iso),
     supabase.from('professor_perfil')
-      .select('nudges_enabled')
+      .select('nudges_enabled, menu_alerts_enabled')
       .eq('professor_id', user.id)
       .maybeSingle(),
     supabase.from('nudges_dismissed')
@@ -102,21 +129,46 @@ export const getUserState = cache(async (): Promise<UserState> => {
   const mesesUnicos      = new Set((cobrancasMesesRes.data ?? []).map(r => r.mes_referencia as string))
   const primeiroIso      = (primeiroAlunoRes.data as { created_at: string } | null)?.created_at ?? null
   const monthsActive     = primeiroIso ? monthDiff(primeiroIso, today) : 0
-  // nudges_enabled defaults to true if column not present yet (pre-migration)
-  const nudgesEnabledRaw = (perfilRes.data as { nudges_enabled?: boolean } | null)?.nudges_enabled
+  // nudges_enabled / menu_alerts_enabled defaults to true if column not present yet
+  const perfil = perfilRes.data as { nudges_enabled?: boolean; menu_alerts_enabled?: boolean } | null
   const dismissedKeys    = new Set((dismissedRes.data ?? []).map(r => r.nudge_key as string))
 
+  // Cobranças vencidas: pendentes em mês passado contam todas, no mês atual
+  // só as cujo dia_cobranca < hoje.
+  type CobrancaWithAluno = {
+    id: string
+    mes_referencia: string
+    alunos: { dia_cobranca: number | null } | { dia_cobranca: number | null }[] | null
+  }
+  const cobrancasVencidasCount = (cobrancasPendentesData.data as CobrancaWithAluno[] | null ?? []).filter(c => {
+    if (c.mes_referencia < mesAtual) return true
+    if (c.mes_referencia === mesAtual) {
+      const al = Array.isArray(c.alunos) ? c.alunos[0] : c.alunos
+      const dia = al?.dia_cobranca ?? 1
+      return dia < todayDay
+    }
+    return false
+  }).length
+
+  const aprovCount   = aprovacoesCount.count ?? 0
+  const reposicCount = reposicoesUrgentesCount.count ?? 0
+
   return {
-    hasStudents:            studentsCount > 0,
+    hasStudents:              studentsCount > 0,
     studentsCount,
-    hasActivePackages:      (pacoteAlunoCount.count ?? 0) > 0,
-    hasCustos:              (custosCount.count ?? 0) > 0,
-    hasMonthHistory:        mesesUnicos.size >= 2,
+    hasActivePackages:        (pacoteAlunoCount.count ?? 0) > 0,
+    hasCustos:                (custosCount.count ?? 0) > 0,
+    hasMonthHistory:          mesesUnicos.size >= 2,
     monthsActive,
-    hasAprovacoesPendentes: (aprovacoesCount.count ?? 0) > 0,
-    hasCobrancasPendentes:  (cobrancasPendentesCount.count ?? 0) > 0,
-    nudgesEnabled:          nudgesEnabledRaw !== false,
-    dismissedNudges:        dismissedKeys,
+    aprovacoesPendentesCount: aprovCount,
+    cobrancasVencidasCount,
+    reposicoesUrgentesCount:  reposicCount,
+    hasAprovacoesPendentes:   aprovCount > 0,
+    hasCobrancasPendentes:    cobrancasVencidasCount > 0,
+    hasReposicoesUrgentes:    reposicCount > 0,
+    nudgesEnabled:            perfil?.nudges_enabled !== false,
+    menuAlertsEnabled:        perfil?.menu_alerts_enabled !== false,
+    dismissedNudges:          dismissedKeys,
   }
 })
 

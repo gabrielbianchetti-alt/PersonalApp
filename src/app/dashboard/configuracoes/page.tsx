@@ -35,6 +35,7 @@ export default async function ConfiguracoesPage() {
       email={perfilResult.email ?? ''}
       assinatura={assinaturaResult.data}
       nudgesEnabled={userState?.nudgesEnabled ?? true}
+      menuAlertsEnabled={userState?.menuAlertsEnabled ?? true}
     />
   )
 }

@@ -56,14 +56,38 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const isAdmin = ADMIN_EMAILS.includes(user?.email ?? '')
 
-  // Sidebar badges — pequenos pontos vermelhos quando há ação pendente.
+  // Sidebar badges — count + label por item. Subtítulo + tooltip aparecem
+  // automaticamente quando count > 0. Toggle global em Configurações.
   // getUserState é cached() pelo render tree, então a página subjacente
   // reaproveita a mesma resposta (zero round-trips extras).
   const userStateForBadges = !demo && user ? await getUserState().catch(() => null) : null
-  const sidebarBadges = userStateForBadges
+  const showAlerts = userStateForBadges?.menuAlertsEnabled !== false
+  const sidebarBadges = userStateForBadges && showAlerts
     ? {
-        alunos:   userStateForBadges.hasAprovacoesPendentes,
-        cobranca: userStateForBadges.hasCobrancasPendentes,
+        alunos: userStateForBadges.aprovacoesPendentesCount > 0
+          ? {
+              count: userStateForBadges.aprovacoesPendentesCount,
+              label: userStateForBadges.aprovacoesPendentesCount === 1
+                ? '1 aguardando aprovação'
+                : `${userStateForBadges.aprovacoesPendentesCount} aguardando aprovação`,
+            }
+          : undefined,
+        agenda: userStateForBadges.reposicoesUrgentesCount > 0
+          ? {
+              count: userStateForBadges.reposicoesUrgentesCount,
+              label: userStateForBadges.reposicoesUrgentesCount === 1
+                ? '1 reposição vencendo'
+                : `${userStateForBadges.reposicoesUrgentesCount} reposições vencendo`,
+            }
+          : undefined,
+        financeiro: userStateForBadges.cobrancasVencidasCount > 0
+          ? {
+              count: userStateForBadges.cobrancasVencidasCount,
+              label: userStateForBadges.cobrancasVencidasCount === 1
+                ? '1 cobrança vencida'
+                : `${userStateForBadges.cobrancasVencidasCount} cobranças vencidas`,
+            }
+          : undefined,
       }
     : undefined
 
