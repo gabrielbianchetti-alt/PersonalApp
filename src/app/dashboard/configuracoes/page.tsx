@@ -1,14 +1,16 @@
 import type { Metadata } from 'next'
 import { getOrCreatePerfilAction } from './actions'
 import { getOrCreateAssinaturaAction } from './assinatura-actions'
+import { getUserState } from '@/lib/user-state'
 import { Configuracoes } from './Configuracoes'
 
 export const metadata: Metadata = { title: 'Configurações — PersonalHub' }
 
 export default async function ConfiguracoesPage() {
-  const [perfilResult, assinaturaResult] = await Promise.all([
+  const [perfilResult, assinaturaResult, userState] = await Promise.all([
     getOrCreatePerfilAction(),
     getOrCreateAssinaturaAction(),
+    getUserState().catch(() => null),
   ])
 
   if (perfilResult.error || !perfilResult.data) {
@@ -32,6 +34,7 @@ export default async function ConfiguracoesPage() {
       perfil={perfilResult.data}
       email={perfilResult.email ?? ''}
       assinatura={assinaturaResult.data}
+      nudgesEnabled={userState?.nudgesEnabled ?? true}
     />
   )
 }

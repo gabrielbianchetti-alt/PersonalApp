@@ -16,9 +16,14 @@ interface Props {
   corTema: string
   modoTema?: ModoTema
   isAdmin?: boolean
+  /** Sidebar badges para Progressive Disclosure */
+  badges?: {
+    alunos?: boolean
+    cobranca?: boolean
+  }
 }
 
-export function DashboardShell({ children, fotoUrl, professorNome, corTema, modoTema = 'escuro', isAdmin }: Props) {
+export function DashboardShell({ children, fotoUrl, professorNome, corTema, modoTema = 'escuro', isAdmin, badges }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
 
@@ -52,6 +57,7 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
         fotoUrl={fotoUrl}
         professorNome={professorNome}
         isAdmin={isAdmin}
+        badges={badges}
       />
 
       {/* Mobile overlay */}

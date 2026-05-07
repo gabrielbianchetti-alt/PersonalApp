@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { applyTheme, applyModo } from '@/lib/color'
 import { saveNomeAction, saveFotoUrlAction, saveCorTemaAction, saveModoTemaAction } from './actions'
+import { setNudgesEnabledAction, resetNudgesAction } from '../nudges-actions'
 import { COR_PRESETS } from './types'
 import type { ModoTema, ProfessorPerfil } from './types'
 import type { AssinaturaData } from './assinatura-actions'
@@ -168,15 +169,106 @@ function AssinaturaSection({ assinatura }: { assinatura: AssinaturaData }) {
   )
 }
 
+// ─── nudges section ──────────────────────────────────────────────────────────
+
+function NudgesSection({ initialEnabled }: { initialEnabled: boolean }) {
+  const [enabled, setEnabled] = useState(initialEnabled)
+  const [resetState, setResetState] = useState<'idle' | 'done'>('idle')
+  const [, startToggle] = useTransition()
+  const [resetting, startReset] = useTransition()
+
+  function toggle() {
+    const next = !enabled
+    setEnabled(next)
+    startToggle(async () => {
+      const res = await setNudgesEnabledAction(next)
+      if (res.error === DEMO_ERROR_SENTINEL) {
+        notifyDemoSimulated('Alterar preferência de dicas')
+        setEnabled(!next)
+      }
+    })
+  }
+
+  function reset() {
+    startReset(async () => {
+      const res = await resetNudgesAction()
+      if (res.error === DEMO_ERROR_SENTINEL) {
+        notifyDemoSimulated('Reativar dicas')
+        return
+      }
+      setResetState('done')
+      setTimeout(() => setResetState('idle'), 2500)
+    })
+  }
+
+  return (
+    <Section title="Dicas e sugestões" icon="💡">
+      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+        O PersonalHub mostra sugestões contextuais para te ajudar a aproveitar
+        melhor o app — cadastrar custos, gerar cobranças no fim do mês, etc.
+      </p>
+
+      <div className="flex items-center justify-between gap-4 py-2">
+        <div>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Mostrar dicas inteligentes
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            Banners discretos, sempre dispensáveis
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-pressed={enabled}
+          aria-label="Mostrar dicas inteligentes"
+          className="relative w-11 h-6 rounded-full cursor-pointer transition-colors shrink-0"
+          style={{
+            background: enabled ? 'var(--green-primary)' : 'var(--bg-input)',
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          <span
+            className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
+            style={{
+              background: '#fff',
+              left: enabled ? 22 : 2,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            }}
+          />
+        </button>
+      </div>
+
+      <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        <button
+          type="button"
+          onClick={reset}
+          disabled={resetting || resetState === 'done'}
+          className="h-10 px-4 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-60"
+          style={
+            resetState === 'done'
+              ? { background: 'var(--green-muted)', color: 'var(--green-primary)' }
+              : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }
+          }
+        >
+          {resetting ? 'Reativando…' : resetState === 'done' ? '✓ Dicas reativadas' : 'Reativar todas as dicas dispensadas'}
+        </button>
+      </div>
+    </Section>
+  )
+}
+
 // ─── main props ───────────────────────────────────────────────────────────────
 
 interface Props {
   perfil: ProfessorPerfil
   email: string
   assinatura: AssinaturaData | null
+  /** Preferência atual de mostrar nudges (Progressive Disclosure) */
+  nudgesEnabled?: boolean
 }
 
-export function Configuracoes({ perfil, email, assinatura }: Props) {
+export function Configuracoes({ perfil, email, assinatura, nudgesEnabled = true }: Props) {
   // ── perfil ──────────────────────────────────────────────────────────────────
   const [nome, setNome] = useState(perfil.nome)
   const [fotoUrl, setFotoUrl] = useState<string | null>(perfil.foto_url)
@@ -539,6 +631,9 @@ export function Configuracoes({ perfil, email, assinatura }: Props) {
         </p>
         <AtivarDemoButton label="Ativar modo demo" />
       </Section>
+
+      {/* ── Dicas e sugestões (Progressive Disclosure) ─────────────────────── */}
+      <NudgesSection initialEnabled={nudgesEnabled} />
 
       {/* ── Indicação ───────────────────────────────────────────────────────── */}
       <Section title="Indique o PersonalHub" icon="🔗">

@@ -4,6 +4,7 @@ import { DashboardHome } from './DashboardHome'
 import { gerarNotificacoesAutomaticasAction } from './notificacoes/auto-notif'
 import { countWeekdaysInMonth, toDateStr, DOW_TO_KEY } from '@/lib/utils/date'
 import { isDemoMode } from '@/lib/demo/mode'
+import { getUserState } from '@/lib/user-state'
 import {
   getDemoAlunos, getDemoCobrancas, getDemoEventos, getDemoFaltas, getDemoPacotes,
   DEMO_PROFESSOR_NOME,
@@ -216,6 +217,26 @@ export default async function DashboardPage() {
     }
   })
 
+  // Progressive Disclosure: avalia nudges contextuais. Em demo desliga tudo
+  // (o tour já cobre a explicação) e respeita preferência + dispensas do user.
+  const userState = demo ? null : await getUserState().catch(() => null)
+  const dayOfMonth = now.getDate()
+  const lastDayOfMonth = new Date(year, month + 1, 0).getDate()
+  const isLast5DaysOfMonth = dayOfMonth >= (lastDayOfMonth - 4)
+  const cobrancasGeradas = (cobrancas ?? []).length > 0
+  const nudges = !demo && userState && userState.nudgesEnabled ? {
+    cadastrarCustos: userState.hasStudents
+      && !userState.hasCustos
+      && userState.monthsActive >= 1
+      && !userState.dismissedNudges.has('cadastrar-custos'),
+    gerarCobrancas: userState.hasStudents
+      && isLast5DaysOfMonth
+      && !cobrancasGeradas
+      && !userState.dismissedNudges.has('gerar-cobrancas-fim-mes'),
+    personalizarMsg: userState.studentsCount >= 5
+      && !userState.dismissedNudges.has('personalizar-mensagem'),
+  } : undefined
+
   return (
     <DashboardHome
       professorNome={professorNome}
@@ -231,6 +252,7 @@ export default async function DashboardPage() {
       novosAlunosMes={novosAlunosMes}
       pacotesAlertas={pacotesAlertas}
       showDemoEmptyState={!demo && alunos.length === 0}
+      nudges={nudges}
     />
   )
 }

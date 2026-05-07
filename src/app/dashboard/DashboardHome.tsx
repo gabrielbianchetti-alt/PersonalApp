@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Hand, CheckCircle2, Sparkles } from 'lucide-react'
+import { Hand, CheckCircle2, Sparkles, UserPlus, Link2 } from 'lucide-react'
 import { formatCurrency } from '@/types/aluno'
 import { getFeriadosDoMes } from '@/lib/utils/feriados'
 import { AtivarDemoButton } from '@/components/dashboard/AtivarDemoButton'
 import { notifyDemoSimulated } from '@/components/dashboard/DemoToast'
+import { Nudge } from '@/components/dashboard/Nudge'
 import { DEMO_ERROR_SENTINEL } from '@/lib/demo/constants'
 import { upsertCobrancaPagoAction, desfazerPagoAction } from './actions'
 import { FaltaQuickActionModal } from './faltas/FaltaQuickActionModal'
@@ -71,6 +72,12 @@ interface Props {
   pacotesAlertas?:       PacoteAlertaInfo[]
   /** Quando true, mostra um CTA para ativar o Modo Demo (nenhum aluno real cadastrado) */
   showDemoEmptyState?:   boolean
+  /** Progressive Disclosure flags computed server-side */
+  nudges?: {
+    cadastrarCustos:    boolean
+    gerarCobrancas:     boolean
+    personalizarMsg:    boolean
+  }
 }
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -296,6 +303,7 @@ export function DashboardHome({
   novosAlunosMes,
   pacotesAlertas = [],
   showDemoEmptyState = false,
+  nudges,
 }: Props) {
   const [alunosCobranca, setAlunosCobranca] = useState<AlunoCobranca[]>(todosAlunosInit)
   const [cobrancaTab, setCobrancaTab]       = useState<CobrancaTab>('pendente')
@@ -484,31 +492,95 @@ export function DashboardHome({
         <AlertaCarrossel alertas={alertasVisiveis} />
       </div>
 
-      {/* Empty state — sem alunos cadastrados → CTA para explorar em demo */}
-      {showDemoEmptyState && (
+      {/* ── Zero alunos: card grande de boas-vindas ──────────────────────
+          Substitui as seções principais do dashboard por um único bloco de
+          onboarding focado: cadastrar primeiro aluno OU enviar convite.
+          O CTA de Demo entra como rota secundária.                       */}
+      {totalAlunos === 0 && (
         <div
-          className="flex flex-col items-center text-center gap-3 rounded-2xl p-6"
-          style={{ background: 'var(--bg-card)', border: '1px dashed rgba(16, 185, 129, 0.35)' }}
+          className="flex flex-col items-center text-center gap-4 rounded-3xl p-8 md:p-10"
+          style={{
+            background: 'var(--bg-card)',
+            border: '1px dashed var(--green-border)',
+            boxShadow: '0 0 0 6px rgba(16,185,129,0.05)',
+          }}
         >
-          <div className="w-11 h-11 rounded-full flex items-center justify-center"
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
             style={{ background: 'var(--green-muted)' }}>
-            <Sparkles size={20} strokeWidth={1.75} style={{ color: 'var(--green-primary)' }} aria-hidden />
+            <Hand size={26} strokeWidth={1.75} style={{ color: 'var(--green-primary)' }} aria-hidden />
           </div>
-          <div>
-            <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-              Explore com dados de exemplo
+          <div className="max-w-md">
+            <p className="text-xl md:text-2xl font-extrabold leading-tight" style={{ color: 'var(--text-primary)' }}>
+              Bem-vindo ao PersonalHub!
             </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Veja como o PersonalHub funciona com alunos, agenda e financeiro fictícios antes de cadastrar os seus.
+            <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
+              Cadastre seu primeiro aluno para começar — você verá agenda,
+              cobrança e financeiro ganharem vida automaticamente.
             </p>
           </div>
-          <AtivarDemoButton label="Ver demonstração" />
-          <Link href="/dashboard/alunos/novo" className="text-xs font-medium"
-            style={{ color: 'var(--text-muted)' }}>
-            ou cadastre seu primeiro aluno
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+            <Link
+              href="/dashboard/alunos/novo"
+              className="h-11 px-5 rounded-xl text-sm font-bold inline-flex items-center gap-2"
+              style={{ background: 'var(--green-primary)', color: '#000' }}
+            >
+              <UserPlus size={15} strokeWidth={2.25} aria-hidden />
+              Cadastrar aluno
+            </Link>
+            <Link
+              href="/dashboard/alunos?tab=aprovacao"
+              className="h-11 px-5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"
+              style={{
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <Link2 size={15} strokeWidth={1.75} aria-hidden />
+              Enviar convite por link
+            </Link>
+          </div>
+          {showDemoEmptyState && (
+            <div className="flex items-center gap-2 mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+              <Sparkles size={13} strokeWidth={1.75} aria-hidden />
+              <span>Quer ver como funciona antes?</span>
+              <AtivarDemoButton label="Ativar modo demo" />
+            </div>
+          )}
         </div>
       )}
+
+      {/* ── Nudges contextuais — só quando há contexto e não foram dispensados ── */}
+      {nudges?.cadastrarCustos && (
+        <Nudge
+          nudgeKey="cadastrar-custos"
+          title="Quer saber quanto você realmente lucra?"
+          description="Cadastre seus custos fixos (academia, transporte) e variáveis para ver o lucro real."
+          cta={{ label: 'Cadastrar custos', href: '/dashboard/financeiro?tab=custos' }}
+          dismissLabel="Depois"
+        />
+      )}
+      {nudges?.gerarCobrancas && (
+        <Nudge
+          nudgeKey="gerar-cobrancas-fim-mes"
+          title="Mês fechando! Gere as cobranças em 1 toque"
+          cta={{ label: 'Ir para Cobrança', href: '/dashboard/financeiro?tab=cobranca' }}
+        />
+      )}
+      {nudges?.personalizarMsg && (
+        <Nudge
+          nudgeKey="personalizar-mensagem"
+          title="Que tal personalizar sua mensagem de cobrança?"
+          description="Você já tem alguns alunos. Defina um modelo padrão para enviar com 1 toque."
+          cta={{ label: 'Personalizar agora', href: '/dashboard/cobranca/preferencias' }}
+          dismissLabel="Mais tarde"
+        />
+      )}
+
+      {/* Saudação + timeline + métricas seguem sempre visíveis — em zero
+          alunos elas mostram "Sem aulas hoje" e R$ 0,00, dando contexto
+          factual junto ao card de boas-vindas. Só o bloco de Cobranças
+          some quando não há aluno (não faria sentido). */}
 
       {/* ╔══════════════════════════════════════════════════════════════╗
           ║  BLOCO 3 — SAUDAÇÃO + TIMELINE DO DIA                        ║
@@ -656,8 +728,9 @@ export function DashboardHome({
       </div>
 
       {/* ╔══════════════════════════════════════════════════════════════╗
-          ║  BLOCO 5 — COBRANÇAS COM ABAS                                ║
+          ║  BLOCO 5 — COBRANÇAS COM ABAS (some quando zero alunos)      ║
           ╚══════════════════════════════════════════════════════════════╝ */}
+      {totalAlunos > 0 && (
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 20, overflow: 'hidden' }}>
 
         {/* Header */}
@@ -826,6 +899,7 @@ export function DashboardHome({
 
         </div>
       </div>
+      )}{/* ── fim do gate totalAlunos > 0 (Bloco 5) ───────────────────── */}
 
       {/* ╔══════════════════════════════════════════════════════════════╗
           ║  MODAL — Registrar falta / cancelamento a partir da timeline  ║

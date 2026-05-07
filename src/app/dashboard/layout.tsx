@@ -13,6 +13,7 @@ import type { ModoTema } from '@/app/dashboard/configuracoes/types'
 import { ADMIN_EMAILS } from '@/lib/constants'
 import { isDemoMode } from '@/lib/demo/mode'
 import { DEMO_PROFESSOR_NOME, getDemoPerfil } from '@/lib/demo/fixtures'
+import { getUserState } from '@/lib/user-state'
 
 // Bloqueia zoom no app autenticado (comportamento de app nativo)
 export const viewport: Viewport = {
@@ -55,6 +56,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const isAdmin = ADMIN_EMAILS.includes(user?.email ?? '')
 
+  // Sidebar badges — pequenos pontos vermelhos quando há ação pendente.
+  // getUserState é cached() pelo render tree, então a página subjacente
+  // reaproveita a mesma resposta (zero round-trips extras).
+  const userStateForBadges = !demo && user ? await getUserState().catch(() => null) : null
+  const sidebarBadges = userStateForBadges
+    ? {
+        alunos:   userStateForBadges.hasAprovacoesPendentes,
+        cobranca: userStateForBadges.hasCobrancasPendentes,
+      }
+    : undefined
+
   // Get (or create) assinatura — auto-starts 7-day trial on first login
   let assinatura = null
   if (user) {
@@ -81,6 +93,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         corTema={corTema}
         modoTema={modoTema}
         isAdmin={isAdmin}
+        badges={sidebarBadges}
       >
         {demo && <DemoBanner />}
         {!demo && assinatura && !isAdmin && <TrialBanner assinatura={assinatura} isAdmin={isAdmin} />}

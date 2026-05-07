@@ -94,12 +94,12 @@ interface Props {
   pacotes: PacoteComAluno[]
 }
 
-const TABS = [
+const ALL_TABS = [
   { key: 'calculo',  label: 'Cálculo Mensal',  shortLabel: 'Cálculo' },
   { key: 'cobranca', label: 'Cobrança' },
   { key: 'custos',   label: 'Custos e Lucro',  shortLabel: 'Custos' },
   { key: 'pacotes',  label: 'Pacotes' },
-]
+] as const
 
 // ─── component ────────────────────────────────────────────────────────────────
 
@@ -126,6 +126,19 @@ export function FinanceiroHub({
   // realtime e dispara router.refresh sem precisar trocar de aba.
   useRealtimeRefresh('eventos_agenda,cobrancas,alunos,faltas,pacotes,custos,receitas_extras,feriados_decisoes,preferencias_cobranca')
 
+  // Aba "Pacotes" só faz sentido quando há pacotes ou alunos do tipo pacote
+  // — Progressive Disclosure: esconde até existir contexto.
+  const hasPacoteContext =
+    pacotes.length > 0 ||
+    alunosCobranca.some(a => a.modelo_cobranca === 'pacote') ||
+    alunosCalculo.some(a => a.modelo_cobranca === 'pacote') ||
+    alunosCustos.some(a => (a as { modelo_cobranca?: string }).modelo_cobranca === 'pacote')
+
+  const TABS = ALL_TABS.filter(t => t.key !== 'pacotes' || hasPacoteContext)
+
+  // Se a tab inicial era "pacotes" mas não há contexto, cai pra "calculo"
+  const safeTab: FinanceiroTab = tab === 'pacotes' && !hasPacoteContext ? 'calculo' : tab
+
   function go(next: FinanceiroTab) {
     setTab(next)
     if (!visited.has(next)) setVisited(prev => new Set(prev).add(next))
@@ -140,19 +153,19 @@ export function FinanceiroHub({
         style={{ background: 'var(--bg-surface)' }}
       >
         <h1 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Financeiro</h1>
-        <TabBar tabs={TABS} active={tab} onChange={(k) => go(k as FinanceiroTab)} />
+        <TabBar tabs={TABS} active={safeTab} onChange={(k) => go(k as FinanceiroTab)} />
       </div>
 
       {/* Tab content — abas visitadas ficam montadas (com display:none) pra preservar
           estado ao alternar; abas não-visitadas ainda não baixaram o chunk. */}
       <div className="flex-1">
         {visited.has('calculo') && (
-          <div style={{ display: tab === 'calculo' ? 'block' : 'none' }}>
+          <div style={{ display: safeTab === 'calculo' ? 'block' : 'none' }}>
             <CalculoMensal alunos={alunosCalculo} pacotes={pacotes} preferencias={preferencias} />
           </div>
         )}
         {visited.has('cobranca') && (
-          <div style={{ display: tab === 'cobranca' ? 'block' : 'none' }}>
+          <div style={{ display: safeTab === 'cobranca' ? 'block' : 'none' }}>
             <CobrancaMensal
               alunos={alunosCobranca}
               cobrancasIniciais={cobrancasIniciais}
@@ -164,7 +177,7 @@ export function FinanceiroHub({
           </div>
         )}
         {visited.has('custos') && (
-          <div style={{ display: tab === 'custos' ? 'block' : 'none' }}>
+          <div style={{ display: safeTab === 'custos' ? 'block' : 'none' }}>
             <CustosLucro
               alunos={alunosCustos}
               custosIniciais={custosIniciais}
@@ -174,8 +187,8 @@ export function FinanceiroHub({
             />
           </div>
         )}
-        {visited.has('pacotes') && (
-          <div style={{ display: tab === 'pacotes' ? 'block' : 'none' }}>
+        {hasPacoteContext && visited.has('pacotes') && (
+          <div style={{ display: safeTab === 'pacotes' ? 'block' : 'none' }}>
             <PacotesHub pacotes={pacotes} initialError={null} embedded />
           </div>
         )}

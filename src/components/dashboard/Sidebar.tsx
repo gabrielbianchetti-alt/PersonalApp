@@ -10,20 +10,35 @@ import { Logo } from './Logo'
  * Conteúdo do item da sidebar com indicador de "pending" via useLinkStatus.
  * Aparece um ponto pulsante à direita enquanto a rota está em transição,
  * dando feedback imediato após o click.
+ *
+ * `badge=true` adiciona um ponto vermelho persistente (ex: aluno aguardando
+ * aprovação). O ponto de pending tem precedência: se a rota está carregando,
+ * não mostramos o badge para não competir visualmente.
  */
 function NavItemBody({
   icon,
   label,
   isActive,
+  badge,
 }: {
   icon: React.ReactNode
   label: string
   isActive: boolean
+  badge?: boolean
 }) {
   const { pending } = useLinkStatus()
   return (
     <span className="flex items-center gap-3 w-full">
-      <span className="shrink-0">{icon}</span>
+      <span className="shrink-0 relative">
+        {icon}
+        {badge && !pending && (
+          <span
+            aria-hidden
+            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
+            style={{ background: '#EF4444', boxShadow: '0 0 0 2px var(--bg-surface)' }}
+          />
+        )}
+      </span>
       <span className="text-sm font-medium flex-1 truncate">{label}</span>
       {pending && !isActive && (
         <span
@@ -106,9 +121,13 @@ interface SidebarProps {
   fotoUrl: string | null
   professorNome: string
   isAdmin?: boolean
+  badges?: {
+    alunos?: boolean
+    cobranca?: boolean
+  }
 }
 
-export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin, badges }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const firstName = professorNome.split(' ')[0] || professorNome
@@ -157,6 +176,12 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
             ? pathname === item.href
             : pathname === item.href || pathname.startsWith(item.href + '/')
 
+          // Badge mapping — Progressive Disclosure: ponto vermelho aparece
+          // apenas quando há ação pendente real (aprovações, cobranças).
+          const showBadge =
+            (item.href === '/dashboard/alunos'      && !!badges?.alunos)   ||
+            (item.href === '/dashboard/financeiro'  && !!badges?.cobranca)
+
           return (
             <Link
               key={item.href}
@@ -172,7 +197,7 @@ export function Sidebar({ isOpen, onClose, fotoUrl, professorNome, isAdmin }: Si
               onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--bg-card)' }}
               onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
             >
-              <NavItemBody icon={item.icon} label={item.label} isActive={isActive} />
+              <NavItemBody icon={item.icon} label={item.label} isActive={isActive} badge={showBadge} />
             </Link>
           )
         })}

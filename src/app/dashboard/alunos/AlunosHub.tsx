@@ -237,32 +237,57 @@ export function AlunosHub({
           <div className="p-4 md:p-6">
             {alunos.length === 0 ? (
               <div
-                className="flex flex-col items-center justify-center py-20 rounded-2xl"
-                style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-subtle)' }}
+                className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl text-center"
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px dashed var(--green-border)',
+                  boxShadow: '0 0 0 4px rgba(16,185,129,0.04)',
+                  maxWidth: 520,
+                  margin: '0 auto',
+                }}
               >
                 <div
                   className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-                  style={{ background: 'var(--bg-input)' }}
+                  style={{ background: 'var(--green-muted)' }}
                 >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green-primary)" strokeWidth="1.75">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                     <circle cx="9" cy="7" r="4" />
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
                 </div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Nenhum aluno cadastrado</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>Comece adicionando seu primeiro aluno</p>
-                <button
-                  onClick={() => setTab('novo')}
-                  className="mt-5 flex items-center gap-2 h-10 px-5 rounded-xl font-semibold text-sm"
-                  style={{ background: 'var(--green-primary)', color: '#000' }}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  Cadastrar primeiro aluno
-                </button>
+                <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                  Seus alunos aparecerão aqui
+                </p>
+                <p className="text-sm mt-1.5 max-w-md" style={{ color: 'var(--text-secondary)' }}>
+                  Adicione seu primeiro aluno ou envie um convite para que ele
+                  preencha os dados sozinho.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setTab('novo')}
+                    className="h-11 px-5 rounded-xl text-sm font-bold inline-flex items-center gap-2 cursor-pointer"
+                    style={{ background: 'var(--green-primary)', color: '#000' }}
+                  >
+                    <UserPlus size={15} strokeWidth={2.25} aria-hidden />
+                    Cadastrar aluno
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConvidarOpen(true)}
+                    className="h-11 px-5 rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
+                    style={{
+                      background: 'transparent',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <Link2 size={15} strokeWidth={1.75} aria-hidden />
+                    Enviar convite por link
+                  </button>
+                </div>
               </div>
             ) : (
               <AlunosGrid alunos={alunos} diasSemana={DIAS_SEMANA} duracaoOpcoes={DURACAO_OPCOES} />
