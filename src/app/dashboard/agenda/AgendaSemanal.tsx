@@ -79,7 +79,9 @@ const TIPO_LABEL: Record<EventoTipo, string> = {
 }
 const OUTRO_CORES = ['#F59E0B','#CE93D8','#EF4444','#38BDF8','#9E9E9E']
 
-const COMPACT_HOUR_PX = 40
+// Compact (mobile semana): 48px/h dá 24px por slot de 30 min — antes era 20px.
+// Continua mais denso que o desktop (64px/h) mas com tap-target mais aceitável.
+const COMPACT_HOUR_PX = 48
 const COMPACT_MIN_PX  = COMPACT_HOUR_PX / 60
 const COMPACT_GRID_H  = Math.ceil((GRID_END - GRID_START) * COMPACT_MIN_PX)
 
@@ -241,7 +243,17 @@ function DraggableBlock({
       data-block="true"
       onClick={onClick}
       onPointerDown={onPointerDown}
-      style={{ ...style, opacity: isSource ? 0 : 1, touchAction: 'none', userSelect: 'none' }}
+      style={{
+        ...style,
+        opacity: isSource ? 0 : 1,
+        touchAction: 'none',
+        userSelect: 'none',
+        // Em iOS, long-press abre o callout (copy/share) por cima do drag —
+        // matamos junto com o tap-highlight do Android Chrome.
+        WebkitTouchCallout: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        WebkitUserDrag: 'none',
+      } as React.CSSProperties}
       className={className}
     >
       {children}
@@ -270,7 +282,15 @@ function DroppableDay({
   return (
     <div
       ref={colRef}
-      style={style}
+      style={{
+        ...style,
+        // Coluna inteira: previne seleção do navegador no long-press de eventos
+        // dentro dela. touch-action fica padrão pra que scroll vertical funcione.
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitTapHighlightColor: 'transparent',
+      } as React.CSSProperties}
       className={className}
       onClick={onClick}
       onMouseMove={onMouseMove}
@@ -1798,6 +1818,14 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
 
   // ── DnD state ───────────────────────────────────────────────────────────────
   const [activeBlock, setActiveBlock]   = useState<ActiveBlock | null>(null)
+
+  // Adiciona body.ph-dragging enquanto há drag ativo — globaliza user-select:
+  // none + cursor:grabbing pra que a seleção de texto não escape da agenda.
+  useEffect(() => {
+    if (!activeBlock) return
+    document.body.classList.add('ph-dragging')
+    return () => { document.body.classList.remove('ph-dragging') }
+  }, [activeBlock])
   const [dropTarget, setDropTarget]     = useState<DropTarget | null>(null)
   const [moveSaving, setMoveSaving]     = useState(false)
   const [overlayXY, setOverlayXY]       = useState<{ x: number; y: number } | null>(null)
@@ -2188,8 +2216,14 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
   const pressTrackingRef = useRef<{ dayIdx: number; pxScale: number } | null>(null)
 
   function snapTimeFromEvent(clientY: number, rectTop: number, pxScale: number): number {
+    // Floor (não round) para que o slot selecionado seja exatamente o visível
+    // sob o dedo. Antes: y no meio do cell de "5:30" arredondava pra "6:00"
+    // (round-to-nearest), virando bug de precisão de meio-slot. Com floor, a
+    // área visual de 5:30 (y=30..60) sempre escolhe 5:30.
     const raw = GRID_START + (clientY - rectTop) / pxScale
-    return Math.round(raw / 30) * 30
+    const floored = Math.floor(raw / 30) * 30
+    // Garante que pontos exatamente acima do GRID_START não viram negativo.
+    return Math.max(GRID_START, floored)
   }
 
   // ── Renderer for the selected-slot highlight (mobile slot-selection mode) ──
@@ -2899,7 +2933,7 @@ export function AgendaSemanal({ alunos, eventosIniciais, faltasIniciais, onGoToF
   // ── render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
+    <div className="flex flex-col h-full ph-agenda-grid" style={{ minHeight: 0 }}>
 
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 md:px-6 py-3 shrink-0 gap-3 flex-wrap"

@@ -202,3 +202,30 @@ html[data-theme="claro"] input:-webkit-autofill:focus {
   from { opacity: 0; transform: translateY(2px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ─── Agenda: prevenir seleção de texto / callout iOS no long-press ────────
+ * O long-press de 500ms para iniciar o drag de eventos costumava ativar a
+ * seleção nativa do navegador (texto azul, copy menu no iOS). Escopado no
+ * .ph-agenda-grid pra não afetar inputs/labels nas outras telas.
+ */
+.ph-agenda-grid,
+.ph-agenda-grid * {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ph-agenda-grid [data-block="true"],
+.ph-agenda-grid [data-block="true"] * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Aplicado no <body> durante drag ativo (activeBlock !== null). Garante que
+ * mesmo se o usuário arrastar pra fora da agenda nada seja selecionado. */
+body.ph-dragging,
+body.ph-dragging * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  cursor: grabbing !important;
+}
