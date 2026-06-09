@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -10,6 +10,7 @@ import { accumulateEventsByAluno } from '@/lib/utils/aulas-em-dupla'
 import { aulasPrevistasDatas, totalBrutoAluno, buildFeriadoSkipDays } from '@/lib/utils/aulas'
 import { getFeriadosDoMes, diaSemanaKey, diaSemanaLabel, formatDM } from '@/lib/utils/feriados'
 import { getFeriadoDecisoesAction, saveFeriadoDecisaoAction } from '../feriados/actions'
+import { getAjustesAction, upsertAjusteAction, deleteAjusteAction } from './ajustes-actions'
 import { type PacoteComAluno } from '../pacotes/actions'
 import { RenovarPacoteModal } from '@/components/dashboard/RenovarPacoteModal'
 
@@ -124,7 +125,6 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
   const [duplas, setDuplas] = useState<Record<string, { count: number; totalValor: number }>>({})
   // aulas de pacote realmente DADAS no mês exibido (eventos_agenda com pacote_id)
   const [pacoteAulas, setPacoteAulas] = useState<Record<string, number>>({})
-  const isFirstMount = useRef(true)
 
   // Renovar pacote modal
   const [renovarPacote, setRenovarPacote] = useState<{ aluno: Aluno; pacote: PacoteComAluno } | null>(null)
@@ -143,6 +143,12 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
         setDecisoes(map)
       }
     })
+  }, [mesRef])
+
+  // Carrega ajustes manuais persistidos ao trocar de mês (fonte única: a mesma
+  // leitura que a Cobrança usa, então o ajuste passa a valer nos dois).
+  useEffect(() => {
+    getAjustesAction(mesRef).then(res => setAdjustments(res.data ?? {}))
   }, [mesRef])
 
   async function toggleFeriado(data: string, checked: boolean) {
@@ -211,10 +217,7 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
         setPacoteAulas(map)
       })
 
-    Promise.all([fetchExtras, fetchPacoteAulas]).then(() => {
-      if (!isFirstMount.current) setAdjustments({})
-      isFirstMount.current = false
-    })
+    void Promise.all([fetchExtras, fetchPacoteAulas])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month, preferencias?.cobra_adiantado])
 
@@ -272,10 +275,12 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
     const val = parseInt(adjustingValue)
     if (!isNaN(val) && val >= 0) {
       if (val === getCalculatedAulas(aluno)) {
-        // igual ao calculado → remove ajuste
+        // igual ao calculado → remove ajuste (e persiste a remoção)
         setAdjustments((prev) => { const n = { ...prev }; delete n[aluno.id]; return n })
+        void deleteAjusteAction(aluno.id, mesRef)
       } else {
         setAdjustments((prev) => ({ ...prev, [aluno.id]: val }))
+        void upsertAjusteAction({ aluno_id: aluno.id, mes_referencia: mesRef, aulas: val })
       }
     }
     setAdjustingId(null)
@@ -287,6 +292,7 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
 
   function removeAdjust(alunoId: string) {
     setAdjustments((prev) => { const n = { ...prev }; delete n[alunoId]; return n })
+    void deleteAjusteAction(alunoId, mesRef)
   }
 
   // ── totais gerais ─────────────────────────────────────────────────────────

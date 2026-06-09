@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate, DIAS_SEMANA } from '@/types/aluno'
 import { upsertCobrancaAction, updateStatusAction, CobrancaStatus } from './actions'
+import { getAjustesAction } from '../calculo/ajustes-actions'
 import { type PacoteComAluno } from '../pacotes/actions'
 import { getFeriadosDoMes } from '@/lib/utils/feriados'
 import { accumulateEventsByAluno } from '@/lib/utils/aulas-em-dupla'
@@ -164,6 +165,7 @@ function buildMessage(
   skipDays?: Set<number>,
   pacoteDoMes: PacoteComAluno | null = null,
   alunoDuplas: AlunoExtras = { count: 0, totalValor: 0 },
+  ajusteAulas?: number,
 ): string {
   if (aluno.modelo_cobranca === 'pacote' && pacoteDoMes) {
     return buildPacoteMessage(aluno, pacoteDoMes, prefs)
@@ -175,20 +177,25 @@ function buildMessage(
   const duplaCount = alunoDuplas.count
   // Duplas: somar SEMPRE o totalValor real (metade do valor da dupla por aluno),
   // independente do modelo. Não contam como aula extra cobrada pelo valor base.
-  const gross = totalBrutoAluno(aluno, { year, month, skipDays, extras: alunoExtras, duplas: alunoDuplas })
+  const gross = totalBrutoAluno(aluno, { year, month, skipDays, extras: alunoExtras, duplas: alunoDuplas, ajusteAulas })
   const net = Math.max(0, gross - credito)
 
   const totalStr = credito > 0
     ? `${formatCurrency(gross)} − Crédito: ${formatCurrency(credito)} = *${formatCurrency(net)}*`
     : formatCurrency(net)
 
+  // Quando há ajuste manual, o override substitui "fixas + extras"; mostramos só
+  // o total ajustado (+ duplas) em vez da quebra que não bate mais.
   const partes: string[] = [`${fixedCount} fixas`]
   if (extraCount > 0) partes.push(`${extraCount} extras`)
   if (duplaCount > 0) partes.push(`${duplaCount} ${duplaCount === 1 ? 'dupla' : 'duplas'}`)
-  const totalAulas = fixedCount + extraCount + duplaCount
-  const aulasStr = (extraCount + duplaCount) > 0
-    ? `${partes.join(' + ')} = ${totalAulas}`
-    : String(fixedCount)
+  const baseAulas  = ajusteAulas ?? (fixedCount + extraCount)
+  const totalAulas = baseAulas + duplaCount
+  const aulasStr = ajusteAulas !== undefined
+    ? String(totalAulas)
+    : (extraCount + duplaCount) > 0
+      ? `${partes.join(' + ')} = ${totalAulas}`
+      : String(fixedCount)
 
   return template
     .replace(/{nome}/g, aluno.nome.split(' ')[0])
@@ -208,12 +215,14 @@ function calcTotal(
   skipDays?: Set<number>,
   pacoteDoMes: PacoteComAluno | null = null,
   alunoDuplas: AlunoExtras = { count: 0, totalValor: 0 },
+  ajusteAulas?: number,
 ): number {
   const bruto = totalBrutoAluno(aluno, {
     year, month, skipDays,
     extras: alunoExtras,
     duplas: alunoDuplas,
     pacoteValor: pacoteDoMes ? Number(pacoteDoMes.valor) : null,
+    ajusteAulas,
   })
   // Pacote cobra o valor cheio do pacote — não desconta crédito.
   if (aluno.modelo_cobranca === 'pacote') return bruto
@@ -352,6 +361,9 @@ export function CobrancaMensal({
   // Aulas em dupla manuais — contadas separadamente: o valor é a metade real
   // da dupla, somada no gross independente do modelo (mensalidade ou por_aula).
   const [duplas,   setDuplas]   = useState<Record<string, AlunoExtras>>({})
+  // Ajustes manuais persistidos (override da contagem feito no Cálculo) — fonte
+  // única: a mesma leitura que o Cálculo usa, então o ajuste vale também aqui.
+  const [ajustes,  setAjustes]  = useState<Record<string, number>>({})
 
   const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set())
   const [messages, setMessages]             = useState<Record<string, string>>({})
@@ -409,6 +421,11 @@ export function CobrancaMensal({
     fetchExtrasForMonth(y0, m0, supabase)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Ajustes manuais persistidos — carregados no mount e a cada troca de mês.
+  useEffect(() => {
+    getAjustesAction(formatMesRef(year, month)).then(res => setAjustes(res.data ?? {}))
+  }, [year, month])
 
   // Re-fetch cobrancas, credits AND extras when month changes
   useEffect(() => {
@@ -483,7 +500,7 @@ export function CobrancaMensal({
           const alunoExtras = extras[aluno.id]
           const alunoDuplas = duplas[aluno.id]
           const pacoteMes   = findPacoteDoMes(pacotes, aluno.id, year, month)
-          const generated   = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas)
+          const generated   = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas, ajustes[aluno.id])
           setOriginalMessages(p => ({ ...p, [aluno.id]: generated }))
           setMessages(p => ({ ...p, [aluno.id]: savedMsg ?? generated }))
         }
@@ -516,7 +533,7 @@ export function CobrancaMensal({
           const alunoExtras = extras[aluno.id]
           const alunoDuplas = duplas[aluno.id]
           const pacoteMes   = findPacoteDoMes(pacotes, aluno.id, year, month)
-          const generated   = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas)
+          const generated   = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas, ajustes[aluno.id])
           newOrig[aluno.id] = generated
           newMsgs[aluno.id] = cobrancas[aluno.id]?.mensagem ?? generated
         }
@@ -550,7 +567,7 @@ export function CobrancaMensal({
     const alunoExtras  = extras[aluno.id]
     const alunoDuplas  = duplas[aluno.id]
     const pacoteMes    = findPacoteDoMes(pacotes, aluno.id, year, month)
-    const msg = messages[aluno.id] ?? buildMessage(aluno, year, month, preferencias, template, creditoAl, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas)
+    const msg = messages[aluno.id] ?? buildMessage(aluno, year, month, preferencias, template, creditoAl, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas, ajustes[aluno.id])
     const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
 
     // ── 2. Open WhatsApp BEFORE any await ────────────────────────────────────
@@ -559,7 +576,7 @@ export function CobrancaMensal({
     window.open(url, '_blank')
 
     // ── 3. Save cobrança in background (non-blocking) ────────────────────────
-    const total  = calcTotal(aluno, year, month, creditoAl, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas)
+    const total  = calcTotal(aluno, year, month, creditoAl, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas, ajustes[aluno.id])
     const mesRef = formatMesRef(year, month)
 
     setLoading(aluno.id, true)
@@ -585,7 +602,7 @@ export function CobrancaMensal({
       }))
     }
     setLoading(aluno.id, false)
-  }, [messages, year, month, preferencias, template, pacotes, creditos, extras, duplas, feriadoSkipDays])
+  }, [messages, year, month, preferencias, template, pacotes, creditos, extras, duplas, ajustes, feriadoSkipDays])
 
   // ── status update ─────────────────────────────────────────────────────────────
 
@@ -602,7 +619,7 @@ export function CobrancaMensal({
       const aluno    = alunos.find(a => a.id === alunoId)
       if (!aluno) { setLoading(alunoId, false); return }
       const pacoteMes = findPacoteDoMes(pacotes, alunoId, year, month)
-      const total    = calcTotal(aluno, year, month, creditos[alunoId] ?? 0, extras[alunoId], feriadoSkipDays, pacoteMes, duplas[alunoId])
+      const total    = calcTotal(aluno, year, month, creditos[alunoId] ?? 0, extras[alunoId], feriadoSkipDays, pacoteMes, duplas[alunoId], ajustes[alunoId])
       const result   = await upsertCobrancaAction({
         aluno_id:       alunoId,
         mes_referencia: mesRef,
@@ -665,7 +682,7 @@ export function CobrancaMensal({
       const pacoteMes = findPacoteDoMes(pacotes, a.id, year, month)
       return pacoteMes ? Number(pacoteMes.valor) : 0
     }
-    return calcTotal(a, year, month, creditos[a.id] ?? 0, extras[a.id], feriadoSkipDays, null, duplas[a.id])
+    return calcTotal(a, year, month, creditos[a.id] ?? 0, extras[a.id], feriadoSkipDays, null, duplas[a.id], ajustes[a.id])
   }
 
   const totalFaturamento = alunos.reduce((s, a) => s + alunoFaturamento(a), 0)
@@ -839,10 +856,11 @@ export function CobrancaMensal({
               const showRenovar  = isPacote && !pacoteMes && !cobranca && !!latestPac
               const isSelectable = !showRenovar
 
-              const total        = calcTotal(aluno, year, month, credito, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas)
+              const ajuste       = ajustes[aluno.id]
+              const total        = calcTotal(aluno, year, month, credito, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas, ajuste)
               const aulas        = isPacote
                 ? null
-                : (aluno.modelo_cobranca === 'mensalidade' ? null : dates.length + extraCount + duplaCount)
+                : (aluno.modelo_cobranca === 'mensalidade' ? null : (ajuste ?? (dates.length + extraCount)) + duplaCount)
               const diasLabels   = aluno.horarios.map(h => DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
               const status       = cobranca?.status ?? 'pendente'
               const dueDiff      = (!showRenovar && usePersonalizado) ? getDueDiff(aluno, year, month) : null
@@ -939,7 +957,7 @@ export function CobrancaMensal({
                           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sem pacote</p>
                         )
                       ) : aulas !== null ? (
-                        (extraCount > 0 || duplaCount > 0) ? (
+                        (ajuste === undefined && (extraCount > 0 || duplaCount > 0)) ? (
                           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                             {dates.length} fixas
                             {extraCount > 0 && <> + <span style={{ color: '#38BDF8' }}>{extraCount} extras</span></>}
@@ -985,7 +1003,7 @@ export function CobrancaMensal({
                               ? `Vence ${formatDate(latestPac.data_vencimento)}`
                               : 'Sem pacote')
                         : aulas !== null
-                          ? (extraCount > 0 || duplaCount > 0)
+                          ? (ajuste === undefined && (extraCount > 0 || duplaCount > 0))
                             ? `${dates.length} fixas${extraCount > 0 ? ` + ${extraCount} extras` : ''}${duplaCount > 0 ? ` + ${duplaCount} ${duplaCount === 1 ? 'dupla' : 'duplas'}` : ''}`
                             : `${aulas} aulas`
                           : `Mensalidade${extraCount > 0 ? ` + ${extraCount} extras` : ''}${duplaCount > 0 ? ` + ${duplaCount} ${duplaCount === 1 ? 'dupla' : 'duplas'}` : ''}`
@@ -1045,7 +1063,7 @@ export function CobrancaMensal({
                       <div className="flex items-center justify-between gap-3 mt-3">
                         <button
                           onClick={() => {
-                            const generated = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas)
+                            const generated = buildMessage(aluno, year, month, preferencias, template, credito, alunoExtras, feriadoSkipDays, pacoteMes, alunoDuplas, ajustes[aluno.id])
                             setMessages(prev => ({ ...prev, [aluno.id]: generated }))
                           }}
                           className="text-xs px-3 py-2 rounded-lg cursor-pointer transition-colors"
