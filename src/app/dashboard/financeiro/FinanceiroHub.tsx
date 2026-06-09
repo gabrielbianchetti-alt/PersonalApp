@@ -144,7 +144,7 @@ export function FinanceiroHub({
         className="px-4 md:px-6 pt-5 shrink-0"
         style={{ background: 'var(--bg-surface)' }}
       >
-        <h1 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Financeiro</h1>
+        <h1 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Cobrança</h1>
         <TabBar tabs={TABS} active={safeTab} onChange={(k) => go(k as FinanceiroTab)} />
       </div>
 

@@ -11,7 +11,7 @@ import {
 } from '@/lib/demo/fixtures'
 import type { PacoteComAluno } from '../pacotes/actions'
 
-export const metadata: Metadata = { title: 'Financeiro — PersonalHub' }
+export const metadata: Metadata = { title: 'Cobrança — PersonalHub' }
 
 export default async function FinanceiroPage({
   searchParams,
