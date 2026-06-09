@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate, DIAS_SEMANA } from '@/types/aluno'
 import { upsertCobrancaAction, updateStatusAction, CobrancaStatus } from './actions'
 import { getAjustesAction } from '../calculo/ajustes-actions'
+import { subscribeAjustes } from '../calculo/ajustes-bus'
 import { type PacoteComAluno } from '../pacotes/actions'
 import { getFeriadosDoMes } from '@/lib/utils/feriados'
 import { accumulateEventsByAluno } from '@/lib/utils/aulas-em-dupla'
@@ -425,6 +426,20 @@ export function CobrancaMensal({
   // Ajustes manuais persistidos — carregados no mount e a cada troca de mês.
   useEffect(() => {
     getAjustesAction(formatMesRef(year, month)).then(res => setAjustes(res.data ?? {}))
+  }, [year, month])
+
+  // Sync ao vivo: reflete na hora um ajuste feito na aba Cálculo (mesmo hub),
+  // sem recarregar. Só aplica se for do mês exibido aqui.
+  useEffect(() => {
+    return subscribeAjustes((e) => {
+      if (e.mesRef !== formatMesRef(year, month)) return
+      setAjustes(prev => {
+        const next = { ...prev }
+        if (e.aulas === null) delete next[e.alunoId]
+        else next[e.alunoId] = e.aulas
+        return next
+      })
+    })
   }, [year, month])
 
   // Re-fetch cobrancas, credits AND extras when month changes

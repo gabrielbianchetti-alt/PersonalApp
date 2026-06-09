@@ -11,6 +11,7 @@ import { aulasPrevistasDatas, totalBrutoAluno, buildFeriadoSkipDays } from '@/li
 import { getFeriadosDoMes, diaSemanaKey, diaSemanaLabel, formatDM } from '@/lib/utils/feriados'
 import { getFeriadoDecisoesAction, saveFeriadoDecisaoAction } from '../feriados/actions'
 import { getAjustesAction, upsertAjusteAction, deleteAjusteAction } from './ajustes-actions'
+import { emitAjuste } from './ajustes-bus'
 import { type PacoteComAluno } from '../pacotes/actions'
 import { RenovarPacoteModal } from '@/components/dashboard/RenovarPacoteModal'
 
@@ -278,9 +279,11 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
         // igual ao calculado → remove ajuste (e persiste a remoção)
         setAdjustments((prev) => { const n = { ...prev }; delete n[aluno.id]; return n })
         void deleteAjusteAction(aluno.id, mesRef)
+        emitAjuste({ mesRef, alunoId: aluno.id, aulas: null })
       } else {
         setAdjustments((prev) => ({ ...prev, [aluno.id]: val }))
         void upsertAjusteAction({ aluno_id: aluno.id, mes_referencia: mesRef, aulas: val })
+        emitAjuste({ mesRef, alunoId: aluno.id, aulas: val })
       }
     }
     setAdjustingId(null)
@@ -293,6 +296,7 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
   function removeAdjust(alunoId: string) {
     setAdjustments((prev) => { const n = { ...prev }; delete n[alunoId]; return n })
     void deleteAjusteAction(alunoId, mesRef)
+    emitAjuste({ mesRef, alunoId, aulas: null })
   }
 
   // ── totais gerais ─────────────────────────────────────────────────────────
