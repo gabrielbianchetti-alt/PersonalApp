@@ -16,25 +16,12 @@ export interface AlunoRelatorio {
   forma_pagamento: string
 }
 
-export interface CustoRelatorio {
-  nome: string
-  categoria: string
-  tipo: 'fixo' | 'variavel'
-  valor: number
-}
-
 export interface FinanceiroReportData {
   professorNome: string
   professorEmail: string
   mesRef: string
   alunos: AlunoRelatorio[]
-  custos: CustoRelatorio[]
   faturamentoBruto: number
-  totalFixos: number
-  totalVariaveis: number
-  totalCustos: number
-  lucroLiquido: number
-  margemLucro: number
 }
 
 export interface ProdutividadeReportData {
@@ -58,8 +45,6 @@ export interface PrevisaoMes {
   mesRef: string
   label: string
   faturamentoPrevisto: number
-  custosPrevisto: number
-  lucroPrevisto: number
 }
 
 export interface PrevisaoReportData {
@@ -70,8 +55,6 @@ export interface PrevisaoReportData {
   pessimista: number
   atual: number
   otimista: number
-  metaLucro: number
-  alunosNecessarios: number
 }
 
 // ── Financeiro Report ─────────────────────────────────────────────────────────
@@ -88,7 +71,6 @@ export async function getFinanceiroReportData(
 
   const [
     { data: alunos },
-    { data: custos },
     { data: cobrancas },
     { data: creditos },
   ] = await Promise.all([
@@ -97,12 +79,6 @@ export async function getFinanceiroReportData(
       .eq('professor_id', user.id)
       .eq('status', 'ativo')
       .order('nome'),
-    supabase.from('custos')
-      .select('nome, categoria, tipo, valor')
-      .eq('professor_id', user.id)
-      .eq('mes_referencia', mesRef)
-      .or('ativo.is.null,ativo.eq.true')
-      .order('tipo').order('categoria'),
     supabase.from('cobrancas')
       .select('aluno_id, status')
       .eq('professor_id', user.id)
@@ -141,19 +117,7 @@ export async function getFinanceiroReportData(
     }
   })
 
-  const custosRel: CustoRelatorio[] = (custos ?? []).map(c => ({
-    nome: c.nome,
-    categoria: c.categoria,
-    tipo: c.tipo as 'fixo' | 'variavel',
-    valor: Number(c.valor),
-  }))
-
   const faturamentoBruto = alunosRel.reduce((s, a) => s + a.valorMensal, 0)
-  const totalFixos       = custosRel.filter(c => c.tipo === 'fixo').reduce((s, c) => s + c.valor, 0)
-  const totalVariaveis   = custosRel.filter(c => c.tipo === 'variavel').reduce((s, c) => s + c.valor, 0)
-  const totalCustos      = totalFixos + totalVariaveis
-  const lucroLiquido     = faturamentoBruto - totalCustos
-  const margemLucro      = faturamentoBruto > 0 ? Math.round((lucroLiquido / faturamentoBruto) * 100) : 0
 
   return {
     data: {
@@ -161,13 +125,7 @@ export async function getFinanceiroReportData(
       professorEmail: user.email ?? '',
       mesRef,
       alunos:         alunosRel,
-      custos:         custosRel,
       faturamentoBruto,
-      totalFixos,
-      totalVariaveis,
-      totalCustos,
-      lucroLiquido,
-      margemLucro,
     },
   }
 }
@@ -288,29 +246,12 @@ export async function getPrevisaoReportData(): Promise<{ data?: PrevisaoReportDa
   const curMonth = now.getMonth()
   const mesAtual = `${curYear}-${String(curMonth + 1).padStart(2, '0')}`
 
-  const [
-    { data: alunos },
-    { data: fixosRoots },
-    { data: metaRow },
-  ] = await Promise.all([
-    supabase.from('alunos')
-      .select('id, horarios, modelo_cobranca, valor')
-      .eq('professor_id', user.id)
-      .eq('status', 'ativo'),
-    supabase.from('custos')
-      .select('valor')
-      .eq('professor_id', user.id)
-      .eq('tipo', 'fixo')
-      .or('ativo.is.null,ativo.eq.true')
-      .is('origem_id', null),
-    supabase.from('metas')
-      .select('meta_mensal')
-      .eq('professor_id', user.id)
-      .maybeSingle(),
-  ])
+  const { data: alunos } = await supabase.from('alunos')
+    .select('id, horarios, modelo_cobranca, valor')
+    .eq('professor_id', user.id)
+    .eq('status', 'ativo')
 
-  const alunosList    = alunos ?? []
-  const totalFixosMes = (fixosRoots ?? []).reduce((s, c) => s + Number(c.valor), 0)
+  const alunosList = alunos ?? []
 
   function calcFat(year: number, month: number) {
     const wc = countWeekdaysInMonth(year, month)
@@ -335,20 +276,14 @@ export async function getPrevisaoReportData(): Promise<{ data?: PrevisaoReportDa
       mesRef: ref,
       label:  label.charAt(0).toUpperCase() + label.slice(1),
       faturamentoPrevisto: fat,
-      custosPrevisto:      totalFixosMes,
-      lucroPrevisto:       fat - totalFixosMes,
     })
   }
 
   const ticketMedio = alunosList.length > 0 ? Math.round(faturamentoAtual / alunosList.length) : 0
   const nextFat     = meses[1]?.faturamentoPrevisto ?? faturamentoAtual
-  const atual       = nextFat - totalFixosMes
-  const pessimista  = Math.max(0, nextFat - 2 * ticketMedio - totalFixosMes)
-  const otimista    = nextFat + 2 * ticketMedio - totalFixosMes
-  const metaLucro   = Number(metaRow?.meta_mensal ?? 0)
-  const alunosNecessarios = ticketMedio > 0 && metaLucro > atual
-    ? Math.ceil((metaLucro - atual) / ticketMedio)
-    : 0
+  const atual       = nextFat
+  const pessimista  = Math.max(0, nextFat - 2 * ticketMedio)
+  const otimista    = nextFat + 2 * ticketMedio
 
   return {
     data: {
@@ -359,8 +294,6 @@ export async function getPrevisaoReportData(): Promise<{ data?: PrevisaoReportDa
       pessimista,
       atual,
       otimista,
-      metaLucro,
-      alunosNecessarios,
     },
   }
 }

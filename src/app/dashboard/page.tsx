@@ -225,10 +225,6 @@ export default async function DashboardPage() {
   const isLast5DaysOfMonth = dayOfMonth >= (lastDayOfMonth - 4)
   const cobrancasGeradas = (cobrancas ?? []).length > 0
   const nudges = !demo && userState && userState.nudgesEnabled ? {
-    cadastrarCustos: userState.hasStudents
-      && !userState.hasCustos
-      && userState.monthsActive >= 1
-      && !userState.dismissedNudges.has('cadastrar-custos'),
     gerarCobrancas: userState.hasStudents
       && isLast5DaysOfMonth
       && !cobrancasGeradas

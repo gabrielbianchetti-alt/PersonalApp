@@ -15,7 +15,6 @@ export interface UserState {
   hasStudents:                boolean
   studentsCount:              number
   hasActivePackages:          boolean
-  hasCustos:                  boolean
   hasMonthHistory:            boolean   // 2+ months of cobranças
   monthsActive:               number    // months since first aluno
   /** Convites com status='aguardando_aprovacao' */
@@ -38,7 +37,6 @@ const EMPTY: UserState = {
   hasStudents:              false,
   studentsCount:            0,
   hasActivePackages:        false,
-  hasCustos:                false,
   hasMonthHistory:          false,
   monthsActive:             0,
   aprovacoesPendentesCount: 0,
@@ -68,7 +66,6 @@ export const getUserState = cache(async (): Promise<UserState> => {
   const [
     alunosCount,
     pacoteAlunoCount,
-    custosCount,
     cobrancasMesesRes,
     primeiroAlunoRes,
     aprovacoesCount,
@@ -86,10 +83,6 @@ export const getUserState = cache(async (): Promise<UserState> => {
       .eq('professor_id', user.id)
       .eq('status', 'ativo')
       .eq('modelo_cobranca', 'pacote'),
-    supabase.from('custos')
-      .select('id', { head: true, count: 'exact' })
-      .eq('professor_id', user.id)
-      .or('ativo.is.null,ativo.eq.true'),
     supabase.from('cobrancas')
       .select('mes_referencia')
       .eq('professor_id', user.id),
@@ -157,7 +150,6 @@ export const getUserState = cache(async (): Promise<UserState> => {
     hasStudents:              studentsCount > 0,
     studentsCount,
     hasActivePackages:        (pacoteAlunoCount.count ?? 0) > 0,
-    hasCustos:                (custosCount.count ?? 0) > 0,
     hasMonthHistory:          mesesUnicos.size >= 2,
     monthsActive,
     aprovacoesPendentesCount: aprovCount,

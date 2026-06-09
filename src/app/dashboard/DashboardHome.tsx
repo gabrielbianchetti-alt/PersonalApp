@@ -74,7 +74,6 @@ interface Props {
   showDemoEmptyState?:   boolean
   /** Progressive Disclosure flags computed server-side */
   nudges?: {
-    cadastrarCustos:    boolean
     gerarCobrancas:     boolean
     personalizarMsg:    boolean
   }
@@ -551,15 +550,6 @@ export function DashboardHome({
       )}
 
       {/* ── Nudges contextuais — só quando há contexto e não foram dispensados ── */}
-      {nudges?.cadastrarCustos && (
-        <Nudge
-          nudgeKey="cadastrar-custos"
-          title="Quer saber quanto você realmente lucra?"
-          description="Cadastre seus custos fixos (academia, transporte) e variáveis para ver o lucro real."
-          cta={{ label: 'Cadastrar custos', href: '/dashboard/financeiro?tab=custos' }}
-          dismissLabel="Depois"
-        />
-      )}
       {nudges?.gerarCobrancas && (
         <Nudge
           nudgeKey="gerar-cobrancas-fim-mes"
@@ -726,6 +716,48 @@ export function DashboardHome({
           </p>
         </Link>
       </div>
+
+      {/* ── Ações rápidas — fluxo core (cadastro → cálculo → cobrança) a 1 toque ── */}
+      {totalAlunos > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            {
+              href: '/dashboard/alunos/novo',
+              label: 'Novo aluno',
+              tint: 'var(--green-muted)',
+              color: 'var(--green-primary)',
+              icon: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></>,
+            },
+            {
+              href: '/dashboard/financeiro?tab=calculo',
+              label: 'Cálculo',
+              tint: 'rgba(56, 189, 248,0.12)',
+              color: '#38BDF8',
+              icon: <><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="8" y1="6" x2="16" y2="6" /><path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" /></>,
+            },
+            {
+              href: '/dashboard/financeiro?tab=cobranca',
+              label: 'Cobrança',
+              tint: 'var(--green-muted)',
+              color: 'var(--green-primary)',
+              icon: <><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></>,
+            },
+          ].map(({ href, label, tint, color, icon }) => (
+            <Link key={href} href={href}
+              className="rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-colors"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: '14px 8px', gap: 8, minHeight: 84 }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-focus)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}>
+              <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: tint }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {icon}
+                </svg>
+              </span>
+              <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* ╔══════════════════════════════════════════════════════════════╗
           ║  BLOCO 5 — COBRANÇAS COM ABAS (some quando zero alunos)      ║

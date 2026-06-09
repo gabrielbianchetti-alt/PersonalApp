@@ -1,14 +1,17 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { DIAS_SEMANA, formatCurrency, formatDate } from '@/types/aluno'
 import { countWeekdaysInMonth } from '@/lib/utils/date'
 import { accumulateEventsByAluno } from '@/lib/utils/aulas-em-dupla'
+import { aulasPrevistasDatas, totalBrutoAluno, buildFeriadoSkipDays } from '@/lib/utils/aulas'
 import { getFeriadosDoMes, diaSemanaKey, diaSemanaLabel, formatDM } from '@/lib/utils/feriados'
 import { getFeriadoDecisoesAction, saveFeriadoDecisaoAction } from '../feriados/actions'
+import { getAjustesAction, upsertAjusteAction, deleteAjusteAction } from './ajustes-actions'
+import { emitAjuste } from './ajustes-bus'
 import { type PacoteComAluno } from '../pacotes/actions'
 import { RenovarPacoteModal } from '@/components/dashboard/RenovarPacoteModal'
 
@@ -123,7 +126,6 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
   const [duplas, setDuplas] = useState<Record<string, { count: number; totalValor: number }>>({})
   // aulas de pacote realmente DADAS no mês exibido (eventos_agenda com pacote_id)
   const [pacoteAulas, setPacoteAulas] = useState<Record<string, number>>({})
-  const isFirstMount = useRef(true)
 
   // Renovar pacote modal
   const [renovarPacote, setRenovarPacote] = useState<{ aluno: Aluno; pacote: PacoteComAluno } | null>(null)
@@ -142,6 +144,12 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
         setDecisoes(map)
       }
     })
+  }, [mesRef])
+
+  // Carrega ajustes manuais persistidos ao trocar de mês (fonte única: a mesma
+  // leitura que a Cobrança usa, então o ajuste passa a valer nos dois).
+  useEffect(() => {
+    getAjustesAction(mesRef).then(res => setAdjustments(res.data ?? {}))
   }, [mesRef])
 
   async function toggleFeriado(data: string, checked: boolean) {
@@ -210,10 +218,7 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
         setPacoteAulas(map)
       })
 
-    Promise.all([fetchExtras, fetchPacoteAulas]).then(() => {
-      if (!isFirstMount.current) setAdjustments({})
-      isFirstMount.current = false
-    })
+    void Promise.all([fetchExtras, fetchPacoteAulas])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month, preferencias?.cobra_adiantado])
 
@@ -221,20 +226,15 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
 
   const weekdayCounts = useMemo(() => countWeekdaysInMonth(year, month), [year, month])
 
+  // Feriados a pular no cálculo (fonte única, igual à Cobrança)
+  const feriadoSkipDays = useMemo(() => buildFeriadoSkipDays(mesRef, decisoes), [mesRef, decisoes])
+
   // ── cálculos por aluno ────────────────────────────────────────────────────
 
   function getFixedAulas(aluno: Aluno): number {
     if (aluno.modelo_cobranca === 'mensalidade') return 0
     if (aluno.modelo_cobranca === 'pacote')      return 0
-    let total = aluno.horarios.reduce((sum, h) => sum + (weekdayCounts[h.dia] ?? 0), 0)
-    // Desconta feriados onde o aluno treina e o professor NÃO decidiu dar aula
-    for (const f of feriadosMes) {
-      const darAula = decisoes[f.data] === true
-      if (darAula) continue
-      const diaKey = diaSemanaKey(f.data)
-      if (aluno.horarios.some(h => h.dia === diaKey)) total -= 1
-    }
-    return Math.max(0, total)
+    return aulasPrevistasDatas(aluno.horarios, year, month, feriadoSkipDays).length
   }
 
   function getCalculatedAulas(aluno: Aluno): number {
@@ -250,18 +250,19 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
   }
 
   function getTotal(aluno: Aluno): number {
-    if (aluno.modelo_cobranca === 'pacote') {
-      const pacoteMes = findPacoteDoMes(pacotes, aluno.id, year, month)
-      return pacoteMes ? Number(pacoteMes.valor) : 0
-    }
-    // Duplas são somadas SEMPRE pelo valor real (metade da dupla por aluno),
-    // independente do modelo. Não entram em getCalculatedAulas/getAulas para
-    // não serem multiplicadas pelo valor base do aluno em planos por_aula.
-    const duplasTotal = duplas[aluno.id]?.totalValor ?? 0
-    if (aluno.modelo_cobranca === 'mensalidade') {
-      return Number(aluno.valor) + (extras[aluno.id]?.totalValor ?? 0) + duplasTotal
-    }
-    return getAulas(aluno) * Number(aluno.valor) + duplasTotal
+    // Fonte única: Duplas entram pelo valor real (metade), fora da multiplicação
+    // contagem × valor; o ajuste manual sobrescreve a contagem de por_aula.
+    const pacoteMes = aluno.modelo_cobranca === 'pacote'
+      ? findPacoteDoMes(pacotes, aluno.id, year, month)
+      : null
+    return totalBrutoAluno(aluno, {
+      year, month,
+      skipDays:    feriadoSkipDays,
+      extras:      extras[aluno.id],
+      duplas:      duplas[aluno.id],
+      ajusteAulas: adjustments[aluno.id],
+      pacoteValor: pacoteMes ? Number(pacoteMes.valor) : null,
+    })
   }
 
   // ── ajuste manual ─────────────────────────────────────────────────────────
@@ -275,10 +276,14 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
     const val = parseInt(adjustingValue)
     if (!isNaN(val) && val >= 0) {
       if (val === getCalculatedAulas(aluno)) {
-        // igual ao calculado → remove ajuste
+        // igual ao calculado → remove ajuste (e persiste a remoção)
         setAdjustments((prev) => { const n = { ...prev }; delete n[aluno.id]; return n })
+        void deleteAjusteAction(aluno.id, mesRef)
+        emitAjuste({ mesRef, alunoId: aluno.id, aulas: null })
       } else {
         setAdjustments((prev) => ({ ...prev, [aluno.id]: val }))
+        void upsertAjusteAction({ aluno_id: aluno.id, mes_referencia: mesRef, aulas: val })
+        emitAjuste({ mesRef, alunoId: aluno.id, aulas: val })
       }
     }
     setAdjustingId(null)
@@ -290,6 +295,8 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
 
   function removeAdjust(alunoId: string) {
     setAdjustments((prev) => { const n = { ...prev }; delete n[alunoId]; return n })
+    void deleteAjusteAction(alunoId, mesRef)
+    emitAjuste({ mesRef, alunoId, aulas: null })
   }
 
   // ── totais gerais ─────────────────────────────────────────────────────────
