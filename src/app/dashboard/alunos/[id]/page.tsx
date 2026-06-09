@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { DIAS_LABEL, formatCurrency, formatDate } from '@/types/aluno'
 import { DeleteAlunoButton } from './DeleteAlunoButton'
 import { EditAlunoButton } from './EditAlunoButton'
+import { SuspenderAlunoButton } from './SuspenderAlunoButton'
 import { AlunoPacoteCard } from './AlunoPacoteCard'
 import type { PacoteRow, AulaUsada } from '../../pacotes/actions'
 import { isDemoMode } from '@/lib/demo/mode'
@@ -176,7 +177,7 @@ export default async function AlunoPerfilPage({
       )}
 
       {/* Quick actions */}
-      <div className="mb-4">
+      <div className={`mb-4 ${aluno.status === 'ativo' ? 'grid grid-cols-2 gap-3' : ''}`}>
         {/* Registrar Falta */}
         <Link
           href="/dashboard/faltas"
@@ -199,6 +200,11 @@ export default async function AlunoPerfilPage({
             </p>
           </div>
         </Link>
+
+        {/* Suspender aluno — ponto de ação principal (lista fica na aba Alunos > Suspensos) */}
+        {aluno.status === 'ativo' && (
+          <SuspenderAlunoButton alunoId={id} alunoNome={aluno.nome} alunoHorarios={horarios} />
+        )}
       </div>
 
       {/* Objetivos */}
