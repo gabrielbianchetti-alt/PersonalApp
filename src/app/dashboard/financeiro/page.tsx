@@ -3,19 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { FinanceiroHub } from './FinanceiroHub'
 import type { FinanceiroTab } from './FinanceiroHub'
 import { listPacotesAction } from '../pacotes/actions'
-import {
-  ensureFixosForMesAction,
-  getReceitasExtrasForMesAction,
-  getHistoricoFinanceiroAction,
-  type CustoRow,
-  type ReceitaExtraRow,
-  type HistoricoMes,
-} from './actions'
 import { isDemoMode } from '@/lib/demo/mode'
 import { getUserState } from '@/lib/user-state'
 import {
-  getDemoAlunos, getDemoCobrancas, getDemoCustos, getDemoPacotes,
-  getDemoPreferencias, getDemoReceitasExtras, getDemoHistorico,
+  getDemoAlunos, getDemoCobrancas, getDemoPacotes,
+  getDemoPreferencias,
 } from '@/lib/demo/fixtures'
 import type { PacoteComAluno } from '../pacotes/actions'
 
@@ -35,42 +27,14 @@ export default async function FinanceiroPage({
   const today    = new Date()
   const mesAtual = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
-  // Compute last 6 months ending at mesAtual for the historico chart
-  function getLast6Months(endMes: string): string[] {
-    const [y, mo] = endMes.split('-').map(Number)
-    const month = mo - 1
-    const result: string[] = []
-    for (let i = 5; i >= 0; i--) {
-      let m = month - i
-      let yr = y
-      while (m < 0) { m += 12; yr-- }
-      result.push(`${yr}-${String(m + 1).padStart(2, '0')}`)
-    }
-    return result
-  }
-  const mesesHistorico = getLast6Months(mesAtual)
-
-  // Replicate active fixos into the current month before the parallel fetch
-  if (!demo) await ensureFixosForMesAction(mesAtual)
-
-  // Mapeia histórico com receita calculada dos alunos demo (aulas do mês)
   const demoAlunosList = demo ? getDemoAlunos() : []
   const demoPacotesList = demo ? getDemoPacotes() : []
-  const demoHistoricoBase = demo ? getDemoHistorico() : []
-  const demoHistorico: HistoricoMes[] = demoHistoricoBase.map(h => ({
-    mes: h.mes,
-    custos: h.custos,
-    receitas_extras: h.receitas_extras,
-  })) as HistoricoMes[]
 
   const demoData = demo ? {
     alunos:         demoAlunosList,
-    custos:         getDemoCustos(),
     cobrancas:      getDemoCobrancas(),
     prefs:          getDemoPreferencias(),
     creditos:       [],
-    receitasExtras: getDemoReceitasExtras(),
-    historico:      demoHistorico,
     pacotes:        demoPacotesList.map(p => ({
       ...p,
       aluno_nome: demoAlunosList.find(a => a.id === p.aluno_id)?.nome ?? '—',
@@ -79,21 +43,15 @@ export default async function FinanceiroPage({
 
   const [
     { data: alunos },
-    { data: custos },
     { data: cobrancas },
     { data: prefs },
     { data: creditos },
-    { data: receitasExtras },
-    { data: historico },
     pacotesRes,
   ] = demo ? [
     { data: demoData!.alunos },
-    { data: demoData!.custos },
     { data: demoData!.cobrancas },
     { data: demoData!.prefs },
     { data: demoData!.creditos },
-    { data: demoData!.receitasExtras },
-    { data: demoData!.historico },
     { data: demoData!.pacotes, error: undefined },
   ] as const : await Promise.all([
     supabase
@@ -102,13 +60,6 @@ export default async function FinanceiroPage({
       .eq('professor_id', user!.id)
       .eq('status', 'ativo')
       .order('nome'),
-    supabase
-      .from('custos')
-      .select('*')
-      .eq('professor_id', user!.id)
-      .eq('mes_referencia', mesAtual)
-      .or('ativo.is.null,ativo.eq.true')
-      .order('created_at', { ascending: false }),
     supabase
       .from('cobrancas')
       .select('*')
@@ -125,8 +76,6 @@ export default async function FinanceiroPage({
       .eq('professor_id', user!.id)
       .eq('status', 'credito')
       .or(`mes_validade.is.null,mes_validade.eq.${mesAtual}`),
-    getReceitasExtrasForMesAction(mesAtual),
-    getHistoricoFinanceiroAction(mesesHistorico),
     listPacotesAction(),
   ])
 
@@ -139,7 +88,7 @@ export default async function FinanceiroPage({
   }
 
   // Determine initial tab
-  const validTabs: FinanceiroTab[] = ['calculo', 'cobranca', 'custos', 'pacotes']
+  const validTabs: FinanceiroTab[] = ['calculo', 'cobranca', 'pacotes']
   const rawTab = params.tab as FinanceiroTab
   const initialTab: FinanceiroTab = validTabs.includes(rawTab) ? rawTab : 'calculo'
 
@@ -160,10 +109,6 @@ export default async function FinanceiroPage({
       preferencias={prefs ?? null}
       creditosPorAluno={creditosPorAluno}
       mesInicial={mesAtual}
-      alunosCustos={alunosList}
-      custosIniciais={(custos ?? []) as CustoRow[]}
-      receitasExtrasIniciais={(receitasExtras ?? []) as ReceitaExtraRow[]}
-      historicoIniciais={(historico ?? []) as HistoricoMes[]}
       pacotes={pacotesRes.data ?? []}
       cobrancasVencidasCount={cobrancasVencidasCount}
     />

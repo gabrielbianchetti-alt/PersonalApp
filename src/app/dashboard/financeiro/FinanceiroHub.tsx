@@ -7,7 +7,6 @@ import { TabSkeleton } from '@/components/ui/TabSkeleton'
 import { AlertBanner } from '@/components/dashboard/AlertBanner'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { PacoteComAluno } from '../pacotes/actions'
-import type { CustoRow, ReceitaExtraRow, HistoricoMes } from './actions'
 
 // Cada aba vira um chunk separado — só baixa quando selecionada
 const CalculoMensal = dynamic(
@@ -16,10 +15,6 @@ const CalculoMensal = dynamic(
 )
 const CobrancaMensal = dynamic(
   () => import('../cobranca/CobrancaMensal').then(m => ({ default: m.CobrancaMensal })),
-  { loading: () => <TabSkeleton /> },
-)
-const CustosLucro = dynamic(
-  () => import('./Financeiro').then(m => ({ default: m.Financeiro })),
   { loading: () => <TabSkeleton /> },
 )
 const PacotesHub = dynamic(
@@ -66,15 +61,7 @@ interface Preferencias {
   cobra_adiantado?: boolean | null
 }
 
-interface AlunoFin {
-  id: string
-  nome: string
-  modelo_cobranca: 'mensalidade' | 'por_aula'
-  valor: number
-  horarios: { dia: string; horario: string }[]
-}
-
-export type FinanceiroTab = 'calculo' | 'cobranca' | 'custos' | 'pacotes'
+export type FinanceiroTab = 'calculo' | 'cobranca' | 'pacotes'
 
 interface Props {
   initialTab: FinanceiroTab
@@ -86,11 +73,6 @@ interface Props {
   preferencias: Preferencias | null
   creditosPorAluno: Record<string, number>
   mesInicial: string
-  // Custos e Lucro
-  alunosCustos: AlunoFin[]
-  custosIniciais: CustoRow[]
-  receitasExtrasIniciais: ReceitaExtraRow[]
-  historicoIniciais: HistoricoMes[]
   // Pacotes
   pacotes: PacoteComAluno[]
   /** Cobranças com status=pendente cuja data já passou — alimenta o banner. */
@@ -100,7 +82,6 @@ interface Props {
 const ALL_TABS = [
   { key: 'calculo',  label: 'Cálculo Mensal',  shortLabel: 'Cálculo' },
   { key: 'cobranca', label: 'Cobrança' },
-  { key: 'custos',   label: 'Custos e Lucro',  shortLabel: 'Custos' },
   { key: 'pacotes',  label: 'Pacotes' },
 ] as const
 
@@ -114,10 +95,6 @@ export function FinanceiroHub({
   preferencias,
   creditosPorAluno,
   mesInicial,
-  alunosCustos,
-  custosIniciais,
-  receitasExtrasIniciais,
-  historicoIniciais,
   pacotes,
   cobrancasVencidasCount = 0,
 }: Props) {
@@ -126,17 +103,16 @@ export function FinanceiroHub({
   // ao alternar. Só monta cada chunk na primeira visita à aba.
   const [visited, setVisited] = useState<Set<FinanceiroTab>>(new Set([initialTab]))
 
-  // Live updates: tudo que afeta cálculo/cobrança/custos/pacotes vem via
+  // Live updates: tudo que afeta cálculo/cobrança/pacotes vem via
   // realtime e dispara router.refresh sem precisar trocar de aba.
-  useRealtimeRefresh('eventos_agenda,cobrancas,alunos,faltas,pacotes,custos,receitas_extras,feriados_decisoes,preferencias_cobranca')
+  useRealtimeRefresh('eventos_agenda,cobrancas,alunos,faltas,pacotes,feriados_decisoes,preferencias_cobranca')
 
   // Aba "Pacotes" só faz sentido quando há pacotes ou alunos do tipo pacote
   // — Progressive Disclosure: esconde até existir contexto.
   const hasPacoteContext =
     pacotes.length > 0 ||
     alunosCobranca.some(a => a.modelo_cobranca === 'pacote') ||
-    alunosCalculo.some(a => a.modelo_cobranca === 'pacote') ||
-    alunosCustos.some(a => (a as { modelo_cobranca?: string }).modelo_cobranca === 'pacote')
+    alunosCalculo.some(a => a.modelo_cobranca === 'pacote')
 
   const TABS = ALL_TABS.filter(t => t.key !== 'pacotes' || hasPacoteContext)
 
@@ -189,17 +165,6 @@ export function FinanceiroHub({
               mesInicial={mesInicial}
               creditosPorAluno={creditosPorAluno}
               pacotes={pacotes}
-            />
-          </div>
-        )}
-        {visited.has('custos') && (
-          <div style={{ display: safeTab === 'custos' ? 'block' : 'none' }}>
-            <CustosLucro
-              alunos={alunosCustos}
-              custosIniciais={custosIniciais}
-              receitasExtrasIniciais={receitasExtrasIniciais}
-              historicoIniciais={historicoIniciais}
-              mesInicial={mesInicial}
             />
           </div>
         )}
