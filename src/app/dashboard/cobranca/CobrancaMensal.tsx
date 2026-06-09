@@ -7,8 +7,9 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, formatDate, DIAS_SEMANA } from '@/types/aluno'
 import { upsertCobrancaAction, updateStatusAction, CobrancaStatus } from './actions'
 import { type PacoteComAluno } from '../pacotes/actions'
-import { getFeriadosDoMes, diaSemanaKey } from '@/lib/utils/feriados'
+import { getFeriadosDoMes } from '@/lib/utils/feriados'
 import { accumulateEventsByAluno } from '@/lib/utils/aulas-em-dupla'
+import { aulasPrevistasDatas, totalBrutoAluno, buildFeriadoSkipDays } from '@/lib/utils/aulas'
 import { getFeriadoDecisoesAction } from '../feriados/actions'
 import { RenovarPacoteModal, buildPacoteMessage } from '@/components/dashboard/RenovarPacoteModal'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
@@ -19,10 +20,6 @@ const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ]
-
-const GETDAY_TO_KEY: Record<number, string> = {
-  1: 'seg', 2: 'ter', 3: 'qua', 4: 'qui', 5: 'sex', 6: 'sab', 0: 'dom',
-}
 
 const DEFAULT_TEMPLATE = `Olá, {nome}! 👋
 
@@ -134,23 +131,6 @@ function getExtrasRange(year: number, month: number, cobraAdiantado?: boolean | 
     : getPrevMonthRange(year, month)
 }
 
-function getAulasDates(
-  year: number,
-  month: number,
-  horarios: { dia: string; horario: string }[],
-  skipDays?: Set<number>,
-): number[] {
-  const days = new Date(year, month + 1, 0).getDate()
-  const dates: number[] = []
-  const dias = horarios.map(h => h.dia)
-  for (let d = 1; d <= days; d++) {
-    if (skipDays?.has(d)) continue
-    const key = GETDAY_TO_KEY[new Date(year, month, d).getDay()]
-    if (key && dias.includes(key)) dates.push(d)
-  }
-  return dates
-}
-
 function pixBlock(prefs: Preferencias): string {
   if (!prefs.chave_pix) return '⚙️ Configure sua chave Pix em Preferências'
   let block = `💳 *Pix:* ${prefs.chave_pix}`
@@ -189,15 +169,13 @@ function buildMessage(
     return buildPacoteMessage(aluno, pacoteDoMes, prefs)
   }
 
-  const dates      = getAulasDates(year, month, aluno.horarios, skipDays)
+  const dates      = aulasPrevistasDatas(aluno.horarios, year, month, skipDays)
   const fixedCount = dates.length
   const extraCount = alunoExtras.count
   const duplaCount = alunoDuplas.count
   // Duplas: somar SEMPRE o totalValor real (metade do valor da dupla por aluno),
   // independente do modelo. Não contam como aula extra cobrada pelo valor base.
-  const gross = aluno.modelo_cobranca === 'mensalidade'
-    ? Number(aluno.valor) + alunoExtras.totalValor + alunoDuplas.totalValor
-    : (fixedCount + extraCount) * Number(aluno.valor) + alunoDuplas.totalValor
+  const gross = totalBrutoAluno(aluno, { year, month, skipDays, extras: alunoExtras, duplas: alunoDuplas })
   const net = Math.max(0, gross - credito)
 
   const totalStr = credito > 0
@@ -231,13 +209,15 @@ function calcTotal(
   pacoteDoMes: PacoteComAluno | null = null,
   alunoDuplas: AlunoExtras = { count: 0, totalValor: 0 },
 ): number {
-  if (aluno.modelo_cobranca === 'pacote') {
-    return pacoteDoMes ? Number(pacoteDoMes.valor) : 0
-  }
-  const gross = aluno.modelo_cobranca === 'mensalidade'
-    ? Number(aluno.valor) + alunoExtras.totalValor + alunoDuplas.totalValor
-    : (getAulasDates(year, month, aluno.horarios, skipDays).length + alunoExtras.count) * Number(aluno.valor) + alunoDuplas.totalValor
-  return Math.max(0, gross - credito)
+  const bruto = totalBrutoAluno(aluno, {
+    year, month, skipDays,
+    extras: alunoExtras,
+    duplas: alunoDuplas,
+    pacoteValor: pacoteDoMes ? Number(pacoteDoMes.valor) : null,
+  })
+  // Pacote cobra o valor cheio do pacote — não desconta crédito.
+  if (aluno.modelo_cobranca === 'pacote') return bruto
+  return Math.max(0, bruto - credito)
 }
 
 /** Pacote cuja `data_cobranca` cai no mês exibido (mês inicial do pacote). */
@@ -391,22 +371,12 @@ export function CobrancaMensal({
   const [feriadoSkipDays, setFeriadoSkipDays] = useState<Set<number>>(new Set())
   useEffect(() => {
     const mesRef = formatMesRef(year, month)
-    const feriadosMes = getFeriadosDoMes(mesRef)
-    if (feriadosMes.length === 0) { setFeriadoSkipDays(new Set()); return }
+    if (getFeriadosDoMes(mesRef).length === 0) { setFeriadoSkipDays(new Set()); return }
     getFeriadoDecisoesAction(mesRef).then(res => {
       const decisoes: Record<string, boolean> = {}
       for (const d of (res.data ?? [])) decisoes[d.data_feriado] = d.dar_aula
-      const skip = new Set<number>()
-      for (const f of feriadosMes) {
-        if (decisoes[f.data] !== true) {
-          // Por padrão NÃO dá aula → pula esse dia do cálculo
-          skip.add(parseInt(f.data.split('-')[2]))
-        }
-      }
-      setFeriadoSkipDays(skip)
+      setFeriadoSkipDays(buildFeriadoSkipDays(mesRef, decisoes))
     })
-    // sinaliza diaSemanaKey como usado (utilitário importado para casos futuros)
-    void diaSemanaKey
   }, [year, month])
 
   // Aulas em dupla manuais entram em estado SEPARADO de aula_extra: o valor real
@@ -855,7 +825,7 @@ export function CobrancaMensal({
               const isSelected   = selectedIds.has(aluno.id)
               const cobranca     = cobrancas[aluno.id]
               const isLoading    = loadingSet.has(aluno.id)
-              const dates        = getAulasDates(year, month, aluno.horarios, feriadoSkipDays)
+              const dates        = aulasPrevistasDatas(aluno.horarios, year, month, feriadoSkipDays)
               const alunoExtras  = extras[aluno.id]
               const alunoDuplas  = duplas[aluno.id]
               const extraCount   = alunoExtras?.count ?? 0

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { DIAS_SEMANA, formatCurrency, formatDate } from '@/types/aluno'
 import { countWeekdaysInMonth } from '@/lib/utils/date'
 import { accumulateEventsByAluno } from '@/lib/utils/aulas-em-dupla'
+import { aulasPrevistasDatas, totalBrutoAluno, buildFeriadoSkipDays } from '@/lib/utils/aulas'
 import { getFeriadosDoMes, diaSemanaKey, diaSemanaLabel, formatDM } from '@/lib/utils/feriados'
 import { getFeriadoDecisoesAction, saveFeriadoDecisaoAction } from '../feriados/actions'
 import { type PacoteComAluno } from '../pacotes/actions'
@@ -221,20 +222,15 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
 
   const weekdayCounts = useMemo(() => countWeekdaysInMonth(year, month), [year, month])
 
+  // Feriados a pular no cálculo (fonte única, igual à Cobrança)
+  const feriadoSkipDays = useMemo(() => buildFeriadoSkipDays(mesRef, decisoes), [mesRef, decisoes])
+
   // ── cálculos por aluno ────────────────────────────────────────────────────
 
   function getFixedAulas(aluno: Aluno): number {
     if (aluno.modelo_cobranca === 'mensalidade') return 0
     if (aluno.modelo_cobranca === 'pacote')      return 0
-    let total = aluno.horarios.reduce((sum, h) => sum + (weekdayCounts[h.dia] ?? 0), 0)
-    // Desconta feriados onde o aluno treina e o professor NÃO decidiu dar aula
-    for (const f of feriadosMes) {
-      const darAula = decisoes[f.data] === true
-      if (darAula) continue
-      const diaKey = diaSemanaKey(f.data)
-      if (aluno.horarios.some(h => h.dia === diaKey)) total -= 1
-    }
-    return Math.max(0, total)
+    return aulasPrevistasDatas(aluno.horarios, year, month, feriadoSkipDays).length
   }
 
   function getCalculatedAulas(aluno: Aluno): number {
@@ -250,18 +246,19 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
   }
 
   function getTotal(aluno: Aluno): number {
-    if (aluno.modelo_cobranca === 'pacote') {
-      const pacoteMes = findPacoteDoMes(pacotes, aluno.id, year, month)
-      return pacoteMes ? Number(pacoteMes.valor) : 0
-    }
-    // Duplas são somadas SEMPRE pelo valor real (metade da dupla por aluno),
-    // independente do modelo. Não entram em getCalculatedAulas/getAulas para
-    // não serem multiplicadas pelo valor base do aluno em planos por_aula.
-    const duplasTotal = duplas[aluno.id]?.totalValor ?? 0
-    if (aluno.modelo_cobranca === 'mensalidade') {
-      return Number(aluno.valor) + (extras[aluno.id]?.totalValor ?? 0) + duplasTotal
-    }
-    return getAulas(aluno) * Number(aluno.valor) + duplasTotal
+    // Fonte única: Duplas entram pelo valor real (metade), fora da multiplicação
+    // contagem × valor; o ajuste manual sobrescreve a contagem de por_aula.
+    const pacoteMes = aluno.modelo_cobranca === 'pacote'
+      ? findPacoteDoMes(pacotes, aluno.id, year, month)
+      : null
+    return totalBrutoAluno(aluno, {
+      year, month,
+      skipDays:    feriadoSkipDays,
+      extras:      extras[aluno.id],
+      duplas:      duplas[aluno.id],
+      ajusteAulas: adjustments[aluno.id],
+      pacoteValor: pacoteMes ? Number(pacoteMes.valor) : null,
+    })
   }
 
   // ── ajuste manual ─────────────────────────────────────────────────────────
