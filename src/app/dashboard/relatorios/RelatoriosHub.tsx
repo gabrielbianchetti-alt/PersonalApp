@@ -153,77 +153,6 @@ async function generateFinanceiroPDF(data: FinanceiroReportData): Promise<Blob> 
     margin: { left: 14, right: 14 },
   })
 
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
-
-  // ── Section: SAIDAS ──
-  sectionHeader('SAIDAS', y, 22)
-  y += 6
-
-  autoTable(doc, {
-    startY: y,
-    head: tRows([['Nome', 'Categoria', 'Tipo', 'Valor']]),
-    body: data.custos.length
-      ? tRows(data.custos.map(c => [
-          c.nome,
-          c.categoria,
-          c.tipo === 'fixo' ? 'Fixo' : 'Variavel',
-          brlPDF(c.valor),
-        ]))
-      : tRows([['Nenhum custo registrado', '', '', '']]),
-    foot: data.custos.length
-      ? tRows([
-          ['', 'Custos Fixos',    '', brlPDF(data.totalFixos)],
-          ['', 'Custos Variaveis', '', brlPDF(data.totalVariaveis)],
-          ['', 'TOTAL SAIDAS',    '', brlPDF(data.totalCustos)],
-        ])
-      : undefined,
-    styles:             { fontSize: 9, cellPadding: 2.5 },
-    headStyles:         { fillColor: [30, 30, 30], textColor: [255, 255, 255], fontStyle: 'bold' },
-    footStyles:         { fillColor: [245, 235, 235], fontStyle: 'bold', textColor: [20, 20, 20] },
-    alternateRowStyles: { fillColor: [250, 248, 248] },
-    columnStyles:       { 3: { halign: 'right' } },
-    margin:             { left: 14, right: 14 },
-  })
-
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
-
-  // Check if we need a new page for summary
-  if (y > 240) { doc.addPage(); y = 20 }
-
-  // ── Section: RESUMO ──
-  sectionHeader('RESUMO', y, 26)
-  y += 8
-
-  const summaryItems = [
-    { label: 'Faturamento Bruto', value: brlPDF(data.faturamentoBruto), color: [0, 0, 0] as [number, number, number] },
-    { label: 'Total de Custos',   value: brlPDF(data.totalCustos),       color: [0, 0, 0] as [number, number, number] },
-    { label: 'Lucro Liquido',     value: brlPDF(data.lucroLiquido),      color: data.lucroLiquido >= 0 ? [0, 150, 60] as [number, number, number] : [200, 0, 0] as [number, number, number] },
-    { label: 'Margem de Lucro',   value: `${data.margemLucro}%`,         color: data.margemLucro >= 0 ? [0, 150, 60] as [number, number, number] : [200, 0, 0] as [number, number, number] },
-  ]
-
-  const boxW = (W - 28 - 9) / 2
-  for (let i = 0; i < summaryItems.length; i++) {
-    const col = i % 2
-    const row = Math.floor(i / 2)
-    const bx  = 14 + col * (boxW + 3)
-    const by  = y + row * 20
-
-    doc.setFillColor(245, 248, 246)
-    doc.setDrawColor(210, 230, 220)
-    doc.roundedRect(bx, by, boxW, 16, 2, 2, 'FD')
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-    doc.setTextColor(100, 100, 100)
-    doc.text(t(summaryItems[i].label), bx + 4, by + 6)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    const [r, g, b] = summaryItems[i].color
-    doc.setTextColor(r, g, b)
-    doc.text(summaryItems[i].value, bx + boxW - 4, by + 13, { align: 'right' })
-  }
-
   // ── Footer ──
   const pageCount = doc.getNumberOfPages()
   for (let p = 1; p <= pageCount; p++) {
@@ -462,20 +391,16 @@ async function generatePrevisaoPDF(data: PrevisaoReportData): Promise<Blob> {
 
   autoTable(doc, {
     startY: y,
-    head: tRows([['Mes', 'Faturamento Previsto', 'Custos Fixos', 'Lucro Previsto']]),
+    head: tRows([['Mes', 'Faturamento Previsto']]),
     body: tRows(data.meses.map((m, i) => [
       i === 0 ? `${m.label} (atual)` : m.label,
       brlPDF(m.faturamentoPrevisto),
-      brlPDF(m.custosPrevisto),
-      brlPDF(m.lucroPrevisto),
     ])),
     styles:             { fontSize: 9, cellPadding: 3 },
     headStyles:         { fillColor: [30, 30, 30], textColor: [255, 255, 255] },
     alternateRowStyles: { fillColor: [248, 245, 255] },
     columnStyles: {
-      1: { halign: 'right' },
-      2: { halign: 'right' },
-      3: { halign: 'right', fontStyle: 'bold' },
+      1: { halign: 'right', fontStyle: 'bold' },
     },
     margin: { left: 14, right: 14 },
   })
@@ -817,7 +742,7 @@ export function RelatoriosHub({ mesAtual }: { mesAtual: string }) {
         {/* Card 1 — Financeiro */}
         <ReportCard
           title="Relatório Financeiro"
-          description="Entradas, saídas, lucro e margem do mês. Ideal para enviar ao contador."
+          description="Faturamento e alunos do mês. Ideal para enviar ao contador."
           icon={
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="1" x2="12" y2="23" />
@@ -866,7 +791,7 @@ export function RelatoriosHub({ mesAtual }: { mesAtual: string }) {
         {/* Card 3 — Previsão */}
         <ReportCard
           title="Previsão Financeira"
-          description="Faturamento previsto para os próximos 3 meses com cenários e metas."
+          description="Faturamento previsto para os próximos meses com cenários."
           icon={
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
