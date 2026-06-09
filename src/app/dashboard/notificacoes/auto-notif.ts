@@ -120,6 +120,7 @@ export async function gerarNotificacoesAutomaticasAction(): Promise<void> {
         mensagem:  `Cobrança enviada há ${dias} dia${dias > 1 ? 's' : ''} sem confirmação.`,
         link:      '/dashboard/financeiro?tab=cobranca',
         dedup_key: `cobranca_pendente_${cob.aluno_id}_${mesRef}_${todayStr}`,
+        email:     true,
       })
     }
   }
