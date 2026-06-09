@@ -525,11 +525,6 @@ async function generatePrevisaoPDF(data: PrevisaoReportData): Promise<Blob> {
     head: tRows([['Indicador', 'Valor']]),
     body: tRows([
       ['Ticket Medio por Aluno', brlPDF(data.ticketMedio)],
-      ...(data.metaLucro > 0 ? [
-        ['Meta de Lucro Mensal', brlPDF(data.metaLucro)],
-        ['Alunos necessarios para atingir a meta',
-          data.alunosNecessarios > 0 ? `+${data.alunosNecessarios} alunos` : 'Meta ja atingida!'],
-      ] : []),
     ]),
     styles:             { fontSize: 9, cellPadding: 3 },
     headStyles:         { fillColor: [30, 30, 30], textColor: [255, 255, 255] },

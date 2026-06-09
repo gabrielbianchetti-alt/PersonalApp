@@ -70,8 +70,6 @@ export interface PrevisaoReportData {
   pessimista: number
   atual: number
   otimista: number
-  metaLucro: number
-  alunosNecessarios: number
 }
 
 // ── Financeiro Report ─────────────────────────────────────────────────────────
@@ -291,7 +289,6 @@ export async function getPrevisaoReportData(): Promise<{ data?: PrevisaoReportDa
   const [
     { data: alunos },
     { data: fixosRoots },
-    { data: metaRow },
   ] = await Promise.all([
     supabase.from('alunos')
       .select('id, horarios, modelo_cobranca, valor')
@@ -303,10 +300,6 @@ export async function getPrevisaoReportData(): Promise<{ data?: PrevisaoReportDa
       .eq('tipo', 'fixo')
       .or('ativo.is.null,ativo.eq.true')
       .is('origem_id', null),
-    supabase.from('metas')
-      .select('meta_mensal')
-      .eq('professor_id', user.id)
-      .maybeSingle(),
   ])
 
   const alunosList    = alunos ?? []
@@ -345,10 +338,6 @@ export async function getPrevisaoReportData(): Promise<{ data?: PrevisaoReportDa
   const atual       = nextFat - totalFixosMes
   const pessimista  = Math.max(0, nextFat - 2 * ticketMedio - totalFixosMes)
   const otimista    = nextFat + 2 * ticketMedio - totalFixosMes
-  const metaLucro   = Number(metaRow?.meta_mensal ?? 0)
-  const alunosNecessarios = ticketMedio > 0 && metaLucro > atual
-    ? Math.ceil((metaLucro - atual) / ticketMedio)
-    : 0
 
   return {
     data: {
@@ -359,8 +348,6 @@ export async function getPrevisaoReportData(): Promise<{ data?: PrevisaoReportDa
       pessimista,
       atual,
       otimista,
-      metaLucro,
-      alunosNecessarios,
     },
   }
 }
