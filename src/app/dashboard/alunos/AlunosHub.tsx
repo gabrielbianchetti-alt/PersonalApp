@@ -12,7 +12,6 @@ import { DIAS_SEMANA, DURACAO_OPCOES } from '@/types/aluno'
 import { ConvidarAlunoModal } from './ConvidarAlunoModal'
 import { AprovacaoCard, PendenteCard } from './AprovacoesSection'
 import type { SuspensaoRow } from '../suspensoes/types'
-import type { ModeloTermo, TermoEnviado } from '../termos/types'
 import type {
   ConviteRow, ConvitePendenteComAluno,
 } from '../convites/actions'
@@ -25,10 +24,6 @@ const NovoAlunoForm = dynamic(
 )
 const Suspensoes = dynamic(
   () => import('../suspensoes/Suspensoes').then(m => ({ default: m.Suspensoes })),
-  { loading: () => <TabSkeleton /> },
-)
-const Termos = dynamic(
-  () => import('../termos/Termos').then(m => ({ default: m.Termos })),
   { loading: () => <TabSkeleton /> },
 )
 
@@ -53,7 +48,7 @@ export interface AlunoMinimal {
   horarios: { dia: string; horario: string }[]
 }
 
-export type AlunosTab = 'lista' | 'novo' | 'aprovacao' | 'suspensos' | 'termos'
+export type AlunosTab = 'lista' | 'novo' | 'aprovacao' | 'suspensos'
 
 interface Props {
   initialTab: AlunosTab
@@ -61,11 +56,8 @@ interface Props {
   alunos: AlunoFull[]
   alunosPausados: AlunoMinimal[]
   suspensoesIniciais: SuspensaoRow[]
-  modelos: ModeloTermo[]
-  historicoTermos: TermoEnviado[]
   convitesIniciais?: ConviteRow[]
   aprovacoesIniciais?: ConvitePendenteComAluno[]
-  alunoIdInicial?: string
 }
 
 // ─── inline toast (sem side-effects de roteamento) ───────────────────────────
@@ -126,11 +118,8 @@ export function AlunosHub({
   alunos: initialAlunos,
   alunosPausados,
   suspensoesIniciais,
-  modelos,
-  historicoTermos,
   convitesIniciais = [],
   aprovacoesIniciais = [],
-  alunoIdInicial,
 }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<AlunosTab>(initialTab)
@@ -156,7 +145,6 @@ export function AlunosHub({
     { key: 'lista',      label: 'Lista' },
     { key: 'aprovacao',  label: aprovacoesCount > 0 ? `Aprovações (${aprovacoesCount})` : 'Aprovações' },
     { key: 'suspensos',  label: 'Suspensos' },
-    { key: 'termos',     label: 'Termos' },
   ]
 
   // Called by NovoAlunoForm after a successful insert
@@ -395,16 +383,6 @@ export function AlunosHub({
             alunosAtivos={alunos}
             alunosPausados={alunosPausados}
             suspensoesIniciais={suspensoesIniciais}
-          />
-        )}
-
-        {/* ── Termos ── */}
-        {tab === 'termos' && (
-          <Termos
-            alunos={alunos}
-            modelos={modelos}
-            historicoInicial={historicoTermos}
-            alunoIdInicial={alunoIdInicial}
           />
         )}
 
