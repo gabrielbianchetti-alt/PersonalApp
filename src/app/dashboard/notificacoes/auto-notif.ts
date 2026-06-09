@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { enviarEmailNotificacao } from '@/lib/email/notify'
 
 const DOW_TO_KEY: Record<number, string> = {
   1: 'seg', 2: 'ter', 3: 'qua', 4: 'qui', 5: 'sex', 6: 'sab', 0: 'dom',
@@ -23,6 +24,8 @@ type Candidate = {
   mensagem: string
   link: string | null
   dedup_key: string
+  /** Marca para envio por e-mail (passivo) quando o Resend estiver ativo. */
+  email?: boolean
 }
 
 export async function gerarNotificacoesAutomaticasAction(): Promise<void> {
@@ -162,6 +165,7 @@ export async function gerarNotificacoesAutomaticasAction(): Promise<void> {
       mensagem:  'Não esqueça de gerar as cobranças do mês para seus alunos.',
       link:      '/dashboard/financeiro?tab=cobranca',
       dedup_key: `novo_mes_${mesRef}_${user.id}`,
+      email:     true,
     })
   }
 
@@ -203,6 +207,23 @@ export async function gerarNotificacoesAutomaticasAction(): Promise<void> {
       dedup_key:      candidates[i].dedup_key,
     }))
   )
+
+  // ── E-mail (passivo) — ponto de integração preparado ──────────────────────
+  // No-op seguro até o Resend estar configurado (ver src/lib/email/notify.ts).
+  // Envia só as categorias marcadas com `email: true` (hoje: o lembrete de
+  // gerar as cobranças do novo mês). Deduplicado pelo dedup_key → 1x por mês.
+  if (user.email) {
+    for (const c of candidates) {
+      if (c.email) {
+        await enviarEmailNotificacao({
+          to:      user.email,
+          titulo:  c.titulo,
+          mensagem: c.mensagem,
+          link:    c.link,
+        })
+      }
+    }
+  }
 
   // ── 50-limit enforcement — once per run, not per notification ─────────────
   const { data: all } = await admin
