@@ -139,7 +139,7 @@ export default async function AlunoPerfilPage({
                   : { background: 'var(--bg-input)', color: 'var(--text-muted)' }
                 }
               >
-                {aluno.status}
+                {aluno.status.charAt(0).toUpperCase() + aluno.status.slice(1)}
               </span>
             </div>
             {aluno.whatsapp && (
@@ -229,11 +229,15 @@ export default async function AlunoPerfilPage({
         </div>
       )}
 
-      {/* Danger zone */}
-      <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239, 68, 68,0.15)' }}>
-        <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'rgba(239, 68, 68,0.7)' }}>Zona de perigo</p>
-        <DeleteAlunoButton alunoId={id} alunoNome={aluno.nome} />
-      </div>
+      {/* Danger zone — recolhida por padrão (ação destrutiva fora do caminho) */}
+      <details className="rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+        <summary className="text-xs font-medium px-4 py-3 cursor-pointer list-none" style={{ color: 'var(--text-muted)' }}>
+          Mais opções
+        </summary>
+        <div className="px-4 pb-4">
+          <DeleteAlunoButton alunoId={id} alunoNome={aluno.nome} />
+        </div>
+      </details>
     </div>
   )
 }
