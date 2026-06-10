@@ -7,9 +7,13 @@
   --green-light: #34D399;
   --green-muted: rgba(16, 185, 129, 0.15);
   --green-border: rgba(16, 185, 129, 0.25);
+  /* Cor semântica — 1 papel cada. Usar no lugar de hex inline. */
+  --info: #38BDF8;    --info-muted: rgba(56, 189, 248, 0.12);   --info-border: rgba(56, 189, 248, 0.25);
+  --warning: #F59E0B; --warning-muted: rgba(245, 158, 11, 0.12); --warning-border: rgba(245, 158, 11, 0.25);
+  --danger: #EF4444;  --danger-muted: rgba(239, 68, 68, 0.1);    --danger-border: rgba(239, 68, 68, 0.2);
   --bg-base: #0B0F19;
   --bg-surface: #111827;
-  --bg-card: #111827;
+  --bg-card: #151E2D;        /* elevação real: card mais claro que surface */
   --bg-input: #1F2937;
   --border-subtle: #374151;
   --border-focus: rgba(16, 185, 129, 0.5);
@@ -30,10 +34,13 @@ html[data-theme="claro"] {
   --green-light: #34D399;
   --green-muted: #D1FAE5;
   --green-border: rgba(16, 185, 129, 0.25);
-  --bg-base: #F9FAFB;
+  --info: #0EA5E9;    --info-muted: rgba(14, 165, 233, 0.1);    --info-border: rgba(14, 165, 233, 0.22);
+  --warning: #D97706; --warning-muted: rgba(217, 119, 6, 0.1);  --warning-border: rgba(217, 119, 6, 0.22);
+  --danger: #DC2626;  --danger-muted: rgba(220, 38, 38, 0.08);  --danger-border: rgba(220, 38, 38, 0.2);
+  --bg-base: #F3F5F7;
   --bg-surface: #FFFFFF;
   --bg-card: #FFFFFF;
-  --bg-input: #FFFFFF;
+  --bg-input: #F1F3F5;
   --border-subtle: #E5E7EB;
   --border-focus: rgba(16, 185, 129, 0.5);
   --text-primary: #111827;
@@ -53,10 +60,13 @@ html[data-theme="auto"] {
     --green-light: #34D399;
     --green-muted: #D1FAE5;
     --green-border: rgba(16, 185, 129, 0.25);
-    --bg-base: #F9FAFB;
+    --info: #0EA5E9;    --info-muted: rgba(14, 165, 233, 0.1);    --info-border: rgba(14, 165, 233, 0.22);
+    --warning: #D97706; --warning-muted: rgba(217, 119, 6, 0.1);  --warning-border: rgba(217, 119, 6, 0.22);
+    --danger: #DC2626;  --danger-muted: rgba(220, 38, 38, 0.08);  --danger-border: rgba(220, 38, 38, 0.2);
+    --bg-base: #F3F5F7;
     --bg-surface: #FFFFFF;
     --bg-card: #FFFFFF;
-    --bg-input: #FFFFFF;
+    --bg-input: #F1F3F5;
     --border-subtle: #E5E7EB;
     --border-focus: rgba(16, 185, 129, 0.5);
     --text-primary: #111827;
