@@ -313,16 +313,6 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto">
 
-      {/* ── Cabeçalho ─────────────────────────────────────────────────── */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-          Cálculo Mensal
-        </h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-          Número exato de aulas e faturamento por aluno
-        </p>
-      </div>
-
       {/* ── Seletor de mês ────────────────────────────────────────────── */}
       <div className="flex items-center justify-center gap-4 mb-6">
         <button
@@ -409,29 +399,34 @@ export function CalculoMensal({ alunos, pacotes = [], preferencias = null }: Pro
         </div>
       )}
 
-      {/* ── Contagem de dias da semana ─────────────────────────────────── */}
-      <div
-        className="flex flex-wrap justify-center gap-2 mb-8 p-4 rounded-xl"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
-      >
-        {DIAS_SEMANA.map(({ key, label }) => (
-          <div
-            key={key}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
-            style={{ background: 'var(--bg-input)' }}
-          >
-            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              {label}
-            </span>
-            <span
-              className="text-xs font-bold w-4 text-center"
-              style={{ color: 'var(--green-primary)' }}
+      {/* ── Contagem de dias da semana (auditoria — recolhida por padrão) ── */}
+      <details className="mb-8">
+        <summary className="text-xs font-medium cursor-pointer list-none mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
+          Ver dias da semana no mês
+        </summary>
+        <div
+          className="flex flex-wrap justify-center gap-2 p-4 rounded-xl"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+        >
+          {DIAS_SEMANA.map(({ key, label }) => (
+            <div
+              key={key}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+              style={{ background: 'var(--bg-input)' }}
             >
-              {weekdayCounts[key]}
-            </span>
-          </div>
-        ))}
-      </div>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                {label}
+              </span>
+              <span
+                className="text-xs font-bold w-4 text-center"
+                style={{ color: 'var(--green-primary)' }}
+              >
+                {weekdayCounts[key]}
+              </span>
+            </div>
+          ))}
+        </div>
+      </details>
 
       {/* ── Cards de resumo ───────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4 mb-8">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { Sidebar } from './Sidebar'
+import { BottomTabBar } from './BottomTabBar'
 import { Logo } from './Logo'
 import { RouteProgress } from './RouteProgress'
 import { applyTheme, applyModo } from '@/lib/color'
@@ -110,11 +111,14 @@ export function DashboardShell({ children, fotoUrl, professorNome, corTema, modo
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">
-          <div key={pathname} className="ph-fade-in">
+          <div key={pathname} className="ph-fade-in pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-0">
             {children}
           </div>
         </main>
       </div>
+
+      {/* Bottom tab bar — navegação principal no mobile */}
+      <BottomTabBar />
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, formatDate, DIAS_SEMANA } from '@/types/aluno'
+import { formatCurrency, formatDate } from '@/types/aluno'
 import { upsertCobrancaAction, updateStatusAction, CobrancaStatus } from './actions'
 import { getAjustesAction } from '../calculo/ajustes-actions'
 import { subscribeAjustes } from '../calculo/ajustes-bus'
@@ -702,8 +702,6 @@ export function CobrancaMensal({
 
   const totalFaturamento = alunos.reduce((s, a) => s + alunoFaturamento(a), 0)
   const countPendente = alunos.filter(alunoCountsAsPendente).length
-  const countEnviado  = Object.values(cobrancas).filter(c => c.status === 'enviado').length
-  const countPago     = Object.values(cobrancas).filter(c => c.status === 'pago').length
 
   const mesRef = formatMesRef(year, month)
 
@@ -712,14 +710,8 @@ export function CobrancaMensal({
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto">
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Cobrança</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-            Gere e acompanhe cobranças mensais
-          </p>
-        </div>
+      {/* Header — só a engrenagem de preferências (o título vem do hub/aba) */}
+      <div className="flex items-center justify-end mb-4">
         <Link
           href="/dashboard/cobranca/preferencias"
           className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
@@ -759,22 +751,15 @@ export function CobrancaMensal({
         </button>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { label: 'Faturamento', value: formatCurrency(totalFaturamento), green: true },
-          { label: 'Pendente',    value: String(countPendente), suffix: ' cobr.' },
-          { label: 'Enviado',     value: String(countEnviado),  suffix: ' cobr.' },
-          { label: 'Pago',        value: String(countPago),     suffix: ' cobr.' },
-        ].map(({ label, value, suffix, green }) => (
-          <div key={label} className="p-4 rounded-xl"
-            style={{ background: green ? 'var(--green-muted)' : 'var(--bg-card)', border: `1px solid ${green ? 'rgba(16, 185, 129,0.2)' : 'var(--border-subtle)'}` }}>
-            <p className="text-xs mb-1" style={{ color: green ? 'var(--green-primary)' : 'var(--text-muted)' }}>{label}</p>
-            <p className="text-lg font-bold leading-tight" style={{ color: green ? 'var(--green-primary)' : 'var(--text-primary)' }}>
-              {value}<span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>{suffix}</span>
-            </p>
-          </div>
-        ))}
+      {/* Resumo em 1 linha — Enviado/Pago já aparecem nos badges e nos filtros */}
+      <div className="flex items-baseline gap-2 mb-6 px-1">
+        <span className="text-lg font-bold" style={{ color: 'var(--green-primary)' }}>{formatCurrency(totalFaturamento)}</span>
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>faturamento</span>
+        {countPendente > 0 && (
+          <span className="text-sm ml-auto" style={{ color: 'var(--text-secondary)' }}>
+            {countPendente} pendente{countPendente !== 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
       {/* Filter tabs */}
@@ -876,7 +861,6 @@ export function CobrancaMensal({
               const aulas        = isPacote
                 ? null
                 : (aluno.modelo_cobranca === 'mensalidade' ? null : (ajuste ?? (dates.length + extraCount)) + duplaCount)
-              const diasLabels   = aluno.horarios.map(h => DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
               const status       = cobranca?.status ?? 'pendente'
               const dueDiff      = (!showRenovar && usePersonalizado) ? getDueDiff(aluno, year, month) : null
               const isOverdue    = dueDiff !== null && dueDiff < 0 && status !== 'pago'
@@ -948,12 +932,6 @@ export function CobrancaMensal({
                             Renovação pendente
                           </span>
                         )}
-                      </div>
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        {diasLabels.map(d => (
-                          <span key={d} className="text-xs px-1.5 py-px rounded"
-                            style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>{d}</span>
-                        ))}
                       </div>
                     </div>
 

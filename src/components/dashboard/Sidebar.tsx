@@ -56,16 +56,8 @@ function NavItemBody({
           </span>
         )}
       </span>
-      <span className="flex-1 min-w-0 flex flex-col">
+      <span className="flex-1 min-w-0">
         <span className="text-sm font-medium truncate">{label}</span>
-        {showBadge && (
-          <span
-            className="text-[10.5px] truncate leading-tight mt-0.5"
-            style={{ color: '#EF4444', fontWeight: 600 }}
-          >
-            {badge!.label}
-          </span>
-        )}
       </span>
       {pending && !isActive && (
         <span
