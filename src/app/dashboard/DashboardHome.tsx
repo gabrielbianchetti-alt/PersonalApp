@@ -206,11 +206,8 @@ function AlertaCarrossel({ alertas }: { alertas: AlertaItem[] }) {
     setTimeout(() => { setIdx(next); setVisible(true) }, 180)
   }, [])
 
-  useEffect(() => {
-    if (alertas.length <= 1) return
-    const id = setInterval(() => goTo((idx + 1) % alertas.length), 5000)
-    return () => clearInterval(id)
-  }, [idx, alertas.length, goTo])
+  // Sem auto-rotate: o alerta some antes da ação e puxa o olho. O usuário
+  // avança manualmente pelos dots. (clean & objetivo — 1 foco por vez)
 
   if (alertas.length === 0) return null
 
@@ -305,7 +302,7 @@ export function DashboardHome({
   nudges,
 }: Props) {
   const [alunosCobranca, setAlunosCobranca] = useState<AlunoCobranca[]>(todosAlunosInit)
-  const [cobrancaTab, setCobrancaTab]       = useState<CobrancaTab>('pendente')
+  const [cobrancaTab]                       = useState<CobrancaTab>('pendente')
   const [faltaModal, setFaltaModal]         = useState<AulaHoje | null>(null)
 
   const router = useRouter()
@@ -424,7 +421,7 @@ export function DashboardHome({
   }
 
   // limit 5
-  const alertasVisiveis = alertas.slice(0, 5)
+  const alertasVisiveis = alertas.slice(0, 3)
 
   // ── cobrança handlers ─────────────────────────────────────────────────────
   async function handleMarcarPago(alunoId: string) {
@@ -457,13 +454,6 @@ export function DashboardHome({
     const msg = `Olá ${firstName}! Passando para lembrar que a mensalidade de ${formatCurrency(a.valor)} referente a ${mesNome} ainda está pendente. Obrigado! 😊`
     return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
   }
-
-  // ── tab label helper ──────────────────────────────────────────────────────
-  const TAB_LABELS: { key: CobrancaTab; label: string; count: number }[] = [
-    { key: 'pendente', label: 'Pendentes', count: pendentesTab.length },
-    { key: 'enviado',  label: 'Enviadas',  count: enviadasTab.length },
-    { key: 'pago',     label: 'Pagos',     count: pagosTab.length },
-  ]
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -717,46 +707,18 @@ export function DashboardHome({
         </Link>
       </div>
 
-      {/* ── Ações rápidas — fluxo core (cadastro → cálculo → cobrança) a 1 toque ── */}
+      {/* ── Ação: novo aluno (única ação que não está a 1 toque pela nav/cards) ── */}
       {totalAlunos > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            {
-              href: '/dashboard/alunos/novo',
-              label: 'Novo aluno',
-              tint: 'var(--green-muted)',
-              color: 'var(--green-primary)',
-              icon: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></>,
-            },
-            {
-              href: '/dashboard/financeiro?tab=calculo',
-              label: 'Cálculo',
-              tint: 'rgba(56, 189, 248,0.12)',
-              color: '#38BDF8',
-              icon: <><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="8" y1="6" x2="16" y2="6" /><path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" /></>,
-            },
-            {
-              href: '/dashboard/financeiro?tab=cobranca',
-              label: 'Cobrança',
-              tint: 'var(--green-muted)',
-              color: 'var(--green-primary)',
-              icon: <><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></>,
-            },
-          ].map(({ href, label, tint, color, icon }) => (
-            <Link key={href} href={href}
-              className="rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-colors"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: '14px 8px', gap: 8, minHeight: 84 }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-focus)')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}>
-              <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: tint }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  {icon}
-                </svg>
-              </span>
-              <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</span>
-            </Link>
-          ))}
-        </div>
+        <Link href="/dashboard/alunos/novo"
+          className="flex items-center justify-center gap-2 rounded-2xl cursor-pointer transition-colors"
+          style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', minHeight: 48, fontWeight: 600, fontSize: 14 }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-focus)')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
+          </svg>
+          Novo aluno
+        </Link>
       )}
 
       {/* ╔══════════════════════════════════════════════════════════════╗
@@ -773,33 +735,7 @@ export function DashboardHome({
           </Link>
         </div>
 
-        {/* Tabs */}
-        <div className="flex px-4 pb-2" style={{ gap: 4, borderBottom: '1px solid var(--border-subtle)' }}>
-          {TAB_LABELS.map(({ key, label, count }) => (
-            <button
-              key={key}
-              onClick={() => setCobrancaTab(key)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-              style={cobrancaTab === key
-                ? { background: 'var(--green-muted)', color: 'var(--green-primary)', border: '1px solid rgba(16, 185, 129,0.2)' }
-                : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent' }
-              }
-            >
-              {label}
-              <span
-                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
-                style={{
-                  background: cobrancaTab === key ? 'rgba(16, 185, 129,0.2)' : 'var(--bg-input)',
-                  color: cobrancaTab === key ? 'var(--green-primary)' : 'var(--text-muted)',
-                }}
-              >
-                {count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content — scrollable */}
+        {/* Só pendentes — Enviadas/Pagos vivem no hub de Cobrança ("Ver tudo →") */}
         <div style={{ maxHeight: 280, overflowY: 'auto', padding: '10px 16px 14px' }}>
 
           {/* ── PENDENTES ── */}
@@ -813,7 +749,7 @@ export function DashboardHome({
               </div>
             ) : (
               <div className="flex flex-col" style={{ gap: 5 }}>
-                {pendentesTab.map(a => {
+                {pendentesTab.slice(0, 4).map(a => {
                   const whatsUrl   = buildWhatsApp(a)
                   const todayDate  = new Date()
                   const dueDiff    = (a.dia_cobranca || 1) - todayDate.getDate()
