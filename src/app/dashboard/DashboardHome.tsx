@@ -465,7 +465,7 @@ export function DashboardHome({
           ╚══════════════════════════════════════════════════════════════╝ */}
       <div className="flex items-end justify-between px-1" data-demo-tour="dashboard-header">
         <p className="leading-none"
-          style={{ fontSize: 'clamp(2rem, 6.5vw, 2.75rem)', fontWeight: 300, color: 'var(--green-primary)', letterSpacing: '-0.02em' }}>
+          style={{ fontSize: 'clamp(2rem, 6.5vw, 2.75rem)', fontWeight: 300, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
           {diaAbr} {dayNum} {mesAbr}
         </p>
         <p className="leading-none tabular-nums"
@@ -571,10 +571,10 @@ export function DashboardHome({
         <div className="flex items-center gap-1.5 mb-4 flex-wrap">
           <p className="text-base font-bold flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
             {getGreeting()}, {professorNome.split(' ')[0]}
-            <Hand size={16} strokeWidth={1.75} style={{ color: 'var(--green-primary)' }} aria-hidden />
+            <Hand size={16} strokeWidth={1.75} style={{ color: 'var(--text-muted)' }} aria-hidden />
           </p>
           <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>·</p>
-          <p className="text-sm font-semibold" style={{ color: 'var(--green-primary)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
             {aulasHoje.length === 0 ? 'Sem aulas hoje' : `${aulasHoje.length} aula${aulasHoje.length !== 1 ? 's' : ''} hoje`}
           </p>
         </div>
@@ -686,7 +686,7 @@ export function DashboardHome({
           onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-focus)')}
           onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}>
           <p className="font-black leading-none"
-            style={{ fontSize: 'clamp(2.2rem, 8vw, 3.2rem)', color: 'var(--green-primary)', letterSpacing: '-0.04em' }}>
+            style={{ fontSize: 'clamp(2.2rem, 8vw, 3.2rem)', color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>
             {totalAlunos}
           </p>
           <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>alunos ativos</p>
