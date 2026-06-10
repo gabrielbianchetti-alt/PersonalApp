@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, formatDate, DIAS_SEMANA } from '@/types/aluno'
+import { formatCurrency, formatDate } from '@/types/aluno'
 import { upsertCobrancaAction, updateStatusAction, CobrancaStatus } from './actions'
 import { getAjustesAction } from '../calculo/ajustes-actions'
 import { subscribeAjustes } from '../calculo/ajustes-bus'
@@ -861,7 +861,6 @@ export function CobrancaMensal({
               const aulas        = isPacote
                 ? null
                 : (aluno.modelo_cobranca === 'mensalidade' ? null : (ajuste ?? (dates.length + extraCount)) + duplaCount)
-              const diasLabels   = aluno.horarios.map(h => DIAS_SEMANA.find(s => s.key === h.dia)?.label ?? h.dia)
               const status       = cobranca?.status ?? 'pendente'
               const dueDiff      = (!showRenovar && usePersonalizado) ? getDueDiff(aluno, year, month) : null
               const isOverdue    = dueDiff !== null && dueDiff < 0 && status !== 'pago'
@@ -933,12 +932,6 @@ export function CobrancaMensal({
                             Renovação pendente
                           </span>
                         )}
-                      </div>
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        {diasLabels.map(d => (
-                          <span key={d} className="text-xs px-1.5 py-px rounded"
-                            style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>{d}</span>
-                        ))}
                       </div>
                     </div>
 
